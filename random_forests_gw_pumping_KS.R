@@ -3,7 +3,7 @@
 ## MODIFICATIONS BY: Sayantan Majumdar
 
 ### Set working directory accordingly ###
-setwd('/home/montimaj/Documents/MST/ML/Data/watersheds')
+setwd('/Users/smxnv/Documents/MST/Data/watersheds')
 
 library(raster)
 library(sp)
