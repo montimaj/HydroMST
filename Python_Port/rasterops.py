@@ -1,7 +1,6 @@
 # Author: Sayantan Majumdar
 # Email: smxnv@mst.edu
 
-import numpy as np
 import matplotlib.pyplot as plt
 import rasterio as rio
 from rasterio.plot import plotting_extent
@@ -33,7 +32,7 @@ def write_raster(raster_data, raster_file, outfile_path, bands=1):
             crs=raster_file.crs,
             transform=raster_file.transform,
             count=bands,
-            nodata=255
+            nodata=0
     ) as dst:
         dst.write(raster_data, bands)
 
