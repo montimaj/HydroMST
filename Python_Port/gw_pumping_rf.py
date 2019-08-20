@@ -23,7 +23,7 @@ az_class_dict = {(0, 0.5): NO_DATA_VALUE,
                  }
 az_reclass_file = output_dir + 'az_reclass.tif'
 az_reclass = rops.reclassify_raster(az_crop_file, az_class_dict, az_reclass_file)
-#
+
 ks_raster_path = input_dir + 'cropscape/polygonclip_20190306140312_392696635/' \
                              'CDL_2015_clip_20190306140312_392696635.tif'
 ks_ws_path = input_dir + 'watersheds/ks_merged/ks_watershed.shp'
@@ -43,3 +43,5 @@ ks_class_dict = {(0, 0.5): NO_DATA_VALUE,
 
 ks_reclass_file = output_dir + 'ks_reclass.tif'
 ks_reclass = rops.reclassify_raster(ks_crop_file, ks_class_dict, ks_reclass_file)
+ks_reclass_file_2 = output_dir + 'ks_reclass2.tif'
+ks_reclass2 = rops.resample_raster(ks_reclass_file, ks_reclass_file_2)
