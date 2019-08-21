@@ -3,7 +3,7 @@
 ## MODIFICATIONS BY: Sayantan Majumdar
 
 ### Set working directory accordingly ###
-setwd('/Users/smxnv/Documents/MST/Data/watersheds')
+setwd('/Users/smxnv/Documents/Data/watersheds')
 
 library(raster)
 library(sp)
@@ -25,7 +25,7 @@ plot(az_crop)
 plot(az_reclass)
 # 
 writeRaster(az_reclass,filename = '../cropscape/az_reclass.tiff',overwrite=T)
-
+writeRaster(az_crop,filename = '../cropscape/az_crop_new.tiff',overwrite=T)
 ########## KANSAS DATA #############
 class_mat=c(0,59.5,1,66.5,77.5,1,203.5,255,1,110.5,111.5,2,111.5,112.5,NA,
             120.5,124.5,3,59.5,61.5,NA,130.5,195.5,NA)

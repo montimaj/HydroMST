@@ -6,9 +6,12 @@ import rasterio as rio
 from rasterio.plot import plotting_extent
 from rasterio.mask import mask
 from rasterio.enums import Resampling as res
+from rasterio.warp import reproject, Resampling
 from shapely.geometry import mapping
 import geopandas as gpd
 import numpy as np
+import gdal
+from glob import glob
 # import seaborn as sns
 # plt.ion()
 
@@ -37,7 +40,6 @@ def write_raster(raster_data, raster_file, transform, outfile_path, no_data_valu
             nodata=no_data_value
     ) as dst:
         dst.write(raster_data, raster_file.count)
-    dst.close()
 
 
 def crop_raster(input_raster_file, input_mask_path, outfile_path, plot_fig=False, plot_title=""):
@@ -86,22 +88,91 @@ def reclassify_raster(input_raster_file, class_dict, outfile_path):
     return raster_data
 
 
-def resample_raster(input_raster_file, outfile_path, resampling_factor=3, resampling_func=res.mode):
+def resample_raster(input_raster_file, outfile_path, resampling_factor=3, resampling_func=res.mode, downsample=True):
     """
     Resample raster data
     :param input_raster_file: Input raster file path
     :param outfile_path: Output file path
     :param resampling_factor: Resampling factor
     :param resampling_func: Resampling function
+    :param downsample: Default true for downsampling, else upsampling
     :return: Resampled raster
     """
 
     raster_file = rio.open(input_raster_file)
-    new_shape = (1, np.int(raster_file.height / resampling_factor), np.int(raster_file.width / resampling_factor),
-                 raster_file.count)
+    if downsample:
+        height, width = raster_file.height // resampling_factor, raster_file.width // resampling_factor
+    else:
+        height, width = raster_file.height * resampling_factor, raster_file.width * resampling_factor
+    new_shape = (1, height, width, raster_file.count)
     raster_data = raster_file.read(out_shape=new_shape, resampling=resampling_func)
     raster_data = np.squeeze(raster_data)
-    transform = np.array(raster_file.transform) * np.array([resampling_factor, 1, 1, 1, resampling_factor, 1, 1, 1, 1])
-    transform = transform.tolist()[:6]
-    write_raster(raster_data, raster_file, transform=transform, outfile_path=outfile_path)
+    transform_factor = np.array([resampling_factor, 1, 1, 1, resampling_factor, 1, 1, 1, 1])
+    transform_matrix = np.array(raster_file.transform)
+    if downsample:
+        transform_matrix = transform_matrix * transform_factor
+    else:
+        transform_matrix = transform_matrix / transform_factor
+    transform_matrix = transform_matrix.tolist()[:6]
+    write_raster(raster_data, raster_file, transform=transform_matrix, outfile_path=outfile_path)
     return raster_data
+
+
+def stack_rasters(input_dir, pattern):
+    """
+    Create a stack containing several rasters
+    :param input_dir: Input directory containing rasters
+    :param pattern: File pattern to search for, the file names should end with _mmmyy.tif
+    :return: Stack of rasters stored as a dictionary containing (month, year) as keys and rasterio files as values
+    """
+
+    raster_stack = {}
+    months = {'jan': 'January', 'feb': 'February', 'mar': 'March', 'apr': 'April', 'may': 'May', 'jun': 'June',
+              'jul': 'July', 'aug': 'August', 'sep': 'September', 'oct': 'October', 'nov': 'November',
+              'dec': 'December'}
+    for raster_file in glob(input_dir + '/' + pattern):
+        month_yr = raster_file[raster_file.rfind('_') + 1: raster_file.rfind('.')]
+        month, year = months[month_yr[:3].lower()], int('20' + month_yr[3:])
+        raster_stack[(month, year)] = rio.open(raster_file)
+    return raster_stack
+
+
+def apply_raster_stack_arithmetic(raster_stack, outfile_path, ops='sum'):
+    """
+    Apply arithmetric operations on a raster stack
+    :param raster_stack: Input raster stack stored as a dictionary
+    :param outfile_path: Output file path
+    :param ops: Specified operation, default is sum, others include sub and mul
+    :return: Resultant raster
+    """
+
+    raster_file_list = list(raster_stack.values())
+    result_arr = raster_file_list[0].read(1)
+    for raster_file in raster_file_list[1:]:
+        raster_arr = raster_file.read(1)
+        if ops == 'sum':
+            result_arr = result_arr + raster_arr
+        elif ops == 'sub':
+            result_arr = result_arr - raster_arr
+        else:
+            result_arr = result_arr * raster_arr
+    write_raster(result_arr, raster_file_list[0], transform=raster_file_list[0].transform, outfile_path=outfile_path)
+    return result_arr
+
+
+def reproject_raster(src_raster_file, dst_raster_file, outfile_path, resampling=gdal.GRA_NearestNeighbour):
+    """
+    Reproject one raster to another
+    :param src_raster_file: Source raster file
+    :param dst_raster_file: Destination raster file
+    :param outfile_path: Output file path
+    :param resampling: Resampling technique, nearest neighbor is the default
+    :return: Reprojected raster
+    """
+
+    src_raster_file = gdal.Open(src_raster_file)
+    dst_raster_file = gdal.Open(dst_raster_file)
+    transform = dst_raster_file.GetGeoTransform()
+    xRes, yRes = transform[1], transform[5]
+    gdal.Warp(outfile_path, src_raster_file, xRes=xRes, yRes=yRes, resampleAlg=resampling,
+              dstSRS=dst_raster_file.GetProjection())

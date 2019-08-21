@@ -2,6 +2,7 @@
 # Email: smxnv@mst.edu
 
 from Python_Port import rasterops as rops
+
 NO_DATA_VALUE = 0
 
 input_dir = '/Users/smxnv/Documents/Data/'
@@ -45,3 +46,11 @@ ks_reclass_file = output_dir + 'ks_reclass.tif'
 ks_reclass = rops.reclassify_raster(ks_crop_file, ks_class_dict, ks_reclass_file)
 ks_reclass_file_2 = output_dir + 'ks_reclass2.tif'
 ks_reclass2 = rops.resample_raster(ks_reclass_file, ks_reclass_file_2)
+
+ET_stack = rops.stack_rasters(input_dir + 'ET_precip', pattern='ET*')
+P_stack = rops.stack_rasters(input_dir + 'ET_precip', pattern='precip*')
+
+demand_file = output_dir + 'demand.tif'
+demand_all = rops.apply_raster_stack_arithmetic(ET_stack, outfile_path=demand_file)
+ks_resamp_file = output_dir + 'ks_resamp.tif'
+ks_resamp = rops.reproject_raster(ks_reclass_file, demand_file, outfile_path=ks_resamp_file)
