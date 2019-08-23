@@ -160,19 +160,50 @@ def apply_raster_stack_arithmetic(raster_stack, outfile_path, ops='sum'):
     return result_arr
 
 
-def reproject_raster(src_raster_file, dst_raster_file, outfile_path, resampling=gdal.GRA_NearestNeighbour):
+def reproject_raster(src_raster_file, dst_raster_file, outfile_path, resampling=gdal.GRA_NearestNeighbour, bydim=True):
     """
     Reproject one raster to another
     :param src_raster_file: Source raster file
     :param dst_raster_file: Destination raster file
     :param outfile_path: Output file path
     :param resampling: Resampling technique, nearest neighbor is the default
+    :param bydim: Resample by fixing image dimensions
     :return: Reprojected raster
     """
 
     src_raster_file = gdal.Open(src_raster_file)
     dst_raster_file = gdal.Open(dst_raster_file)
-    transform = dst_raster_file.GetGeoTransform()
-    xRes, yRes = transform[1], transform[5]
-    gdal.Warp(outfile_path, src_raster_file, xRes=xRes, yRes=yRes, resampleAlg=resampling,
-              dstSRS=dst_raster_file.GetProjection())
+    if not bydim:
+        transform = dst_raster_file.GetGeoTransform()
+        xRes, yRes = transform[1], transform[5]
+        gdal.Warp(outfile_path, src_raster_file, xRes=xRes, yRes=yRes, resampleAlg=resampling,
+                  dstSRS=dst_raster_file.GetProjection())
+    else:
+        dst_band = dst_raster_file.GetRasterBand(1)
+        width, height = dst_band.XSize, dst_band.YSize
+        gdal.Warp(outfile_path, src_raster_file, width=width, height=height, resampleAlg=resampling,
+                  dstSRS=dst_raster_file.GetProjection())
+
+
+def apply_raster_filter(raster_file1, raster_file2, outfile_path, flt_values=(), new_value=0):
+    """
+    Apply filter on raster 1 and set corresponding values in raster 2. The rasters must be aligned properly beforehand.
+    :param raster_file1: Apply filter values to this raster file
+    :param raster_file2: Change values of this raster file with respect to raster 1 filter
+    :param outfile_path: Output file path
+    :param flt_values: Tuple of filter values
+    :param new_value: Replacement value in the new raster
+    :return: Modified raster array
+    """
+
+    raster_file1 = rio.open(raster_file1)
+    raster_file2 = rio.open(raster_file2)
+    rf1_arr = raster_file1.read(1)
+    rf2_arr = raster_file1.read(1)
+    for val in flt_values:
+        rf2_arr[np.where(rf1_arr != val)] = new_value
+    write_raster(rf2_arr, raster_file2, transform=raster_file2.transform, outfile_path=outfile_path,
+                 no_data_value=raster_file2.nodata)
+    raster_file1.close()
+    raster_file2.close()
+

@@ -54,3 +54,6 @@ demand_file = output_dir + 'demand.tif'
 demand_all = rops.apply_raster_stack_arithmetic(ET_stack, outfile_path=demand_file)
 ks_resamp_file = output_dir + 'ks_resamp.tif'
 ks_resamp = rops.reproject_raster(ks_reclass_file, demand_file, outfile_path=ks_resamp_file)
+
+demand_flt_file = output_dir + 'demand_flt.tif'
+demand_all = rops.apply_raster_filter(ks_resamp_file, demand_file, outfile_path=demand_flt_file, flt_values=(1, ))
