@@ -6,27 +6,31 @@ import rasterio as rio
 from rasterio.plot import plotting_extent
 from rasterio.mask import mask
 from rasterio.enums import Resampling as res
-from rasterio.warp import reproject, Resampling
 from shapely.geometry import mapping
 import geopandas as gpd
 import numpy as np
 import gdal
 from glob import glob
+import astropy.convolution as apc
+import subprocess
 # import seaborn as sns
 # plt.ion()
 
 
-def write_raster(raster_data, raster_file, transform, outfile_path, no_data_value=0):
+def write_raster(raster_data, raster_file, transform, outfile_path, no_data_value=0, ref_file=None):
     """
     Write raster file in GeoTIFF format
     :param raster_data: Raster data to be written
-    :param raster_file: Original raster file containing geo-coordinates
+    :param raster_file: Original rasterio raster file containing geo-coordinates
     :param transform: Affine transformation matrix
     :param outfile_path: Outfile file path
     :param no_data_value: No data value for raster image
+    :param ref_file: Write output raster considering parameters from reference raster file
     :return: None
     """
-
+    if ref_file:
+        raster_file = rio.open(ref_file)
+        transform = raster_file.transform
     with rio.open(
             outfile_path,
             'w',
@@ -160,9 +164,9 @@ def apply_raster_stack_arithmetic(raster_stack, outfile_path, ops='sum'):
     return result_arr
 
 
-def reproject_raster(src_raster_file, dst_raster_file, outfile_path, resampling=gdal.GRA_NearestNeighbour, bydim=True):
+def reproject_raster(src_raster_file, dst_raster_file, outfile_path, resampling=gdal.GRA_NearestNeighbour, bydim=False):
     """
-    Reproject one raster to another
+    Reproject raster to another raster
     :param src_raster_file: Source raster file
     :param dst_raster_file: Destination raster file
     :param outfile_path: Output file path
@@ -207,3 +211,95 @@ def apply_raster_filter(raster_file1, raster_file2, outfile_path, flt_values=(),
     raster_file1.close()
     raster_file2.close()
 
+
+def apply_raster_filter2(input_raster_file, outfile_path, val=2):
+    """
+    Extract selected value from raster
+    :param input_raster_file: Input raster file
+    :param outfile_path: Output raster file
+    :param val: Value to be selected from raster
+    :return: Raster numpy array
+    """
+
+    input_raster_file = rio.open(input_raster_file)
+    raster_arr = input_raster_file.read(1)
+    raster_arr[raster_arr != val] = input_raster_file.nodata
+    write_raster(raster_arr, input_raster_file, transform=input_raster_file.transform, outfile_path=outfile_path)
+    return  raster_arr
+
+
+def get_gw_pumping(gw_raster_file):
+    """
+    Groundwater pumping raster data in mm
+    :param gw_raster_file: Input GW raster file
+    :return: GW rasterio file and numpy array
+    """
+
+    gw_raster_file = rio.open(gw_raster_file)
+    gw_arr = gw_raster_file.read(1) * 1233.48 * 1000. / 2.59e+6
+    return gw_raster_file, gw_arr
+
+
+def apply_gaussian_filter(input_raster_file, outfile_path, sigma=3, svalue=2):
+    """
+    Apply a gaussian filter over a raster image
+    :param input_raster_file: Input raster file
+    :param outfile_path: Output file path
+    :param sigma: Standard Deviation for gaussian kernel (default 3)
+    :param svalue: Selected pixel value to keep (default 2), other values will be no data values
+    :return: Gaussian filtered raster
+    """
+
+    input_raster_file = rio.open(input_raster_file)
+    raster_arr = input_raster_file.read(1).astype(np.float)
+    raster_arr[raster_arr == input_raster_file.nodata] = np.nan
+    gaussian_kernel = apc.Gaussian2DKernel(x_stddev=sigma)
+    raster_arr_flt = apc.convolve(raster_arr, gaussian_kernel, preserve_nan=True)
+    raster_arr_flt[np.isnan(raster_arr_flt)] = input_raster_file.nodata
+    raster_arr_flt[raster_arr_flt != svalue] = input_raster_file.nodata
+    raster_arr_flt = raster_arr_flt.astype(np.int8)
+    write_raster(raster_arr_flt, input_raster_file, transform=input_raster_file.transform, outfile_path=outfile_path)
+
+
+def gdal_warp_syscall(input_raster_file, outfile_path, resampling_factor=3, resampling_func=gdal.GRA_Max,
+                      downsampling=True, bydim=False):
+    """
+    System call for mitigating GDALGetResampleFunction error at runtime
+    :param input_raster_file: Input raster file
+    :param outfile_path: Output file path
+    :param resampling_factor: Resampling factor (default 3)
+    :param resampling_func: Resampling function
+    :param downsampling: Downsample raster (default True)
+    :param bydim: Resample by fixing image dimensions
+    :return: None
+    """
+
+    src_raster_file = gdal.Open(input_raster_file)
+    src_band = src_raster_file.GetRasterBand(1)
+    if not bydim:
+        transform = src_raster_file.GetGeoTransform()
+        xRes, yRes = transform[1], transform[5]
+    else:
+        width, height = src_band.XSize, src_band.YSize
+    projection = src_raster_file.GetProjection()
+    no_data = src_band.GetNoDataValue()
+    if bydim:
+        if downsampling:
+            resampling_factor = 1 / resampling_factor
+        width, height = int(width * resampling_factor), int(height * resampling_factor)
+    else:
+        if not downsampling:
+            resampling_factor = 1 / resampling_factor
+        xRes, yRes = int(xRes * resampling_factor), int(yRes * resampling_factor)
+    resampling_dict = {1: 'near', 2: 'bilinear', 3: 'cubic', 4: 'cubicspline', 5: 'lanczos', 6: 'average', 7: 'mode',
+                       8: 'max', 9: 'min', 10: 'med', 11: 'q1', 12: 'q3'}
+    resampling_func = resampling_dict[resampling_func]
+    if bydim:
+        sys_call = ['gdalwarp', '-s_srs', projection, '-t_srs', projection, '-dstnodata', str(no_data), '-r',
+                    str(resampling_func), '-ts', str(width), str(height), '-overwrite', input_raster_file,
+                    outfile_path]
+    else:
+        sys_call = ['gdalwarp', '-s_srs', projection, '-t_srs', projection, '-dstnodata', str(no_data), '-r',
+                    str(resampling_func), '-tr', str(xRes), str(yRes), '-overwrite', input_raster_file,
+                    outfile_path]
+    subprocess.call(sys_call)
