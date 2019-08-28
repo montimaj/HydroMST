@@ -37,7 +37,7 @@ ks_crop=raster('../cropscape/polygonclip_20190306140312_392696635/CDL_2015_clip_
 ks_reclass=reclassify(ks_crop,class_mat)
 ks_reclass2=aggregate(ks_reclass,fact=3,fun=modal)
 writeRaster(ks_reclass2,filename = '../cropscape/ks_reclass2.tiff',overwrite=T)
-browser()
+#browser()
 az_reclass=raster('../cropscape/az_reclass.tif')
 save(az_reclass,ks_reclass,file='../crop_reclass.Rda')
 load('../crop_reclass.Rda')
@@ -76,6 +76,7 @@ water=ks_resamp==2
 water[is.na(water)]=0
 water2=projectRaster(water,gw_pumping,method='ngb')
 water3=aggregate(water2,fact=ag,fun=max)
+writeRaster(water3,filename = '../cropscape/water3.tiff',overwrite=T)
 r <- raster(ncols=ncol(water3), nrows=nrow(water3), xmn=0)
 wt=focalWeight(r, 5, "Gauss")
 water4=focal(water3,w=wt)

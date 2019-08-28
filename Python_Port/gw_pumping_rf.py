@@ -83,3 +83,18 @@ water3_file = output_dir + 'water3.tif'
 water3 = rops.gdal_warp_syscall(water2_file, water3_file, resampling_factor=ag)
 water_flt_file = output_dir + 'water_flt.tif'
 water_flt = rops.apply_gaussian_filter(water3_file, outfile_path=water_flt_file, sigma=5)
+
+urban_file = output_dir + 'urban.tif'
+urban = rops.apply_raster_filter2(ks_resamp_file, outfile_path=urban_file, val=3)
+urban_reproj_file = output_dir + 'urban_reproj.tif'
+urban = rops.reproject_raster(urban_file, gw_file, outfile_path=urban_reproj_file)
+urban_resamp_file = output_dir + 'urban_resamp.tif'
+urban = rops.resample_raster(urban_reproj_file, outfile_path=urban_resamp_file, resampling_factor=ag,
+                             resampling_func=res.average)
+p_all_file = output_dir + 'p_all.tif'
+p_all = rops.apply_raster_stack_arithmetic(P_stack, p_all_file)
+p_all_reproj_file = output_dir + 'p_all_reproj.tif'
+p_all_reproj =  rops.reproject_raster(p_all_file, gw_file, outfile_path=p_all_reproj_file)
+p_all_resample_file = output_dir + 'p_all_reproj_res.tif'
+p_all_reproj_res = rops.resample_raster(p_all_reproj_file, outfile_path=p_all_resample_file, resampling_factor=ag,
+                                        resampling_func=res.average)

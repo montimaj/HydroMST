@@ -17,6 +17,18 @@ import subprocess
 # plt.ion()
 
 
+def read_raster_as_arr(raster_file, band=1):
+    """
+    Get raster array
+    :param raster_file: Input raster file
+    :param band: Selected band to read (Default 1)
+    :return: Raster numpy array
+    """
+
+    raster_file = rio.open(raster_file)
+    return raster_file.read(band)
+
+
 def write_raster(raster_data, raster_file, transform, outfile_path, no_data_value=0, ref_file=None):
     """
     Write raster file in GeoTIFF format
@@ -299,7 +311,7 @@ def gdal_warp_syscall(input_raster_file, outfile_path, resampling_factor=3, resa
                     str(resampling_func), '-ts', str(width), str(height), '-overwrite', input_raster_file,
                     outfile_path]
     else:
-        sys_call = ['gdalwarp', '-s_srs', projection, '-t_srs', projection, '-dstnodata', str(no_data), '-r',
-                    str(resampling_func), '-tr', str(xRes), str(yRes), '-overwrite', input_raster_file,
-                    outfile_path]
+        sys_call = ['/usr/local/Cellar/gdal/2.4.2/bin/gdalwarp', '-s_srs', projection, '-t_srs',
+                    projection, '-dstnodata', str(no_data), '-r', str(resampling_func), '-tr', str(xRes), str(yRes),
+                    '-overwrite', input_raster_file, outfile_path]
     subprocess.call(sys_call)
