@@ -5,7 +5,6 @@ import matplotlib.pyplot as plt
 import rasterio as rio
 from rasterio.plot import plotting_extent
 from rasterio.mask import mask
-from rasterio.enums import Resampling as res
 from shapely.geometry import mapping
 import geopandas as gpd
 import numpy as np
@@ -13,8 +12,7 @@ import gdal
 from glob import glob
 import astropy.convolution as apc
 import subprocess
-# import seaborn as sns
-# plt.ion()
+import osr
 
 
 def read_raster_as_arr(raster_file, band=1):
@@ -99,39 +97,39 @@ def reclassify_raster(input_raster_file, class_dict, outfile_path):
     raster_data = raster_file.read(1)
     for key in class_dict.keys():
         raster_data[np.logical_and(raster_data > key[0], raster_data <= key[1])] = class_dict[key]
-    write_raster(raster_data, raster_file, transform=raster_file.transform, outfile_path=outfile_path)
+    write_raster(raster_data.astype(np.float32), raster_file, transform=raster_file.transform, outfile_path=outfile_path)
     raster_file.close()
     return raster_data
 
 
-def resample_raster(input_raster_file, outfile_path, resampling_factor=3, resampling_func=res.mode, downsample=True):
-    """
-    Resample raster data
-    :param input_raster_file: Input raster file path
-    :param outfile_path: Output file path
-    :param resampling_factor: Resampling factor
-    :param resampling_func: Resampling function
-    :param downsample: Default true for downsampling, else upsampling
-    :return: Resampled raster
-    """
-
-    raster_file = rio.open(input_raster_file)
-    if downsample:
-        height, width = raster_file.height // resampling_factor, raster_file.width // resampling_factor
-    else:
-        height, width = raster_file.height * resampling_factor, raster_file.width * resampling_factor
-    new_shape = (1, height, width, raster_file.count)
-    raster_data = raster_file.read(out_shape=new_shape, resampling=resampling_func)
-    raster_data = np.squeeze(raster_data)
-    transform_factor = np.array([resampling_factor, 1, 1, 1, resampling_factor, 1, 1, 1, 1])
-    transform_matrix = np.array(raster_file.transform)
-    if downsample:
-        transform_matrix = transform_matrix * transform_factor
-    else:
-        transform_matrix = transform_matrix / transform_factor
-    transform_matrix = transform_matrix.tolist()[:6]
-    write_raster(raster_data, raster_file, transform=transform_matrix, outfile_path=outfile_path)
-    return raster_data
+# def resample_raster(input_raster_file, outfile_path, resampling_factor=3, resampling_func=res.mode, downsample=True):
+#     """
+#     Resample raster data
+#     :param input_raster_file: Input raster file path
+#     :param outfile_path: Output file path
+#     :param resampling_factor: Resampling factor
+#     :param resampling_func: Resampling function
+#     :param downsample: Default true for downsampling, else upsampling
+#     :return: Resampled raster
+#     """
+#
+#     raster_file = rio.open(input_raster_file)
+#     if downsample:
+#         height, width = raster_file.height // resampling_factor, raster_file.width // resampling_factor
+#     else:
+#         height, width = raster_file.height * resampling_factor, raster_file.width * resampling_factor
+#     new_shape = (1, height, width, raster_file.count)
+#     raster_data = raster_file.read(out_shape=new_shape, resampling=resampling_func)
+#     raster_data = np.squeeze(raster_data)
+#     transform_factor = np.array([resampling_factor, 1, 1, 1, resampling_factor, 1, 1, 1, 1])
+#     transform_matrix = np.array(raster_file.transform)
+#     if downsample:
+#         transform_matrix = transform_matrix * transform_factor
+#     else:
+#         transform_matrix = transform_matrix / transform_factor
+#     transform_matrix = transform_matrix.tolist()[:6]
+#     write_raster(raster_data, raster_file, transform=transform_matrix, outfile_path=outfile_path)
+#     return raster_data
 
 
 def stack_rasters(input_dir, pattern):
@@ -176,29 +174,29 @@ def apply_raster_stack_arithmetic(raster_stack, outfile_path, ops='sum'):
     return result_arr
 
 
-def reproject_raster(src_raster_file, dst_raster_file, outfile_path, resampling=gdal.GRA_NearestNeighbour, bydim=False):
-    """
-    Reproject raster to another raster
-    :param src_raster_file: Source raster file
-    :param dst_raster_file: Destination raster file
-    :param outfile_path: Output file path
-    :param resampling: Resampling technique, nearest neighbor is the default
-    :param bydim: Resample by fixing image dimensions
-    :return: Reprojected raster
-    """
-
-    src_raster_file = gdal.Open(src_raster_file)
-    dst_raster_file = gdal.Open(dst_raster_file)
-    if not bydim:
-        transform = dst_raster_file.GetGeoTransform()
-        xRes, yRes = transform[1], transform[5]
-        gdal.Warp(outfile_path, src_raster_file, xRes=xRes, yRes=yRes, resampleAlg=resampling,
-                  dstSRS=dst_raster_file.GetProjection())
-    else:
-        dst_band = dst_raster_file.GetRasterBand(1)
-        width, height = dst_band.XSize, dst_band.YSize
-        gdal.Warp(outfile_path, src_raster_file, width=width, height=height, resampleAlg=resampling,
-                  dstSRS=dst_raster_file.GetProjection())
+# def reproject_raster(src_raster_file, dst_raster_file, outfile_path, resampling=gdal.GRA_NearestNeighbour, bydim=False):
+#     """
+#     Reproject raster to another raster
+#     :param src_raster_file: Source raster file
+#     :param dst_raster_file: Destination raster file
+#     :param outfile_path: Output file path
+#     :param resampling: Resampling technique, nearest neighbor is the default
+#     :param bydim: Resample by fixing image dimensions
+#     :return: Reprojected raster
+#     """
+#
+#     src_raster_file = gdal.Open(src_raster_file)
+#     dst_raster_file = gdal.Open(dst_raster_file)
+#     if not bydim:
+#         transform = dst_raster_file.GetGeoTransform()
+#         xRes, yRes = transform[1], transform[5]
+#         gdal.Warp(outfile_path, src_raster_file, xRes=xRes, yRes=yRes, resampleAlg=resampling,
+#                   dstSRS=dst_raster_file.GetProjection())
+#     else:
+#         dst_band = dst_raster_file.GetRasterBand(1)
+#         width, height = dst_band.XSize, dst_band.YSize
+#         gdal.Warp(outfile_path, src_raster_file, width=width, height=height, resampleAlg=resampling,
+#                   dstSRS=dst_raster_file.GetProjection())
 
 
 def apply_raster_filter(raster_file1, raster_file2, outfile_path, flt_values=(), new_value=0):
@@ -273,8 +271,21 @@ def apply_gaussian_filter(input_raster_file, outfile_path, sigma=3, svalue=2):
     write_raster(raster_arr_flt, input_raster_file, transform=input_raster_file.transform, outfile_path=outfile_path)
 
 
-def gdal_warp_syscall(input_raster_file, outfile_path, resampling_factor=3, resampling_func=gdal.GRA_Max,
-                      downsampling=True, bydim=False):
+def get_raster_extents(gdal_raster):
+    """
+    Get Raster Extents
+    :param gdal_raster: Input gdal raster object
+    :return: (Xmin, YMax, Xmax, Ymin)
+    """
+    transform = gdal_raster.GetGeoTransform()
+    ulx, uly = transform[0], transform[3]
+    xres, yres = transform[1], transform[5]
+    lrx, lry = ulx + xres * gdal_raster.RasterXSize, uly + yres * gdal_raster.RasterYSize
+    return str(ulx), str(lry), str(lrx), str(uly)
+
+
+def gdal_warp_syscall(input_raster_file, outfile_path, resampling_factor=3, resampling_func=gdal.GRA_NearestNeighbour,
+                      downsampling=True, from_raster=None):
     """
     System call for mitigating GDALGetResampleFunction error at runtime
     :param input_raster_file: Input raster file
@@ -282,38 +293,31 @@ def gdal_warp_syscall(input_raster_file, outfile_path, resampling_factor=3, resa
     :param resampling_factor: Resampling factor (default 3)
     :param resampling_func: Resampling function
     :param downsampling: Downsample raster (default True)
-    :param bydim: Resample by fixing image dimensions
+    :param from_raster: Reproject input raster considering another raster
     :return: None
     """
 
     src_raster_file = gdal.Open(input_raster_file)
-    src_band = src_raster_file.GetRasterBand(1)
-    if not bydim:
-        transform = src_raster_file.GetGeoTransform()
-        xRes, yRes = transform[1], transform[5]
-    else:
-        width, height = src_band.XSize, src_band.YSize
-    projection = src_raster_file.GetProjection()
+    rfile = src_raster_file
+    if from_raster:
+        rfile = gdal.Open(from_raster)
+        resampling_factor = 1
+    src_band = rfile.GetRasterBand(1)
+    transform = rfile.GetGeoTransform()
+    xRes, yRes = transform[1], transform[5]
+    extent = get_raster_extents(rfile)
+    dst_proj = rfile.GetProjection()
     no_data = src_band.GetNoDataValue()
-    if bydim:
-        if downsampling:
-            resampling_factor = 1 / resampling_factor
-        width, height = int(width * resampling_factor), int(height * resampling_factor)
-    else:
-        if not downsampling:
-            resampling_factor = 1 / resampling_factor
-        xRes, yRes = xRes * resampling_factor, yRes * resampling_factor
+    if not downsampling:
+        resampling_factor = 1 / resampling_factor
+    xRes, yRes = xRes * resampling_factor, yRes * resampling_factor
     resampling_dict = {gdal.GRA_NearestNeighbour: 'near', gdal.GRA_Bilinear: 'bilinear', gdal.GRA_Cubic: 'cubic',
                        gdal.GRA_CubicSpline: 'cubicspline', gdal.GRA_Lanczos: 'lanczos', gdal.GRA_Average: 'average',
                        gdal.GRA_Mode: 'mode', gdal.GRA_Max: 'max', gdal.GRA_Min: 'min', gdal.GRA_Med: 'med',
                        gdal.GRA_Q1: 'q1', gdal.GRA_Q3: 'q3'}
     resampling_func = resampling_dict[resampling_func]
-    if bydim:
-        sys_call = ['gdalwarp', '-s_srs', projection, '-t_srs', projection, '-dstnodata', str(no_data), '-r',
-                    str(resampling_func), '-ts', str(width), str(height), '-overwrite', input_raster_file,
-                    outfile_path]
-    else:
-        sys_call = ['/usr/local/Cellar/gdal/2.4.2/bin/gdalwarp', '-s_srs', projection, '-t_srs',
-                    projection, '-dstnodata', str(no_data), '-r', str(resampling_func), '-tr', str(xRes), str(yRes),
-                    '-overwrite', input_raster_file, outfile_path]
+    print(extent)
+    sys_call = ['/usr/local/Cellar/gdal/2.4.2/bin/gdalwarp', '-t_srs', dst_proj, '-te', extent[0], extent[1],
+                extent[2], extent[3], '-dstnodata', str(no_data), '-r', str(resampling_func), '-tr', str(xRes),
+                str(yRes), '-overwrite', input_raster_file, outfile_path]
     subprocess.call(sys_call)

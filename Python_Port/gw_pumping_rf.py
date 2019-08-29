@@ -25,13 +25,13 @@ output_dir = '/Users/smxnv/Documents/Output/'
 #                  (60.5, 61.5): NO_DATA_VALUE,
 #                  (130.5, 195.5): NO_DATA_VALUE
 #                  }
-
+#
 # az_reclass_file = output_dir + 'az_reclass.tif'
 # az_reclass = rops.reclassify_raster(az_crop_file, az_class_dict, az_reclass_file)
 #
 # ks_raster_path = input_dir + 'cropscape/polygonclip_20190306140312_392696635/' \
 #                              'CDL_2015_clip_20190306140312_392696635.tif'
-# ks_ws_path = input_dir + 'watersheds/ks_merged/ks_watershed.shp'
+ks_ws_path = input_dir + 'watersheds/ks_merged/ks_watershed.shp'
 # ks_crop_file = output_dir + 'ks_crop.tif'
 ks_crop_file = input_dir + 'cropscape/polygonclip_20190306140312_392696635/' \
                               'CDL_2015_clip_20190306140312_392696635.tif'
@@ -50,54 +50,63 @@ ks_class_dict = {(0, 59.5): 1,
 ks_reclass_file = output_dir + 'ks_reclass.tif'
 ks_reclass = rops.reclassify_raster(ks_crop_file, ks_class_dict, ks_reclass_file)
 ks_reclass_file_2 = output_dir + 'ks_reclass2.tif'
-# ks_reclass2 = rops.resample_raster(ks_reclass_file, ks_reclass_file_2)
-ks_reclass2 = rops.gdal_warp_syscall(ks_reclass_file, ks_reclass_file_2, resampling_func=gdal.GRA_NearestNeighbour)
+ks_reclass2 = rops.gdal_warp_syscall(ks_reclass_file, ks_reclass_file_2)
 
-# ET_stack = rops.stack_rasters(input_dir + 'ET_precip', pattern='ET*')
-# P_stack = rops.stack_rasters(input_dir + 'ET_precip', pattern='precip*')
-#
-# demand_file = output_dir + 'demand.tif'
-# demand_all = rops.apply_raster_stack_arithmetic(ET_stack, outfile_path=demand_file)
-# ks_resamp_file = output_dir + 'ks_resamp.tif'
-# ks_resamp = rops.reproject_raster(ks_reclass_file, demand_file, outfile_path=ks_resamp_file)
-#
-# demand_flt_file = output_dir + 'demand_flt.tif'
-# demand_all = rops.apply_raster_filter(ks_resamp_file, demand_file, outfile_path=demand_flt_file, flt_values=(1, ))
-#
-# gw_file = input_dir + '2015_smoothed/wuse_st_data/wuse_density_0515_5mile_clip.img'
-# gw_pumping_file, gw_arr = rops.get_gw_pumping(gw_file)
-# ks_ws_reproj_path = output_dir + 'ks_ws_reproj.shp'
-# ks_watershed2 = vops.reproject_vector(ks_ws_path, outfile_path=ks_ws_reproj_path, ref_file=gw_file)
-# demand_all_reproj_file = output_dir + 'demand_all_reproj.tif'
-# demand_all_reproj = rops.reproject_raster(demand_flt_file, gw_file, outfile_path=demand_all_reproj_file)
-#
-# da_res_file = output_dir + 'da_res.tif'
-# gw_res_file = output_dir + 'gw_res.tif'
-# ag=5
-#
+ET_stack = rops.stack_rasters(input_dir + 'ET_precip', pattern='ET*')
+P_stack = rops.stack_rasters(input_dir + 'ET_precip', pattern='precip*')
+
+demand_file = output_dir + 'demand.tif'
+demand_all = rops.apply_raster_stack_arithmetic(ET_stack, outfile_path=demand_file)
+ks_resamp_file = output_dir + 'ks_resamp.tif'
+ks_resamp = rops.gdal_warp_syscall(ks_reclass_file, from_raster=demand_file, outfile_path=ks_resamp_file)
+
+demand_flt_file = output_dir + 'demand_flt.tif'
+demand_all = rops.apply_raster_filter(ks_resamp_file, demand_file, outfile_path=demand_flt_file, flt_values=(1, ))
+
+gw_file = input_dir + '2015_smoothed/wuse_st_data/wuse_density_0515_5mile_clip.img'
+gw_pumping_file, gw_arr = rops.get_gw_pumping(gw_file)
+ks_ws_reproj_path = output_dir + 'ks_ws_reproj.shp'
+ks_watershed2 = vops.reproject_vector(ks_ws_path, outfile_path=ks_ws_reproj_path, ref_file=gw_file)
+demand_all_reproj_file = output_dir + 'demand_all_reproj.tif'
+print('Demand_All_Reproj')
+demand_all_reproj = rops.gdal_warp_syscall(demand_flt_file, from_raster=gw_file, outfile_path=demand_all_reproj_file)
+
+da_res_file = output_dir + 'da_res.tif'
+gw_res_file = output_dir + 'gw_res.tif'
+ag = 5
+
 # da_res = rops.resample_raster(demand_all_reproj_file, outfile_path=da_res_file, resampling_factor=ag)
 # gw_res = rops.resample_raster(gw_file, outfile_path=gw_res_file, resampling_factor=ag)
-#
-# water_file = output_dir + 'water.tif'
-# water = rops.apply_raster_filter2(ks_resamp_file, outfile_path=water_file)
-# water2_file = output_dir + 'water2.tif'
-# water2 = rops.reproject_raster(water_file, gw_file, outfile_path=water2_file)
-# water3_file = output_dir + 'water3.tif'
-# water3 = rops.gdal_warp_syscall(water2_file, water3_file, resampling_factor=ag)
-# water_flt_file = output_dir + 'water_flt.tif'
-# water_flt = rops.apply_gaussian_filter(water3_file, outfile_path=water_flt_file, sigma=5)
-#
-# urban_file = output_dir + 'urban.tif'
-# urban = rops.apply_raster_filter2(ks_resamp_file, outfile_path=urban_file, val=3)
-# urban_reproj_file = output_dir + 'urban_reproj.tif'
-# urban = rops.reproject_raster(urban_file, gw_file, outfile_path=urban_reproj_file)
-# urban_resamp_file = output_dir + 'urban_resamp.tif'
-# urban = rops.resample_raster(urban_reproj_file, outfile_path=urban_resamp_file, resampling_factor=ag,
-#                              resampling_func=res.average)
-# p_all_file = output_dir + 'p_all.tif'
-# p_all = rops.apply_raster_stack_arithmetic(P_stack, p_all_file)
-# p_all_reproj_file = output_dir + 'p_all_reproj.tif'
-# p_all_reproj =  rops.reproject_raster(p_all_file, gw_file, outfile_path=p_all_reproj_file)
-# p_all_resample_file = output_dir + 'p_all_reproj_res.tif'
-# p_all_reproj_res = rops.resample_raster(p_all_reproj_file, outfile_path=p_all_resample_file, resampling_factor=ag,
-#                                         resampling_func=res.average)
+
+water_file = output_dir + 'water.tif'
+water = rops.apply_raster_filter2(ks_resamp_file, outfile_path=water_file)
+water2_file = output_dir + 'water2.tif'
+print("Water 2")
+water2 = rops.gdal_warp_syscall(water_file, from_raster=gw_file, outfile_path=water2_file)
+water3_file = output_dir + 'water3.tif'
+print('Water 3')
+water3 = rops.gdal_warp_syscall(water2_file, water3_file, resampling_factor=ag,
+                                resampling_func=gdal.GRA_Max)
+water_flt_file = output_dir + 'water_flt.tif'
+water_flt = rops.apply_gaussian_filter(water3_file, outfile_path=water_flt_file, sigma=5)
+
+urban_file = output_dir + 'urban.tif'
+urban = rops.apply_raster_filter2(ks_resamp_file, outfile_path=urban_file, val=3)
+urban_reproj_file = output_dir + 'urban_reproj.tif'
+print('Urban')
+urban = rops.gdal_warp_syscall(urban_file, from_raster=gw_file, outfile_path=urban_reproj_file)
+urban_resamp_file = output_dir + 'urban_resamp.tif'
+print('Urban reproj')
+urban = rops.gdal_warp_syscall(urban_reproj_file, outfile_path=urban_resamp_file, resampling_factor=ag,
+                               resampling_func=gdal.GRA_Bilinear)
+p_all_file = output_dir + 'p_all.tif'
+p_all = rops.apply_raster_stack_arithmetic(P_stack, p_all_file)
+p_all_reproj_file = output_dir + 'p_all_reproj.tif'
+print('P_All_Reproj')
+p_all_reproj =  rops.gdal_warp_syscall(p_all_file, from_raster=gw_file, outfile_path=p_all_reproj_file)
+p_all_resample_file = output_dir + 'p_all_reproj_res.tif'
+print('P_All_Reproj_Res')
+p_all_reproj_res = rops.gdal_warp_syscall(p_all_reproj_file, outfile_path=p_all_resample_file, resampling_factor=ag,
+                                          resampling_func=gdal.GRA_Bilinear)
+
+
