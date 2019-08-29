@@ -88,7 +88,7 @@ def crop_raster(input_raster_file, input_mask_path, outfile_path, plot_fig=False
 
 def reclassify_raster(input_raster_file, class_dict, outfile_path):
     """
-    Reclassify raster data based on given class dictionary
+    Reclassify raster data based on given class dictionary (left exclusive, right inclusive)
     :param input_raster_file: Input raster file path
     :param class_dict: Classification dictionary containing (from, to) as keys and "becomes" as value
     :param outfile_path: Output file path (only tiff file)
@@ -98,7 +98,7 @@ def reclassify_raster(input_raster_file, class_dict, outfile_path):
     raster_file = rio.open(input_raster_file)
     raster_data = raster_file.read(1)
     for key in class_dict.keys():
-        raster_data[np.logical_and(raster_data >= key[0], raster_data <= key[1])] = class_dict[key]
+        raster_data[np.logical_and(raster_data > key[0], raster_data <= key[1])] = class_dict[key]
     write_raster(raster_data, raster_file, transform=raster_file.transform, outfile_path=outfile_path)
     raster_file.close()
     return raster_data
@@ -265,7 +265,7 @@ def apply_gaussian_filter(input_raster_file, outfile_path, sigma=3, svalue=2):
     input_raster_file = rio.open(input_raster_file)
     raster_arr = input_raster_file.read(1).astype(np.float)
     raster_arr[raster_arr == input_raster_file.nodata] = np.nan
-    gaussian_kernel = apc.Gaussian2DKernel(x_stddev=sigma)
+    gaussian_kernel = apc.Gaussian2DKernel(x_stddev=sigma, x_size=3 * sigma, y_size=3 * sigma)
     raster_arr_flt = apc.convolve(raster_arr, gaussian_kernel, preserve_nan=True)
     raster_arr_flt[np.isnan(raster_arr_flt)] = input_raster_file.nodata
     raster_arr_flt[raster_arr_flt != svalue] = input_raster_file.nodata
@@ -302,9 +302,11 @@ def gdal_warp_syscall(input_raster_file, outfile_path, resampling_factor=3, resa
     else:
         if not downsampling:
             resampling_factor = 1 / resampling_factor
-        xRes, yRes = int(xRes * resampling_factor), int(yRes * resampling_factor)
-    resampling_dict = {1: 'near', 2: 'bilinear', 3: 'cubic', 4: 'cubicspline', 5: 'lanczos', 6: 'average', 7: 'mode',
-                       8: 'max', 9: 'min', 10: 'med', 11: 'q1', 12: 'q3'}
+        xRes, yRes = xRes * resampling_factor, yRes * resampling_factor
+    resampling_dict = {gdal.GRA_NearestNeighbour: 'near', gdal.GRA_Bilinear: 'bilinear', gdal.GRA_Cubic: 'cubic',
+                       gdal.GRA_CubicSpline: 'cubicspline', gdal.GRA_Lanczos: 'lanczos', gdal.GRA_Average: 'average',
+                       gdal.GRA_Mode: 'mode', gdal.GRA_Max: 'max', gdal.GRA_Min: 'min', gdal.GRA_Med: 'med',
+                       gdal.GRA_Q1: 'q1', gdal.GRA_Q3: 'q3'}
     resampling_func = resampling_dict[resampling_func]
     if bydim:
         sys_call = ['gdalwarp', '-s_srs', projection, '-t_srs', projection, '-dstnodata', str(no_data), '-r',
