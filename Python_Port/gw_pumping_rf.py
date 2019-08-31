@@ -6,8 +6,8 @@ import gdal
 
 from Python_Port import rasterops as rops
 from Python_Port import vectorops as vops
-
-NO_DATA_VALUE = 0
+from Python_Port import random_forest_regressor as rfr
+import numpy as np
 
 input_dir = '/Users/smxnv/Documents/Data/'
 output_dir = '/Users/smxnv/Documents/Output/'
@@ -16,14 +16,15 @@ output_dir = '/Users/smxnv/Documents/Output/'
 # az_ws_path = input_dir + 'watersheds/az_merged/az_watershed.shp'
 # az_crop_file = output_dir + 'az_crop.tif'
 # az_cropped = rops.crop_raster(az_raster_path, az_ws_path, az_crop_file)
-#
+na_int = np.iinfo(np.int32).min
+na_float = np.finfo(np.float32).min
 # az_class_dict = {(0, 59.5): 1,
 #                  (67.5, 75.5): 1,
 #                  (203.5, 250): 1,
 #                  (110.5, 111.5): 2,
 #                  (120.5, 124.5): 3,
-#                  (60.5, 61.5): NO_DATA_VALUE,
-#                  (130.5, 195.5): NO_DATA_VALUE
+#                  (60.5, 61.5): na_int,
+#                  (130.5, 195.5): na_int
 #                  }
 #
 # az_reclass_file = output_dir + 'az_reclass.tif'
@@ -41,10 +42,10 @@ ks_class_dict = {(0, 59.5): 1,
                  (66.5, 77.5): 1,
                  (203.5, 255): 1,
                  (110.5, 111.5): 2,
-                 (111.5, 112.5): NO_DATA_VALUE,
+                 (111.5, 112.5): na_int,
                  (120.5, 124.5): 3,
-                 (59.5, 61.5): NO_DATA_VALUE,
-                 (130.5, 195.5): NO_DATA_VALUE
+                 (59.5, 61.5): na_int,
+                 (130.5, 195.5): na_int
                  }
 
 ks_reclass_file = output_dir + 'ks_reclass.tif'
@@ -71,12 +72,18 @@ demand_all_reproj_file = output_dir + 'demand_all_reproj.tif'
 print('Demand_All_Reproj')
 demand_all_reproj = rops.gdal_warp_syscall(demand_flt_file, from_raster=gw_file, outfile_path=demand_all_reproj_file)
 
+da_reproj2_file = output_dir + 'da_all_reproj2.tif'
+da_reproj2 = rops.filter_nans(demand_all_reproj_file, gw_file, outfile_path=da_reproj2_file)
+
 da_res_file = output_dir + 'da_res.tif'
 gw_res_file = output_dir + 'gw_res.tif'
 ag = 5
 
-# da_res = rops.resample_raster(demand_all_reproj_file, outfile_path=da_res_file, resampling_factor=ag)
-# gw_res = rops.resample_raster(gw_file, outfile_path=gw_res_file, resampling_factor=ag)
+da_res = rops.gdal_warp_syscall(da_reproj2_file, outfile_path=da_res_file)
+gw_res = rops.gdal_warp_syscall(gw_file, outfile_path=gw_res_file, resampling_factor=ag)
+
+da_flt_file = output_dir + '/da_flt.tif'
+da_flt = rops.apply_gaussian_filter(da_res_file, outfile_path=da_flt_file)
 
 water_file = output_dir + 'water.tif'
 water = rops.apply_raster_filter2(ks_resamp_file, outfile_path=water_file)
@@ -88,7 +95,8 @@ print('Water 3')
 water3 = rops.gdal_warp_syscall(water2_file, water3_file, resampling_factor=ag,
                                 resampling_func=gdal.GRA_Max)
 water_flt_file = output_dir + 'water_flt.tif'
-water_flt = rops.apply_gaussian_filter(water3_file, outfile_path=water_flt_file, sigma=5)
+water_flt = rops.apply_gaussian_filter(water3_file, outfile_path=water_flt_file, sigma=5, normalize=True,
+                                       ignore_nan=False)
 
 urban_file = output_dir + 'urban.tif'
 urban = rops.apply_raster_filter2(ks_resamp_file, outfile_path=urban_file, val=3)
@@ -109,4 +117,6 @@ print('P_All_Reproj_Res')
 p_all_reproj_res = rops.gdal_warp_syscall(p_all_reproj_file, outfile_path=p_all_resample_file, resampling_factor=ag,
                                           resampling_func=gdal.GRA_Bilinear)
 
-
+##### RANDOM FOREST CODE STARTS #####
+#
+# data_frame = rfr.create_dataframe(input_dir + 'ML_Data')
