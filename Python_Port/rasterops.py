@@ -298,7 +298,7 @@ def gdal_warp_syscall(input_raster_file, outfile_path, resampling_factor=3, resa
                        gdal.GRA_Mode: 'mode', gdal.GRA_Max: 'max', gdal.GRA_Min: 'min', gdal.GRA_Med: 'med',
                        gdal.GRA_Q1: 'q1', gdal.GRA_Q3: 'q3'}
     resampling_func = resampling_dict[resampling_func]
-    sys_call = ['/usr/local/Cellar/gdal/2.4.2/bin/gdalwarp', '-t_srs', dst_proj, '-te', extent[0], extent[1],
+    sys_call = ['gdalwarp', '-t_srs', dst_proj, '-te', extent[0], extent[1],
                 extent[2], extent[3], '-dstnodata', str(no_data), '-r', str(resampling_func), '-tr', str(xRes),
                 str(yRes), '-overwrite', input_raster_file, outfile_path]
     subprocess.call(sys_call)

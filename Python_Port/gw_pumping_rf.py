@@ -1,7 +1,6 @@
 # Author: Sayantan Majumdar
 # Email: smxnv@mst.edu
 
-from rasterio.enums import Resampling as res
 import gdal
 
 from Python_Port import rasterops as rops
@@ -9,8 +8,8 @@ from Python_Port import vectorops as vops
 from Python_Port import random_forest_regressor as rfr
 import numpy as np
 
-input_dir = '/Users/smxnv/Documents/Data/'
-output_dir = '/Users/smxnv/Documents/Output/'
+input_dir = '/home/montimaj/Documents/MST/ML/Data/'
+output_dir = '/home/montimaj/Documents/MST/ML/Output/'
 # az_raster_path = input_dir + 'cropscape/CDL_2015_clip_20190812153756_568423369/' \
 #                              'CDL_2015_clip_20190812153756_568423369.tif'
 # az_ws_path = input_dir + 'watersheds/az_merged/az_watershed.shp'
@@ -79,7 +78,7 @@ da_res_file = output_dir + 'da_res.tif'
 gw_res_file = output_dir + 'gw_res.tif'
 ag = 5
 
-da_res = rops.gdal_warp_syscall(da_reproj2_file, outfile_path=da_res_file)
+da_res = rops.gdal_warp_syscall(da_reproj2_file, outfile_path=da_res_file, resampling_factor=ag)
 gw_res = rops.gdal_warp_syscall(gw_file, outfile_path=gw_res_file, resampling_factor=ag)
 
 da_flt_file = output_dir + '/da_flt.tif'
@@ -119,4 +118,4 @@ p_all_reproj_res = rops.gdal_warp_syscall(p_all_reproj_file, outfile_path=p_all_
 
 ##### RANDOM FOREST CODE STARTS #####
 #
-# data_frame = rfr.create_dataframe(input_dir + 'ML_Data')
+data_frame = rfr.create_dataframe(input_dir + 'ML_Data')
