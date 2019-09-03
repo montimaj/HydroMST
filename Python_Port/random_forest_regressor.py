@@ -4,6 +4,7 @@ from sklearn import metrics
 import pandas
 from glob import glob
 import numpy as np
+import matplotlib.pyplot as plt
 
 from Python_Port import rasterops as rops
 
@@ -25,31 +26,46 @@ def create_dataframe(input_file_dir, pattern='*.tif'):
         raster_arr = raster_arr.reshape(raster_arr.shape[0] * raster_arr.shape[1])
         if variable == 'URBAN':
             raster_arr[np.isnan(raster_arr)] = 0
+        elif variable == 'GW':
+            raster_arr *= 1233.48 * 1000. / 2.59e+6
         raster_dict[variable] = raster_arr
 
     return pandas.DataFrame(data=raster_dict)
 
 
-def rf_regressor(input_df, outfile_path):
+def rf_regressor(input_df, outfile_path, n_estimators=200, random_state=0, test_size=0.2):
     """
     Perform random forest regression
     :param input_df: Input pandas dataframe
     :param outfile_path: Output file path for storing intermediate results
+    :param n_estimators: RF hyperparameter
+    :param random_state: RF hyperparameter
+    :param test_size: RF hyperparameter
     :return: Random forest model
     """
 
     dataset = input_df.dropna()
     dataset.to_csv(outfile_path, index=False)
     ncols = len(dataset.columns) - 1
-    X = dataset.iloc[:, 0:ncols].values
-    y = dataset.iloc[:, ncols].values
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=0)
-    regressor = RandomForestRegressor(n_estimators=200, random_state=0)
+    X = dataset.iloc[:, 0: ncols].values
+    y = dataset.iloc[:, 1].values
+    # print(X, y)
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=test_size, random_state=random_state)
+    regressor = RandomForestRegressor(n_estimators=n_estimators, random_state=random_state)
     regressor.fit(X_train, y_train)
     y_pred = regressor.predict(X_test)
 
-    print(regressor.score(X_train, y_train))
-    print(regressor.score(X_test, y_test))
+    # r = np.corrcoef(X_train[:, 0:1], X_test[:, 0:1])
+    # print(r[~np.isnan(r)])
+
+    print('Training score: ', regressor.score(X_train, y_train))
+    print('Testting score: ', regressor.score(X_test, y_test))
+    print('Overall score: ', regressor.score(X, y))
+
+    # plt.plot(y_pred, y_test, 'ro')
+    # plt.xlabel('GW_Predict')
+    # plt.ylabel('GW_Actual')
+    # plt.show()
 
     print('Mean Absolute Error:', metrics.mean_absolute_error(y_test, y_pred))
     print('Mean Squared Error:', metrics.mean_squared_error(y_test, y_pred))

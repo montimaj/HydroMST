@@ -8,8 +8,8 @@ from Python_Port import vectorops as vops
 from Python_Port import random_forest_regressor as rfr
 import numpy as np
 
-input_dir = '/home/montimaj/Documents/MST/ML/Data/'
-output_dir = '/home/montimaj/Documents/MST/ML/Output/'
+input_dir = '/Users/smxnv/Documents/Data/'
+output_dir = '/Users/smxnv/Documents/Output/'
 # az_raster_path = input_dir + 'cropscape/CDL_2015_clip_20190812153756_568423369/' \
 #                              'CDL_2015_clip_20190812153756_568423369.tif'
 # az_ws_path = input_dir + 'watersheds/az_merged/az_watershed.shp'
@@ -64,7 +64,6 @@ ks_crop_file = input_dir + 'cropscape/polygonclip_20190306140312_392696635/' \
 # demand_all = rops.apply_raster_filter(ks_resamp_file, demand_file, outfile_path=demand_flt_file, flt_values=(1, ))
 #
 # gw_file = input_dir + '2015_smoothed/wuse_st_data/wuse_density_0515_5mile_clip.img'
-# gw_pumping_file, gw_arr = rops.get_gw_pumping(gw_file)
 # ks_ws_reproj_path = output_dir + 'ks_ws_reproj.shp'
 # ks_watershed2 = vops.reproject_vector(ks_ws_path, outfile_path=ks_ws_reproj_path, ref_file=gw_file)
 # demand_all_reproj_file = output_dir + 'demand_all_reproj.tif'
@@ -122,4 +121,4 @@ data_frame = rfr.create_dataframe(input_dir + 'RF_Data')
 df_file = output_dir + '/df.csv'
 data_frame.to_csv(df_file, index=False)
 rf_out_file = output_dir + 'df_flt.csv'
-rf = rfr.rf_regressor(data_frame, rf_out_file)
+rf = rfr.rf_regressor(data_frame, rf_out_file, n_estimators=200, random_state=0, test_size=0.2)

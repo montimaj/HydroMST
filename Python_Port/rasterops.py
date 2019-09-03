@@ -198,18 +198,6 @@ def apply_raster_filter2(input_raster_file, outfile_path, val=2):
     return raster_arr
 
 
-def get_gw_pumping(gw_raster_file):
-    """
-    Groundwater pumping raster data in mm
-    :param gw_raster_file: Input GW raster file
-    :return: GW rasterio file and numpy array
-    """
-
-    gw_arr, gw_raster_file = read_raster_as_arr(gw_raster_file)
-    gw_arr *= 1233.48 * 1000. / 2.59e+6
-    return gw_raster_file, gw_arr
-
-
 def filter_nans(raster_file, ref_file, outfile_path):
     """
     Set nan considering reference file to a raster file
@@ -267,7 +255,7 @@ def get_raster_extents(gdal_raster):
 
 
 def gdal_warp_syscall(input_raster_file, outfile_path, resampling_factor=3, resampling_func=gdal.GRA_NearestNeighbour,
-                      downsampling=True, from_raster=None):
+                      downsampling=True, from_raster=None, gdalwarp_path='/usr/local/Cellar/gdal/2.4.2/bin/gdalwarp'):
     """
     System call for mitigating GDALGetResampleFunction error at runtime
     :param input_raster_file: Input raster file
@@ -276,6 +264,7 @@ def gdal_warp_syscall(input_raster_file, outfile_path, resampling_factor=3, resa
     :param resampling_func: Resampling function
     :param downsampling: Downsample raster (default True)
     :param from_raster: Reproject input raster considering another raster
+    :param gdalwarp_path: gdalwarp system path
     :return: None
     """
 
@@ -298,7 +287,7 @@ def gdal_warp_syscall(input_raster_file, outfile_path, resampling_factor=3, resa
                        gdal.GRA_Mode: 'mode', gdal.GRA_Max: 'max', gdal.GRA_Min: 'min', gdal.GRA_Med: 'med',
                        gdal.GRA_Q1: 'q1', gdal.GRA_Q3: 'q3'}
     resampling_func = resampling_dict[resampling_func]
-    sys_call = ['gdalwarp', '-t_srs', dst_proj, '-te', extent[0], extent[1],
+    sys_call = [gdalwarp_path, '-t_srs', dst_proj, '-te', extent[0], extent[1],
                 extent[2], extent[3], '-dstnodata', str(no_data), '-r', str(resampling_func), '-tr', str(xRes),
                 str(yRes), '-overwrite', input_raster_file, outfile_path]
     subprocess.call(sys_call)
