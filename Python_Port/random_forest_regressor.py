@@ -1,5 +1,5 @@
-from sklearn.ensemble import RandomForestRegressor as rfr
-from sklearn.model_selection import train_test_split as tts
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.model_selection import train_test_split
 from sklearn import metrics
 import pandas
 from glob import glob
@@ -18,7 +18,6 @@ def create_dataframe(input_file_dir, pattern='*.tif'):
 
     raster_dict = {}
     file_list = glob(input_file_dir + '/' + pattern)
-    print(file_list)
     for f in file_list:
         sep = f.rfind('_')
         variable, year = f[f.rfind('/') + 1: sep], f[sep + 1: f.rfind('.')]
@@ -39,8 +38,22 @@ def rf_regressor(input_df, outfile_path):
     :return: Random forest model
     """
 
-    input_df = input_df.dropna()
-    input_df.to_csv(outfile_path, index=False)
+    dataset = input_df.dropna()
+    dataset.to_csv(outfile_path, index=False)
+    ncols = len(dataset.columns) - 1
+    X = dataset.iloc[:, 0:ncols].values
+    y = dataset.iloc[:, ncols].values
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=0)
+    regressor = RandomForestRegressor(n_estimators=200, random_state=0)
+    regressor.fit(X_train, y_train)
+    y_pred = regressor.predict(X_test)
+
+    print(regressor.score(X_train, y_train))
+    print(regressor.score(X_test, y_test))
+
+    print('Mean Absolute Error:', metrics.mean_absolute_error(y_test, y_pred))
+    print('Mean Squared Error:', metrics.mean_squared_error(y_test, y_pred))
+    print('Root Mean Squared Error:', np.sqrt(metrics.mean_squared_error(y_test, y_pred)))
 
 
 
