@@ -192,8 +192,7 @@ def apply_raster_filter2(input_raster_file, outfile_path, val=2):
     """
 
     raster_arr, input_raster_file = read_raster_as_arr(input_raster_file)
-    raster_arr[raster_arr != val] = input_raster_file.nodata
-    raster_arr[raster_arr == input_raster_file.nodata] = NO_DATA_VALUE
+    raster_arr[raster_arr != val] = NO_DATA_VALUE
     write_raster(raster_arr, input_raster_file, transform=input_raster_file.transform, outfile_path=outfile_path)
     return raster_arr
 

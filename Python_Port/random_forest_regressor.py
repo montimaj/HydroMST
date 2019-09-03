@@ -24,11 +24,11 @@ def create_dataframe(input_file_dir, pattern='*.tif'):
         variable, year = f[f.rfind('/') + 1: sep], f[sep + 1: f.rfind('.')]
         raster_arr = rops.read_raster_as_arr(f, get_file=False)
         raster_arr = raster_arr.reshape(raster_arr.shape[0] * raster_arr.shape[1])
+        if variable == 'GW':
+            raster_arr *= 1233.48 * 1000. / 2.59e+6
         if variable == 'URBAN':
             raster_arr[np.isnan(raster_arr)] = 0
-        elif variable == 'GW':
-            raster_arr *= 1233.48 * 1000. / 2.59e+6
-        raster_dict[variable] = raster_arr
+        raster_dict[variable] = np.round(raster_arr, 2)
 
     return pandas.DataFrame(data=raster_dict)
 
@@ -50,12 +50,12 @@ def rf_regressor(input_df, out_dir, n_estimators=200, random_state=0, test_size=
     X = dataset.iloc[:, 0: ncols].values
     y = dataset['GW']
     # print(X, y)
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=test_size, random_state=random_state)
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=test_size, random_state=random_state, shuffle=False)
     regressor = RandomForestRegressor(n_estimators=n_estimators, random_state=random_state)
     regressor.fit(X_train, y_train)
-    y_pred = regressor.predict(X_test)
+    y_pred = np.round(regressor.predict(X_test), 2)
 
-    # print('Training score: ', regressor.score(X_train, y_train))
+    print('Training score: ', regressor.score(X_train, y_train))
     print('Testing score: ', regressor.score(X_test, y_test))
 
     # plt.plot(y_pred, y_test, 'ro')

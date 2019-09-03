@@ -120,4 +120,4 @@ ks_crop_file = input_dir + 'cropscape/polygonclip_20190306140312_392696635/' \
 data_frame = rfr.create_dataframe(input_dir + 'RF_Data')
 df_file = output_dir + '/df.csv'
 data_frame.to_csv(df_file, index=False)
-rf = rfr.rf_regressor(data_frame, output_dir, n_estimators=200, random_state=0, test_size=0.2)
+rf = rfr.rf_regressor(data_frame, output_dir, n_estimators=100, random_state=0, test_size=0.2)
