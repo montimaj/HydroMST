@@ -33,11 +33,11 @@ def create_dataframe(input_file_dir, pattern='*.tif'):
     return pandas.DataFrame(data=raster_dict)
 
 
-def rf_regressor(input_df, outfile_path, n_estimators=200, random_state=0, test_size=0.2):
+def rf_regressor(input_df, out_dir, n_estimators=200, random_state=0, test_size=0.2):
     """
     Perform random forest regression
     :param input_df: Input pandas dataframe
-    :param outfile_path: Output file path for storing intermediate results
+    :param out_dir: Output file directory for storing intermediate results
     :param n_estimators: RF hyperparameter
     :param random_state: RF hyperparameter
     :param test_size: RF hyperparameter
@@ -45,22 +45,18 @@ def rf_regressor(input_df, outfile_path, n_estimators=200, random_state=0, test_
     """
 
     dataset = input_df.dropna()
-    dataset.to_csv(outfile_path, index=False)
+    dataset.to_csv(out_dir + 'df_flt.csv', index=False)
     ncols = len(dataset.columns) - 1
     X = dataset.iloc[:, 0: ncols].values
-    y = dataset.iloc[:, 1].values
+    y = dataset['GW']
     # print(X, y)
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=test_size, random_state=random_state)
     regressor = RandomForestRegressor(n_estimators=n_estimators, random_state=random_state)
     regressor.fit(X_train, y_train)
     y_pred = regressor.predict(X_test)
 
-    # r = np.corrcoef(X_train[:, 0:1], X_test[:, 0:1])
-    # print(r[~np.isnan(r)])
-
-    print('Training score: ', regressor.score(X_train, y_train))
-    print('Testting score: ', regressor.score(X_test, y_test))
-    print('Overall score: ', regressor.score(X, y))
+    # print('Training score: ', regressor.score(X_train, y_train))
+    print('Testing score: ', regressor.score(X_test, y_test))
 
     # plt.plot(y_pred, y_test, 'ro')
     # plt.xlabel('GW_Predict')
@@ -70,6 +66,10 @@ def rf_regressor(input_df, outfile_path, n_estimators=200, random_state=0, test_
     print('Mean Absolute Error:', metrics.mean_absolute_error(y_test, y_pred))
     print('Mean Squared Error:', metrics.mean_squared_error(y_test, y_pred))
     print('Root Mean Squared Error:', np.sqrt(metrics.mean_squared_error(y_test, y_pred)))
+
+    df = {'y_test': y_test, 'y_pred': y_pred}
+    df = pandas.DataFrame(data=df)
+    df.to_csv(out_dir + 'test_pred.csv')
 
 
 
