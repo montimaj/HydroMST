@@ -28,7 +28,7 @@ def create_dataframe(input_file_dir, pattern='*.tif'):
             raster_arr *= 1233.48 * 1000. / 2.59e+6
         if variable == 'URBAN':
             raster_arr[np.isnan(raster_arr)] = 0
-        raster_dict[variable] = np.round(raster_arr, 2)
+        raster_dict[variable] = raster_arr
 
     return pandas.DataFrame(data=raster_dict)
 
@@ -46,30 +46,34 @@ def rf_regressor(input_df, out_dir, n_estimators=200, random_state=0, test_size=
 
     dataset = input_df.dropna()
     dataset.to_csv(out_dir + 'df_flt.csv', index=False)
-    ncols = len(dataset.columns) - 1
-    X = dataset.iloc[:, 0: ncols].values
     y = dataset['GW']
-    # print(X, y)
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=test_size, random_state=random_state, shuffle=False)
+    dataset = dataset.drop(columns=['GW'])
+    X = dataset.iloc[:, 0: len(dataset.columns)].values
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=test_size, random_state=random_state)
     regressor = RandomForestRegressor(n_estimators=n_estimators, random_state=random_state)
     regressor.fit(X_train, y_train)
-    y_pred = np.round(regressor.predict(X_test), 2)
+    y_pred = regressor.predict(X_test)
 
-    print('Training score: ', regressor.score(X_train, y_train))
-    print('Testing score: ', regressor.score(X_test, y_test))
+    feature_imp = " ".join(str(np.round(i,3)) for i in regressor.feature_importances_)
+    train_score = np.round(regressor.score(X_train, y_train), 3)
+    test_score = np.round(regressor.score(X_test, y_test), 3)
+    mae = np.round(metrics.mean_absolute_error(y_test, y_pred), 3)
+    rmse = np.round(np.sqrt(metrics.mean_squared_error(y_test, y_pred)), 3)
 
     # plt.plot(y_pred, y_test, 'ro')
     # plt.xlabel('GW_Predict')
     # plt.ylabel('GW_Actual')
     # plt.show()
 
-    print('Mean Absolute Error:', metrics.mean_absolute_error(y_test, y_pred))
-    print('Mean Squared Error:', metrics.mean_squared_error(y_test, y_pred))
-    print('Root Mean Squared Error:', np.sqrt(metrics.mean_squared_error(y_test, y_pred)))
+    # print('Mean Absolute Error:', metrics.mean_absolute_error(y_test, y_pred))
+    # print('Mean Squared Error:', metrics.mean_squared_error(y_test, y_pred))
+    # print('Root Mean Squared Error:', np.sqrt(metrics.mean_squared_error(y_test, y_pred)))
 
-    df = {'y_test': y_test, 'y_pred': y_pred}
+    df = {'N_Estimator': [n_estimators], 'Random_State': [random_state], 'F_IMP': [feature_imp],
+          'Train_Score': [train_score], 'Test_Score': [test_score], 'MAE': [mae], 'RMSE': [rmse]}
+    print(df)
     df = pandas.DataFrame(data=df)
-    df.to_csv(out_dir + 'test_pred.csv')
+    df.to_csv(out_dir + 'RF_Results.csv', mode='a', index=False)
 
 
 

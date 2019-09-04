@@ -15,8 +15,8 @@ output_dir = '/Users/smxnv/Documents/Output/'
 # az_ws_path = input_dir + 'watersheds/az_merged/az_watershed.shp'
 # az_crop_file = output_dir + 'az_crop.tif'
 # az_cropped = rops.crop_raster(az_raster_path, az_ws_path, az_crop_file)
-na_int = np.iinfo(np.int32).min
-na_float = np.finfo(np.float32).min
+# na_int = np.iinfo(np.int32).min
+# na_float = np.finfo(np.float32).min
 # az_class_dict = {(0, 59.5): 1,
 #                  (67.5, 75.5): 1,
 #                  (203.5, 250): 1,
@@ -31,10 +31,10 @@ na_float = np.finfo(np.float32).min
 #
 # ks_raster_path = input_dir + 'cropscape/polygonclip_20190306140312_392696635/' \
 #                              'CDL_2015_clip_20190306140312_392696635.tif'
-ks_ws_path = input_dir + 'watersheds/ks_merged/ks_watershed.shp'
+# ks_ws_path = input_dir + 'watersheds/ks_merged/ks_watershed.shp'
 # ks_crop_file = output_dir + 'ks_crop.tif'
-ks_crop_file = input_dir + 'cropscape/polygonclip_20190306140312_392696635/' \
-                              'CDL_2015_clip_20190306140312_392696635.tif'
+# ks_crop_file = input_dir + 'cropscape/polygonclip_20190306140312_392696635/' \
+#                              'CDL_2015_clip_20190306140312_392696635.tif'
 # ks_cropped = rops.crop_raster(ks_raster_path, ks_ws_path, ks_crop_file)
 
 # ks_class_dict = {(0, 59.5): 1,
@@ -75,7 +75,7 @@ ks_crop_file = input_dir + 'cropscape/polygonclip_20190306140312_392696635/' \
 #
 # da_res_file = output_dir + 'da_res.tif'
 # gw_res_file = output_dir + 'gw_res.tif'
-# ag = 5
+# ag = 1
 #
 # da_res = rops.gdal_warp_syscall(da_reproj2_file, outfile_path=da_res_file, resampling_factor=ag)
 # gw_res = rops.gdal_warp_syscall(gw_file, outfile_path=gw_res_file, resampling_factor=ag)
@@ -116,8 +116,11 @@ ks_crop_file = input_dir + 'cropscape/polygonclip_20190306140312_392696635/' \
 #                                           resampling_func=gdal.GRA_Bilinear)
 
 ##### RANDOM FOREST CODE STARTS #####
-#
+
 data_frame = rfr.create_dataframe(input_dir + 'RF_Data')
 df_file = output_dir + '/df.csv'
 data_frame.to_csv(df_file, index=False)
-rf = rfr.rf_regressor(data_frame, output_dir, n_estimators=100, random_state=0, test_size=0.2)
+for n_estimator in range(10, 2001):
+    for random_state in range(0, 1001):
+        rf = rfr.rf_regressor(data_frame, output_dir, n_estimators=n_estimator, random_state=random_state,
+                              test_size=0.2)
