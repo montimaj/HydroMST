@@ -10,6 +10,15 @@ import numpy as np
 
 input_dir = '/Users/smxnv/Documents/Data/'
 output_dir = '/Users/smxnv/Documents/Output/'
+
+input_csv_dir = input_dir + 'GW_Measurements/'
+output_shp_dir = input_dir + 'GW_Shapefiles/'
+
+vops.csvs2shps(input_csv_dir, output_shp_dir, target_crs='epsg:26914', delim='\t', pattern='*.txt')
+output_gw_raster_dir = input_dir + 'GW_Rasters/'
+vops.shps2rasters(output_shp_dir, output_gw_raster_dir)
+
+
 # az_raster_path = input_dir + 'cropscape/CDL_2015_clip_20190812153756_568423369/' \
 #                              'CDL_2015_clip_20190812153756_568423369.tif'
 # az_ws_path = input_dir + 'watersheds/az_merged/az_watershed.shp'
@@ -117,10 +126,7 @@ output_dir = '/Users/smxnv/Documents/Output/'
 
 ##### RANDOM FOREST CODE STARTS #####
 
-data_frame = rfr.create_dataframe(input_dir + 'RF_Data')
-df_file = output_dir + '/df.csv'
-data_frame.to_csv(df_file, index=False)
-for n_estimator in range(10, 2001):
-    for random_state in range(0, 1001):
-        rf = rfr.rf_regressor(data_frame, output_dir, n_estimators=n_estimator, random_state=random_state,
-                              test_size=0.2)
+# data_frame = rfr.create_dataframe(input_dir + 'RF_Data')
+# df_file = output_dir + '/df.csv'
+# data_frame.to_csv(df_file, index=False)
+# rf = rfr.rf_regressor(data_frame, output_dir, n_estimators=106, random_state=884, test_size=0.2)

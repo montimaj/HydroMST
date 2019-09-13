@@ -29,6 +29,7 @@ def create_dataframe(input_file_dir, pattern='*.tif'):
         if variable == 'URBAN':
             raster_arr[np.isnan(raster_arr)] = 0
         raster_dict[variable] = raster_arr
+        raster_dict['YEAR'] = year
 
     return pandas.DataFrame(data=raster_dict)
 
@@ -47,14 +48,14 @@ def rf_regressor(input_df, out_dir, n_estimators=200, random_state=0, test_size=
     dataset = input_df.dropna()
     dataset.to_csv(out_dir + 'df_flt.csv', index=False)
     y = dataset['GW']
-    dataset = dataset.drop(columns=['GW'])
+    dataset = dataset.drop(columns=['GW', 'YEAR'])
     X = dataset.iloc[:, 0: len(dataset.columns)].values
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=test_size, random_state=random_state)
     regressor = RandomForestRegressor(n_estimators=n_estimators, random_state=random_state)
     regressor.fit(X_train, y_train)
     y_pred = regressor.predict(X_test)
 
-    feature_imp = " ".join(str(np.round(i,3)) for i in regressor.feature_importances_)
+    feature_imp = " ".join(str(np.round(i, 3)) for i in regressor.feature_importances_)
     train_score = np.round(regressor.score(X_train, y_train), 3)
     test_score = np.round(regressor.score(X_test, y_test), 3)
     mae = np.round(metrics.mean_absolute_error(y_test, y_pred), 3)
