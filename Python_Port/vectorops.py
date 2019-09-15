@@ -36,12 +36,13 @@ def reproject_vector(input_vector_file, outfile_path, ref_file, crs='epsg:4326',
     return output_vector_file
 
 
-def csv2shp(input_csv_file, outfile_path, delim=',', target_crs='epsg:4326'):
+def csv2shp(input_csv_file, outfile_path, delim=',', source_crs='epsg:4326', target_crs='epsg:4326'):
     """
     Convert CSV to Shapefile
     :param input_csv_file: Input CSV file path
     :param outfile_path: Output file path
     :param delim: CSV file delimeter
+    :param source_crs: CRS of the source file
     :param target_crs: Target CRS
     :return: None
     """
@@ -49,10 +50,10 @@ def csv2shp(input_csv_file, outfile_path, delim=',', target_crs='epsg:4326'):
     input_df = pd.read_csv(input_csv_file, delimiter=delim)
     input_df = input_df.dropna(axis=1)
     geometry = [Point(xy) for xy in zip(input_df['long'], input_df['lat'])]
-    crs = {'init': 'epsg:4326'}
+    crs = {'init': source_crs}
     gdf = gpd.GeoDataFrame(input_df, crs=crs, geometry=geometry)
     gdf.to_file(outfile_path)
-    if target_crs != crs['init']:
+    if target_crs != source_crs:
         reproject_vector(outfile_path, outfile_path=outfile_path, crs=target_crs, crs_from_file=False, ref_file=None)
 
 
@@ -113,10 +114,3 @@ def shps2rasters(input_dir, output_dir, value_field='GW_Pumping', xres=1000, yre
         outfile_path = output_dir + file[file.rfind('/') + 1: file.rfind('.') + 1] + 'tif'
         shp2raster(file, outfile_path=outfile_path, value_field=value_field, xres=xres, yres=yres,
                    gdal_rasterize_path=gdal_rasterize_path)
-
-
-
-
-
-
-

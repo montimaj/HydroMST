@@ -75,15 +75,3 @@ def rf_regressor(input_df, out_dir, n_estimators=200, random_state=0, test_size=
     print(df)
     df = pandas.DataFrame(data=df)
     df.to_csv(out_dir + 'RF_Results.csv', mode='a', index=False)
-
-
-
-
-
-
-
-
-
-
-
-
