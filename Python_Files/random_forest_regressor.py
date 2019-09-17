@@ -5,19 +5,21 @@ import pandas
 from glob import glob
 import numpy as np
 import matplotlib.pyplot as plt
+from collections import defaultdict
 
-from Python_Port import rasterops as rops
+from Python_Files import rasterops as rops
 
 
-def create_dataframe(input_file_dir, pattern='*.tif'):
+def create_dataframe(input_file_dir, out_df, pattern='*.tif'):
     """
     Create dataframe from file list
     :param input_file_dir: Input directory where the file names begin with <Variable>_<Year>, e.g, ET_2015.tif
+    :param out_df: Output Dataframe file
     :param pattern: File pattern to look for in the folder
     :return: Pandas dataframe
     """
 
-    raster_dict = {}
+    raster_dict = defaultdict(lambda: [])
     file_list = glob(input_file_dir + '/' + pattern)
     for f in file_list:
         sep = f.rfind('_')
@@ -25,13 +27,28 @@ def create_dataframe(input_file_dir, pattern='*.tif'):
         raster_arr = rops.read_raster_as_arr(f, get_file=False)
         raster_arr = raster_arr.reshape(raster_arr.shape[0] * raster_arr.shape[1])
         if variable == 'GW':
+            raster_arr[np.isnan(raster_arr)] = 0
+            raster_arr[raster_arr == -np.inf] = 0
             raster_arr *= 1233.48 * 1000. / 2.59e+6
         if variable == 'URBAN':
             raster_arr[np.isnan(raster_arr)] = 0
-        raster_dict[variable] = raster_arr
-        raster_dict['YEAR'] = year
+        raster_list = raster_arr.tolist()
+        raster_dict[variable].append(raster_list)
+        # print(len(raster_list))
+        # raster_dict['YEAR'].append([year] * len(raster_list))
 
-    return pandas.DataFrame(data=raster_dict)
+    for attr in raster_dict.keys():
+        arr_list = raster_dict[attr]
+        arr_final = []
+        for arr in arr_list:
+            arr_final = arr_final + arr
+        raster_dict[attr] = arr_final
+        print(attr, len(raster_dict[attr]))
+
+    df = pandas.DataFrame(data=raster_dict)
+    df = df.dropna(axis=0)
+    df.to_csv(out_df, index=False)
+    return df
 
 
 def rf_regressor(input_df, out_dir, n_estimators=200, random_state=0, test_size=0.2):
@@ -45,10 +62,8 @@ def rf_regressor(input_df, out_dir, n_estimators=200, random_state=0, test_size=
     :return: Random forest model
     """
 
-    dataset = input_df.dropna()
-    dataset.to_csv(out_dir + 'df_flt.csv', index=False)
-    y = dataset['GW']
-    dataset = dataset.drop(columns=['GW', 'YEAR'])
+    y = input_df['GW']
+    dataset = input_df.drop(columns=['GW'])
     X = dataset.iloc[:, 0: len(dataset.columns)].values
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=test_size, random_state=random_state)
     regressor = RandomForestRegressor(n_estimators=n_estimators, random_state=random_state)

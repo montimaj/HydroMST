@@ -71,7 +71,8 @@ def write_raster(raster_data, raster_file, transform, outfile_path, no_data_valu
         dst.write(raster_data, raster_file.count)
 
 
-def crop_raster(input_raster_file, input_mask_path, outfile_path, plot_fig=False, plot_title=""):
+def crop_raster(input_raster_file, input_mask_path, outfile_path, plot_fig=False, plot_title="", ext_mask=True,
+                gdalwarp_path='/usr/local/Cellar/gdal/2.4.2/bin/gdalwarp'):
     """
     Crop raster data based on given shapefile
     :param input_raster_file: Input raster dataset path
@@ -79,25 +80,39 @@ def crop_raster(input_raster_file, input_mask_path, outfile_path, plot_fig=False
     :param outfile_path: Output file path (only tiff file)
     :param plot_fig: If true, then cropped raster data is plotted
     :param plot_title: Plot title to display
-    :return: Cropped raster dataset
+    :param ext_mask: Set true to extract raster by mask file
+    :param gdalwarp_path: Path to gdalwarp
+    :return: Cropped raster dataset (if ext_mask is False)
     """
 
-    shape_file = gpd.read_file(input_mask_path)
-    shape_file_geom = mapping(shape_file['geometry'][0])
-    raster_file = rio.open(input_raster_file)
-    raster_crop, raster_affine = mask(raster_file, [shape_file_geom])
-    shape_extent = plotting_extent(raster_crop[0], raster_affine)
-    raster_crop = np.squeeze(raster_crop)
-    write_raster(raster_crop, raster_file, transform=raster_file.transform, outfile_path=outfile_path,
-                 no_data_value=raster_file.nodata)
-    if plot_fig:
-        fig, ax = plt.subplots(figsize=(10, 8))
-        raster_plot = ax.imshow(raster_crop[0], extent=shape_extent)
-        ax.set_title(plot_title)
-        ax.set_axis_off()
-        fig.colorbar(raster_plot)
-        plt.show()
-    return raster_crop
+    if ext_mask:
+        src_raster_file = gdal.Open(input_raster_file)
+        src_band = src_raster_file.GetRasterBand(1)
+        transform = src_raster_file.GetGeoTransform()
+        xres, yres = transform[1], transform[5]
+        no_data = src_band.GetNoDataValue()
+        layer_name = input_mask_path[input_mask_path.rfind('/') + 1: input_mask_path.rfind('.')]
+        sys_call = [gdalwarp_path, '-tr', str(xres), str(yres), '-tap', '-cutline', input_mask_path, '-cl', layer_name,
+                    '-crop_to_cutline', '-dstnodata', str(no_data), '-overwrite', '-ot', 'Float32', '-of', 'GTiff',
+                    input_raster_file, outfile_path]
+        subprocess.call(sys_call)
+    else:
+        shape_file = gpd.read_file(input_mask_path)
+        shape_file_geom = mapping(shape_file['geometry'][0])
+        raster_file = rio.open(input_raster_file)
+        raster_crop, raster_affine = mask(raster_file, [shape_file_geom])
+        shape_extent = plotting_extent(raster_crop[0], raster_affine)
+        raster_crop = np.squeeze(raster_crop)
+        write_raster(raster_crop, raster_file, transform=raster_file.transform, outfile_path=outfile_path,
+                     no_data_value=raster_file.nodata)
+        if plot_fig:
+             fig, ax = plt.subplots(figsize=(10, 8))
+             raster_plot = ax.imshow(raster_crop[0], extent=shape_extent)
+             ax.set_title(plot_title)
+             ax.set_axis_off()
+             fig.colorbar(raster_plot)
+             plt.show()
+        return raster_crop
 
 
 def reclassify_raster(input_raster_file, class_dict, outfile_path):
@@ -253,7 +268,7 @@ def get_raster_extents(gdal_raster):
     return str(ulx), str(lry), str(lrx), str(uly)
 
 
-def gdal_warp_syscall(input_raster_file, outfile_path, resampling_factor=3, resampling_func=gdal.GRA_NearestNeighbour,
+def gdal_warp_syscall(input_raster_file, outfile_path, resampling_factor=1, resampling_func=gdal.GRA_NearestNeighbour,
                       downsampling=True, from_raster=None, gdalwarp_path='/usr/local/Cellar/gdal/2.4.2/bin/gdalwarp'):
     """
     System call for mitigating GDALGetResampleFunction error at runtime
@@ -274,19 +289,100 @@ def gdal_warp_syscall(input_raster_file, outfile_path, resampling_factor=3, resa
         resampling_factor = 1
     src_band = rfile.GetRasterBand(1)
     transform = rfile.GetGeoTransform()
-    xRes, yRes = transform[1], transform[5]
+    xres, yres = transform[1], transform[5]
     extent = get_raster_extents(rfile)
     dst_proj = rfile.GetProjection()
     no_data = src_band.GetNoDataValue()
     if not downsampling:
         resampling_factor = 1 / resampling_factor
-    xRes, yRes = xRes * resampling_factor, yRes * resampling_factor
+    xres, yres = xres * resampling_factor, yres * resampling_factor
     resampling_dict = {gdal.GRA_NearestNeighbour: 'near', gdal.GRA_Bilinear: 'bilinear', gdal.GRA_Cubic: 'cubic',
                        gdal.GRA_CubicSpline: 'cubicspline', gdal.GRA_Lanczos: 'lanczos', gdal.GRA_Average: 'average',
                        gdal.GRA_Mode: 'mode', gdal.GRA_Max: 'max', gdal.GRA_Min: 'min', gdal.GRA_Med: 'med',
                        gdal.GRA_Q1: 'q1', gdal.GRA_Q3: 'q3'}
     resampling_func = resampling_dict[resampling_func]
-    sys_call = [gdalwarp_path, '-t_srs', dst_proj, '-te', extent[0], extent[1],
-                extent[2], extent[3], '-dstnodata', str(no_data), '-r', str(resampling_func), '-tr', str(xRes),
-                str(yRes), '-overwrite', input_raster_file, outfile_path]
+    sys_call = [gdalwarp_path, '-t_srs', dst_proj, '-te', extent[0], extent[1], extent[2], extent[3],
+                '-dstnodata', str(no_data), '-r', str(resampling_func), '-tr', str(xres), str(yres), '-ot', 'Float32',
+                '-overwrite', input_raster_file, outfile_path]
     subprocess.call(sys_call)
+
+
+def crop_rasters(input_raster_dir, input_mask_file, outdir, pattern='*.tif', ext_mask=True,
+                 gdalwarp_path='/usr/local/Cellar/gdal/2.4.2/bin/gdalwarp'):
+    """
+    Crop multiple rasters in a directory
+    :param input_raster_dir: Directory containing raster files which are named as *_<Year>.*
+    :param input_mask_file: Mask file (shapefile) used for cropping
+    :param outdir: Output directory for storing masked rasters
+    :param pattern: Raster extension
+    :param ext_mask: Set False to extract by geometry only
+    :param gdalwarp_path: Path to gdalwarp
+    :return: None
+    """
+
+    for raster_file in glob(input_raster_dir + pattern):
+        out_raster = outdir + raster_file[raster_file.rfind('/') + 1: raster_file.rfind('.')] + '_Masked.tif'
+        crop_raster(raster_file, input_mask_file, out_raster, ext_mask=ext_mask, gdalwarp_path=gdalwarp_path)
+
+
+def smooth_rasters(input_raster_dir, outdir, pattern='*_Masked.tif', sigma=5, normalize=False):
+    """
+    Smooth rasters using Gaussian Filter
+    :param input_raster_dir:  Directory containing raster files which are named as *_<Year>.*
+    :param outdir: Output directory for storing masked rasters
+    :param pattern: Raster extension
+    :param sigma: Standard Deviation for Gaussian Filter
+    :param normalize: Set true to normalize the filered values
+    :return: None
+    """
+
+    for raster_file in glob(input_raster_dir + pattern):
+        out_raster = outdir + raster_file[raster_file.rfind('/') + 1: raster_file.rfind('.')] + '_Smoothed.tif'
+        apply_gaussian_filter(raster_file, outfile_path=out_raster, sigma=sigma, normalize=normalize, ignore_nan=False)
+
+
+def reproject_rasters(input_raster_dir, ref_raster, outdir, pattern='*.tif'):
+    """
+    Reproject rasters in a directory
+    :param input_raster_dir: Directory containing raster files which are named as *_<Year>.*
+    :param ref_raster: Reference raster file to consider while reprojecting
+    :param outdir: Output directory for storing reprojected rasters
+    :param pattern: Raster extension
+    :return: None
+    """
+
+    for raster_file in glob(input_raster_dir + pattern):
+        out_raster = outdir + raster_file[raster_file.rfind('/') + 1: raster_file.rfind('.')] + '_Reproj.tif'
+        gdal_warp_syscall(raster_file, from_raster=ref_raster, outfile_path=out_raster)
+
+
+def mask_rasters(input_raster_dir, ref_raster, outdir, pattern='*.tif'):
+    """
+    Mask out a raster using another raster
+    :param input_raster_dir: Directory containing raster files which are named as *_<Year>.*
+    :param ref_raster: Reference raster file to consider while masking
+    :param outdir: Output directory for storing reprojected rasters
+    :param pattern: Raster extension
+    :return: None
+    """
+
+    for raster_file in glob(input_raster_dir + pattern):
+        out_raster = outdir + raster_file[raster_file.rfind('/') + 1: raster_file.rfind('.')] + '_Masked.tif'
+        filter_nans(raster_file, ref_raster, outfile_path=out_raster)
+
+
+def apply_et_filter(input_raster_dir, ref_raster, outdir, pattern='ET_*.tif', flt_values=(1,)):
+    """
+    Mask out a raster using another raster
+    :param input_raster_dir: Directory containing raster files which are named as *_<Year>.*
+    :param ref_raster: Reference raster file to consider while masking
+    :param outdir: Output directory for storing reprojected rasters
+    :param pattern: Raster extension
+    :param flt_values: Tuple of filter values
+    :return: None
+    """
+
+    for raster_file in glob(input_raster_dir + pattern):
+        out_raster = outdir + raster_file[raster_file.rfind('/') + 1: raster_file.rfind('.')] + '_flt.tif'
+        apply_raster_filter(ref_raster, raster_file, outfile_path=out_raster, flt_values=flt_values)
+
