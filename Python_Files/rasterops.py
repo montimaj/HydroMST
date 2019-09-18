@@ -14,7 +14,7 @@ from glob import glob
 import scipy.ndimage.filters as flt
 import subprocess
 
-NO_DATA_VALUE = np.finfo(np.float32).min
+NO_DATA_VALUE = -32767.0
 
 
 def read_raster_as_arr(raster_file, band=1, get_file=True, rasterio_obj=False, change_dtype=True):
@@ -35,7 +35,7 @@ def read_raster_as_arr(raster_file, band=1, get_file=True, rasterio_obj=False, c
     raster_arr = raster_file.read(band)
     if change_dtype:
         raster_arr = raster_arr.astype(np.float32)
-        raster_arr[raster_arr == raster_file.nodata] = np.nan
+        raster_arr[np.isclose(raster_arr, raster_file.nodata)] = np.nan
     if get_file:
         return raster_arr, raster_file
     return raster_arr
@@ -212,6 +212,22 @@ def apply_raster_filter2(input_raster_file, outfile_path, val=2):
     return raster_arr
 
 
+def fill_nans(input_raster_file, ref_file, outfile_path, fill_value=0):
+    """
+    Fill nan values in a raster considering a reference raster
+    :param input_raster_file: Input raster file
+    :param ref_file: Reference raster to consider
+    :param outfile_path: Output raster path
+    :param fill_value: Value to replace nans
+    :return: None
+    """
+
+    raster_arr, input_raster_file = read_raster_as_arr(input_raster_file)
+    ref_arr = read_raster_as_arr(ref_file, get_file=False)
+    raster_arr[np.where(np.logical_and(~np.isnan(ref_arr), np.isnan(raster_arr)))] = fill_value
+    write_raster(raster_arr, input_raster_file, transform=input_raster_file.transform, outfile_path=outfile_path)
+
+
 def filter_nans(raster_file, ref_file, outfile_path):
     """
     Set nan considering reference file to a raster file
@@ -227,10 +243,11 @@ def filter_nans(raster_file, ref_file, outfile_path):
     write_raster(raster_arr, raster_file, transform=raster_file.transform, outfile_path=outfile_path)
 
 
-def apply_gaussian_filter(input_raster_file, outfile_path, sigma=3, normalize=False, ignore_nan=True):
+def apply_gaussian_filter(input_raster_file, ref_file, outfile_path, sigma=3, normalize=False, ignore_nan=True):
     """
     Apply a gaussian filter over a raster image
     :param input_raster_file: Input raster file
+    :param ref_file: Reference raster having continuous data for selecting appropriate AOI
     :param outfile_path: Output file path
     :param sigma: Standard Deviation for gaussian kernel (default 3)
     :param normalize: Set true to normalize the filtered raster at the end
@@ -242,7 +259,6 @@ def apply_gaussian_filter(input_raster_file, outfile_path, sigma=3, normalize=Fa
     if ignore_nan:
         gaussian_kernel = apc.Gaussian2DKernel(x_stddev=sigma, x_size=3 * sigma, y_size=3 * sigma)
         raster_arr_flt = apc.convolve(raster_arr, gaussian_kernel, preserve_nan=True)
-        raster_arr[np.isnan(raster_arr)] = NO_DATA_VALUE
     else:
         raster_arr[np.isnan(raster_arr)] = 0
         raster_arr_flt = flt.gaussian_filter(raster_arr, sigma=sigma, order=0)
@@ -250,7 +266,8 @@ def apply_gaussian_filter(input_raster_file, outfile_path, sigma=3, normalize=Fa
         raster_arr_flt = np.abs(raster_arr_flt)
         raster_arr_flt -= np.min(raster_arr_flt)
         raster_arr_flt /= np.ptp(raster_arr_flt)
-    raster_arr[np.isnan(raster_arr)] = NO_DATA_VALUE
+    ref_arr = read_raster_as_arr(ref_file, get_file=False)
+    raster_arr_flt[np.isnan(ref_arr)] = NO_DATA_VALUE
     write_raster(raster_arr_flt, input_raster_file, transform=input_raster_file.transform,
                  outfile_path=outfile_path)
 
@@ -296,6 +313,7 @@ def gdal_warp_syscall(input_raster_file, outfile_path, resampling_factor=1, resa
     if not downsampling:
         resampling_factor = 1 / resampling_factor
     xres, yres = xres * resampling_factor, yres * resampling_factor
+
     resampling_dict = {gdal.GRA_NearestNeighbour: 'near', gdal.GRA_Bilinear: 'bilinear', gdal.GRA_Cubic: 'cubic',
                        gdal.GRA_CubicSpline: 'cubicspline', gdal.GRA_Lanczos: 'lanczos', gdal.GRA_Average: 'average',
                        gdal.GRA_Mode: 'mode', gdal.GRA_Max: 'max', gdal.GRA_Min: 'min', gdal.GRA_Med: 'med',
@@ -325,20 +343,24 @@ def crop_rasters(input_raster_dir, input_mask_file, outdir, pattern='*.tif', ext
         crop_raster(raster_file, input_mask_file, out_raster, ext_mask=ext_mask, gdalwarp_path=gdalwarp_path)
 
 
-def smooth_rasters(input_raster_dir, outdir, pattern='*_Masked.tif', sigma=5, normalize=False):
+def smooth_rasters(input_raster_dir, ref_file, outdir, pattern='*_Masked.tif', sigma=5, normalize=False,
+                   ignore_nan=False):
     """
     Smooth rasters using Gaussian Filter
     :param input_raster_dir:  Directory containing raster files which are named as *_<Year>.*
+    :param ref_file: Reference raster for discarding nans
     :param outdir: Output directory for storing masked rasters
     :param pattern: Raster extension
     :param sigma: Standard Deviation for Gaussian Filter
     :param normalize: Set true to normalize the filered values
+    :param ignore_nan: Set True to use astropy convolution
     :return: None
     """
 
     for raster_file in glob(input_raster_dir + pattern):
         out_raster = outdir + raster_file[raster_file.rfind('/') + 1: raster_file.rfind('.')] + '_Smoothed.tif'
-        apply_gaussian_filter(raster_file, outfile_path=out_raster, sigma=sigma, normalize=normalize, ignore_nan=False)
+        apply_gaussian_filter(raster_file, ref_file=ref_file, outfile_path=out_raster, sigma=sigma, normalize=normalize,
+                              ignore_nan=ignore_nan)
 
 
 def reproject_rasters(input_raster_dir, ref_raster, outdir, pattern='*.tif'):
@@ -371,11 +393,12 @@ def mask_rasters(input_raster_dir, ref_raster, outdir, pattern='*.tif'):
         filter_nans(raster_file, ref_raster, outfile_path=out_raster)
 
 
-def apply_et_filter(input_raster_dir, ref_raster, outdir, pattern='ET_*.tif', flt_values=(1,)):
+def apply_et_filter(input_raster_dir, ref_raster1, ref_raster2, outdir, pattern='ET_*.tif', flt_values=(1,)):
     """
     Mask out a raster using another raster
     :param input_raster_dir: Directory containing raster files which are named as *_<Year>.*
-    :param ref_raster: Reference raster file to consider while masking
+    :param ref_raster1: Reference raster file to consider while masking
+    :param ref_raster2: Filter out nan values using this raster
     :param outdir: Output directory for storing reprojected rasters
     :param pattern: Raster extension
     :param flt_values: Tuple of filter values
@@ -384,5 +407,5 @@ def apply_et_filter(input_raster_dir, ref_raster, outdir, pattern='ET_*.tif', fl
 
     for raster_file in glob(input_raster_dir + pattern):
         out_raster = outdir + raster_file[raster_file.rfind('/') + 1: raster_file.rfind('.')] + '_flt.tif'
-        apply_raster_filter(ref_raster, raster_file, outfile_path=out_raster, flt_values=flt_values)
-
+        apply_raster_filter(ref_raster1, raster_file, outfile_path=out_raster, flt_values=flt_values)
+        filter_nans(out_raster, ref_file=ref_raster2, outfile_path=out_raster)
