@@ -13,6 +13,7 @@ import astropy.convolution as apc
 from glob import glob
 import scipy.ndimage.filters as flt
 import subprocess
+import xmltodict
 
 NO_DATA_VALUE = -32767.0
 
@@ -409,3 +410,85 @@ def apply_et_filter(input_raster_dir, ref_raster1, ref_raster2, outdir, pattern=
         out_raster = outdir + raster_file[raster_file.rfind('/') + 1: raster_file.rfind('.')] + '_flt.tif'
         apply_raster_filter(ref_raster1, raster_file, outfile_path=out_raster, flt_values=flt_values)
         filter_nans(out_raster, ref_file=ref_raster2, outfile_path=out_raster)
+
+
+def retrieve_pixel_coords(geo_coord, data_source, gdalpath='/usr/local/Cellar/gdal/2.4.2/bin/'):
+    """
+    Get pixels coordinates from geo-coordinates
+    :param geo_coord: Geo-cooridnate tuple
+    :param data_source: Original GDAL reference having affine transformation parameters
+    :param gdalpath: Path to gdal binaries
+    :return: Pixel coordinates in x and y direction (should be reversed in the caller function to get the actual pixel
+    position)
+    """
+
+    gdal_loc_path = gdalpath + 'gdallocationinfo'
+    syscall = [gdal_loc_path, '-xml', '-geoloc', data_source, str(geo_coord[0]), str(geo_coord[1])]
+    p = subprocess.Popen(syscall, stdout=subprocess.PIPE)
+    p.wait()
+    gdalloc_xml = xmltodict.parse(p.stdout.read())
+    px, py = int(gdalloc_xml['Report']['@pixel']), int(gdalloc_xml['Report']['@line'])
+    return px, py
+
+
+def compute_raster_shp(input_raster_file, input_shp_file, outfile_path, nan_fill=0, point_arithmetic='sum',
+                       value_field_pos=2, gdalpath='/usr/local/Cellar/gdal/2.4.2/bin/'):
+    """
+    Replace/Insert values in an existing raster based on the point coordinates from the shape file and applying suitable
+    arithmetic on the point values (the raster and the shape file must be having the same CRS)
+    :param input_raster_file: Input raster file
+    :param input_shp_file: Input shape file (point layer only)
+    :param outfile_path: Output raster file path
+    :param nan_fill: This value is for filling up raster cells where there are no points present from the shapefile
+    :param point_arithmetic: Apply sum operation cummulatively on the point values (use None' to keep as is
+    or use 'mean' for using the mean of the point values within a particular raster pixel)
+    :param value_field_pos: Shapefile value field position to use (zero indexing)
+    :param gdalpath: Path to gdal binaries
+    :return: None
+    """
+
+    shp_data = gpd.read_file(input_shp_file)
+    raster_arr, raster_file = read_raster_as_arr(input_raster_file)
+    raster_arr[~np.isnan(raster_arr)] = nan_fill
+    count_arr = np.full_like(raster_arr, fill_value=0)
+    count_arr[np.isnan(raster_arr)] = np.nan
+    for idx, point in np.ndenumerate(shp_data['geometry']):
+        geocoords = point.x, point.y
+        px, py = retrieve_pixel_coords(geocoords, input_raster_file, gdalpath=gdalpath)
+        pval = shp_data[shp_data.columns[value_field_pos]][idx[0]]
+        if np.isnan(raster_arr[py, px]):
+            raster_arr[py, px] = 0
+        if point_arithmetic == 'sum':
+            raster_arr[py, px] += pval
+            count_arr[py, px] += 1
+        elif point_arithmetic == 'None':
+            raster_arr[py, px] = pval
+    if point_arithmetic == 'mean':
+        raster_arr = raster_arr / count_arr
+    raster_arr[np.isnan(raster_arr)] = NO_DATA_VALUE
+    write_raster(raster_arr, raster_file, transform=raster_file.transform, outfile_path=outfile_path)
+
+
+def compute_rasters_from_shp(input_raster_dir, input_shp_dir, outdir, nan_fill=0, point_arithmetic='sum',
+                             value_field_pos=2, pattern='*.tif', gdalpath='/usr/local/Cellar/gdal/2.4.2/bin/'):
+    """
+    Replace/Insert values of all rasters in a directory based on the point coordinates from the shape file and applying
+    suitable arithmetic on the point values
+    :param input_raster_dir: Input raster directory
+    :param input_shp_dir: Input shape file directory (point layer only)
+    :param outdir: Output raster directory
+    :param nan_fill: This value is for filling up raster cells where there are no points present from the shapefile
+    :param point_arithmetic: Apply sum operation cummulatively on the point values (use None' to keep as is
+    or use 'mean' for using the mean of the point values within a particular raster pixel)
+    :param value_field_pos: Shapefile value field position to use (zero indexing)
+    :param pattern: Raster extension
+    :param gdalpath: Path to gdal binaries
+    :return: None
+    """
+
+    raster_files, shp_files = glob(input_raster_dir + pattern), glob(input_shp_dir + '*.shp')
+    for raster_file, shp_file in zip(raster_files, shp_files):
+        out_raster = outdir + raster_file[raster_file.rfind('/') + 1:]
+        print('Processing for', raster_file, '...')
+        compute_raster_shp(raster_file, input_shp_file=shp_file, outfile_path=out_raster, nan_fill=nan_fill,
+                           point_arithmetic=point_arithmetic, value_field_pos=value_field_pos, gdalpath=gdalpath)
