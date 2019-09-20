@@ -487,8 +487,10 @@ def compute_rasters_from_shp(input_raster_dir, input_shp_dir, outdir, nan_fill=0
     """
 
     raster_files, shp_files = glob(input_raster_dir + pattern), glob(input_shp_dir + '*.shp')
+    raster_files.sort()
+    shp_files.sort()
     for raster_file, shp_file in zip(raster_files, shp_files):
         out_raster = outdir + raster_file[raster_file.rfind('/') + 1:]
-        print('Processing for', raster_file, '...')
+        print('Processing for', raster_file, shp_file, '...')
         compute_raster_shp(raster_file, input_shp_file=shp_file, outfile_path=out_raster, nan_fill=nan_fill,
                            point_arithmetic=point_arithmetic, value_field_pos=value_field_pos, gdalpath=gdalpath)
