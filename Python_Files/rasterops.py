@@ -494,3 +494,23 @@ def compute_rasters_from_shp(input_raster_dir, input_shp_dir, outdir, nan_fill=0
         print('Processing for', raster_file, shp_file, '...')
         compute_raster_shp(raster_file, input_shp_file=shp_file, outfile_path=out_raster, nan_fill=nan_fill,
                            point_arithmetic=point_arithmetic, value_field_pos=value_field_pos, gdalpath=gdalpath)
+
+
+def convert_gw_data(input_raster_dir, outdir, pattern='*.tif'):
+    """
+    Convert groundwater data (in acreft) to mm
+    :param input_raster_dir: Input raster directory
+    :param outdir: Output raster directory
+    :param pattern: Raster extension
+    :return: None
+    """
+
+    for raster_file in glob(input_raster_dir + pattern):
+        out_raster = outdir + raster_file[raster_file.rfind('/') + 1:]
+        raster_arr, raster_ref = read_raster_as_arr(raster_file)
+        transform = raster_ref.get_transform()
+        xres, yres = transform[1] / 1000., -transform[5] / 1000.
+        raster_arr *= 1.233 / (xres * yres)
+        raster_arr[np.isnan(raster_arr)] = NO_DATA_VALUE
+        write_raster(raster_arr, raster_ref, transform=raster_ref.transform, outfile_path=out_raster)
+

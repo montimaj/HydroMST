@@ -111,16 +111,28 @@ gw_mask_dir = output_gw_raster_dir + 'Masked/'
 # rops.filter_nans(urban_file, ref_raster, outfile_path=urban_masked)
 # rops.fill_nans(urban_file, ref_file=et_raster, outfile_path=urban_masked)
 
-print('Updated GW files...This will take significant time as pixelwise operations are performed!!')
-updated_gw_dir = gw_mask_dir + 'Updated/'
-makedirs([updated_gw_dir])
-rops.compute_rasters_from_shp(input_raster_dir=gw_mask_dir, input_shp_dir=clipped_gw_shp_dir, outdir=updated_gw_dir)
+# print('Updated GW files...This will take significant time as pixelwise operations are performed!!')
+# updated_gw_dir = gw_mask_dir + 'Updated/'
+# makedirs([updated_gw_dir])
+# rops.compute_rasters_from_shp(input_raster_dir=gw_mask_dir, input_shp_dir=clipped_gw_shp_dir, outdir=updated_gw_dir)
+
+# print('Changing GW unites from acreft to mm')
+new_gw_dir = gw_mask_dir + 'Converted/'
+# makedirs([new_gw_dir])
+# rops.convert_gw_data(updated_gw_dir, new_gw_dir)
 
 
-# print('DataFrame & Random Forest...')
-# df_file = output_dir + '/df.csv'
-# # df = rfr.create_dataframe(file_dir + 'RF_Data', out_df=df_file, exclude_years=())
+print('DataFrame & Random Forest...')
+df_file = output_dir + '/raster_df.csv'
+df_file_2015 = output_dir + '/raster_df_2015.csv'
+df = rfr.create_dataframe(file_dir + 'RF_Data/', out_df=df_file, make_year_col=False)  # ,
+#                          exclude_years=(2012, 2013, 2014, 2016, 2017))
 # df = pd.read_csv(df_file)
-# for state in range(0, 100001):
-#     rf = rfr.rf_regressor(df, output_dir, n_estimators=200, random_state=state, test_size=0.2, pred_attr='GW_KS')
+df_2015 = pd.read_csv(df_file_2015)
+rf_model = rfr.rf_regressor(df, output_dir, n_estimators=200, random_state=884, test_size=0.2, pred_attr='GW_KS',
+                            shuffle=True)
+#
+actual_raster = glob(new_gw_dir + '*_2015*.tif')[0]
+out_pred_raster = output_dir + 'pred_2015.tif'
+rfr.create_pred_raster(rf_model, input_df=df_2015, out_raster=out_pred_raster, actual_raster_file=actual_raster)
 
