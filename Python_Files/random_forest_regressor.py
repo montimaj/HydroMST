@@ -74,17 +74,17 @@ def split_data_train_test(input_df, pred_attr='GW_KS', shuffle=True, random_stat
     y_train_df = pd.DataFrame()
     y_test_df = pd.DataFrame()
     flag = False
-    if test_year is not None:
+    if test_year in years:
         flag = True
+    drop_columns = [pred_attr] + [attr for attr in drop_attrs]
     for year in years:
         selected_data = input_df.loc[input_df['YEAR'] == year]
         y = selected_data[pred_attr]
-        drop_columns = [pred_attr] + [attr for attr in drop_attrs]
         selected_data = selected_data.drop(columns=drop_columns)
         x_train, x_test, y_train, y_test = train_test_split(selected_data, y, shuffle=shuffle,
                                                             random_state=random_state, test_size=test_size)
         x_train_df = x_train_df.append(x_train)
-        if (flag and test_year == int(year)) or not flag:
+        if (flag and test_year == year) or not flag:
             x_test_df = x_test_df.append(x_test)
             y_test_df = pd.concat([y_test_df, y_test])
         y_train_df = pd.concat([y_train_df, y_train])

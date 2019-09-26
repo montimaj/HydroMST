@@ -129,10 +129,9 @@ df = rfr.create_dataframe(rf_data_dir, out_df=df_file, make_year_col=True, exclu
 # df = pd.read_csv(df_file)
 drop_attrs = ('YEAR', 'ET_FLT_KS', 'URBAN_KS')
 rf_model = rfr.rf_regressor(df, output_dir, n_estimators=500, random_state=0, test_size=0.2, pred_attr='GW_KS',
-                            drop_attrs=drop_attrs, test_year=None)
+                                drop_attrs=drop_attrs, test_year=None)
 pred_years = [2012, 2013, 2014, 2015, 2016, 2017]
 pred_out_dir = output_dir + 'Predicted_Rasters/'
 makedirs([pred_out_dir])
 rfr.predict_rasters(rf_model, pred_years=pred_years, drop_attrs=drop_attrs, out_dir=pred_out_dir,
                     actual_raster_dir=rf_data_dir)
-
