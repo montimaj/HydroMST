@@ -54,7 +54,7 @@ def create_dataframe(input_file_dir, out_df, pattern='*.tif', exclude_years=(), 
 
 
 def split_data_train_test(input_df, pred_attr='GW_KS', shuffle=True, random_state=0, test_size=0.2, outdir=None,
-                          drop_attrs=()):
+                          drop_attrs=(), test_year=None):
     """
     Split data preserving temporal variations
     :param input_df: Input dataframe
@@ -64,6 +64,7 @@ def split_data_train_test(input_df, pred_attr='GW_KS', shuffle=True, random_stat
     :param test_size: Test data size percentage (0<=test_size<=1)
     :param outdir: Set path to store intermediate files
     :param drop_attrs: Drop these specified attributes
+    :param test_year: Build test data from only this year
     :return: X_train, X_test, y_train, y_test
     """
 
@@ -72,6 +73,9 @@ def split_data_train_test(input_df, pred_attr='GW_KS', shuffle=True, random_stat
     x_test_df = pd.DataFrame()
     y_train_df = pd.DataFrame()
     y_test_df = pd.DataFrame()
+    flag = False
+    if test_year is not None:
+        flag = True
     for year in years:
         selected_data = input_df.loc[input_df['YEAR'] == year]
         y = selected_data[pred_attr]
@@ -80,9 +84,10 @@ def split_data_train_test(input_df, pred_attr='GW_KS', shuffle=True, random_stat
         x_train, x_test, y_train, y_test = train_test_split(selected_data, y, shuffle=shuffle,
                                                             random_state=random_state, test_size=test_size)
         x_train_df = x_train_df.append(x_train)
-        x_test_df = x_test_df.append(x_test)
+        if (flag and test_year == int(year)) or not flag:
+            x_test_df = x_test_df.append(x_test)
+            y_test_df = pd.concat([y_test_df, y_test])
         y_train_df = pd.concat([y_train_df, y_train])
-        y_test_df = pd.concat([y_test_df, y_test])
 
     if outdir:
         x_train_df.to_csv(outdir + 'X_Train.csv', index=False)
@@ -94,7 +99,7 @@ def split_data_train_test(input_df, pred_attr='GW_KS', shuffle=True, random_stat
 
 
 def rf_regressor(input_df, out_dir, n_estimators=200, random_state=0, test_size=0.2, pred_attr='GW_KS', shuffle=True,
-                 plot_graphs=False, drop_attrs=()):
+                 plot_graphs=False, drop_attrs=(), test_year=None):
     """
     Perform random forest regression
     :param input_df: Input pandas dataframe
@@ -106,12 +111,13 @@ def rf_regressor(input_df, out_dir, n_estimators=200, random_state=0, test_size=
     :param shuffle: Set False to stop data shuffling
     :param plot_graphs: Plot Actual vs Prediction graph
     :param drop_attrs: Drop these specified attributes
+    :param test_year: Build test data from only this year
     :return: Random forest model
     """
 
     x_train, x_test, y_train, y_test = split_data_train_test(input_df, pred_attr=pred_attr, test_size=test_size,
                                                              random_state=random_state, shuffle=shuffle, outdir=out_dir,
-                                                             drop_attrs=drop_attrs)
+                                                             drop_attrs=drop_attrs, test_year=test_year)
     regressor = RandomForestRegressor(n_estimators=n_estimators, random_state=random_state)
     regressor.fit(x_train, y_train)
     y_pred = regressor.predict(x_test)
@@ -130,7 +136,7 @@ def rf_regressor(input_df, out_dir, n_estimators=200, random_state=0, test_size=
 
     df = {'N_Estimator': [n_estimators], 'Random_State': [random_state], 'F_IMP': [feature_imp],
           'Train_Score': [train_score], 'Test_Score': [test_score], 'MAE': [mae], 'RMSE': [rmse]}
-    print(df)
+    print('Model statistics:', df)
     df = pd.DataFrame(data=df)
     df.to_csv(out_dir + 'RF_Results.csv', mode='a', index=False)
     return regressor
