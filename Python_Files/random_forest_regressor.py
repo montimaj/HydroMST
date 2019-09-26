@@ -54,7 +54,7 @@ def create_dataframe(input_file_dir, out_df, pattern='*.tif', exclude_years=(), 
 
 
 def split_data_train_test(input_df, pred_attr='GW_KS', shuffle=True, random_state=0, test_size=0.2, outdir=None,
-                          exclude_year=False):
+                          drop_attrs=()):
     """
     Split data preserving temporal variations
     :param input_df: Input dataframe
@@ -63,7 +63,7 @@ def split_data_train_test(input_df, pred_attr='GW_KS', shuffle=True, random_stat
     :param random_state: Random state used during train test split
     :param test_size: Test data size percentage (0<=test_size<=1)
     :param outdir: Set path to store intermediate files
-    :param exclude_year: Set true for not adding the year attribute for model building and prediction
+    :param drop_attrs: Drop these specified attributes
     :return: X_train, X_test, y_train, y_test
     """
 
@@ -75,9 +75,7 @@ def split_data_train_test(input_df, pred_attr='GW_KS', shuffle=True, random_stat
     for year in years:
         selected_data = input_df.loc[input_df['YEAR'] == year]
         y = selected_data[pred_attr]
-        drop_columns = [pred_attr]
-        if exclude_year:
-            drop_columns += ['YEAR']
+        drop_columns = [pred_attr] + [attr for attr in drop_attrs]
         selected_data = selected_data.drop(columns=drop_columns)
         x_train, x_test, y_train, y_test = train_test_split(selected_data, y, shuffle=shuffle,
                                                             random_state=random_state, test_size=test_size)
@@ -96,7 +94,7 @@ def split_data_train_test(input_df, pred_attr='GW_KS', shuffle=True, random_stat
 
 
 def rf_regressor(input_df, out_dir, n_estimators=200, random_state=0, test_size=0.2, pred_attr='GW_KS', shuffle=True,
-                 plot_graphs=False, exclude_year=False):
+                 plot_graphs=False, drop_attrs=()):
     """
     Perform random forest regression
     :param input_df: Input pandas dataframe
@@ -107,13 +105,13 @@ def rf_regressor(input_df, out_dir, n_estimators=200, random_state=0, test_size=
     :param pred_attr: Prediction attribute name in the dataframe
     :param shuffle: Set False to stop data shuffling
     :param plot_graphs: Plot Actual vs Prediction graph
-    :param exclude_year: Set true for not adding the year attribute for model building and prediction
+    :param drop_attrs: Drop these specified attributes
     :return: Random forest model
     """
 
     x_train, x_test, y_train, y_test = split_data_train_test(input_df, pred_attr=pred_attr, test_size=test_size,
                                                              random_state=random_state, shuffle=shuffle, outdir=out_dir,
-                                                             exclude_year=exclude_year)
+                                                             drop_attrs=drop_attrs)
     regressor = RandomForestRegressor(n_estimators=n_estimators, random_state=random_state)
     regressor.fit(x_train, y_train)
     y_pred = regressor.predict(x_test)
@@ -139,23 +137,22 @@ def rf_regressor(input_df, out_dir, n_estimators=200, random_state=0, test_size=
 
 
 def create_pred_raster(rf_model, out_raster, actual_raster_dir, pred_year=2015, pred_attr='GW_KS',
-                       plot_graphs=False, exclude_year=True):
+                       plot_graphs=False, drop_attrs=()):
     """
     Create prediction raster
     :param rf_model: Pre-built Random Forest Model
     :param out_raster: Output raster
     :param actual_raster_dir: Ground truth raster files required for prediction
+    :param pred_year: Prediction year
     :param pred_attr: Prediction attribute name in the dataframe
     :param plot_graphs: Plot Actual vs Prediction graph
-    :param exclude_year: Set true for not adding the year attribute for model prediction
-    :return: None
+    :param drop_attrs: Drop these specified attributes (Must be exactly the same as used in rf_regressor module)
+    :return: MAE, RMSE, and R^2 statistics
     """
 
     raster_files = glob(actual_raster_dir + '*_' + str(pred_year) + '*.tif')
     raster_arr_dict = {}
-    print('\nPrediction running')
     for raster_file in raster_files:
-        print('Obtaining', raster_file, '...')
         sep = raster_file.rfind('_')
         variable, year = raster_file[raster_file.rfind('/') + 1: sep], raster_file[sep + 1: raster_file.rfind('.')]
         raster_arr, actual_file = rops.read_raster_as_arr(raster_file)
@@ -168,9 +165,7 @@ def create_pred_raster(rf_model, out_raster, actual_raster_dir, pred_year=2015, 
 
     input_df = pd.DataFrame(data=raster_arr_dict)
     actual_arr = raster_arr_dict[pred_attr]
-    drop_columns = [pred_attr]
-    if exclude_year:
-        drop_columns += ['YEAR']
+    drop_columns = [pred_attr] + [attr for attr in drop_attrs]
     input_df = input_df.drop(columns=drop_columns)
     pred_arr = rf_model.predict(input_df)
     actual_arr[nan_pos] = actual_file.nodata
@@ -178,9 +173,8 @@ def create_pred_raster(rf_model, out_raster, actual_raster_dir, pred_year=2015, 
     actual_values = actual_arr[actual_arr != actual_file.nodata]
     pred_values = pred_arr[pred_arr != actual_file.nodata]
     mae = np.round(metrics.mean_absolute_error(actual_values, pred_values), 3)
-    r_squared = metrics.r2_score(actual_values, pred_values)
+    r_squared = np.round(metrics.r2_score(actual_values, pred_values), 3)
     rmse = np.round(np.sqrt(metrics.mean_squared_error(actual_values, pred_values)), 3)
-    print('MAE=', mae, 'RMSE=', rmse, 'R^2=', r_squared)
 
     if plot_graphs:
         plt.plot(pred_values, actual_values, 'ro')
@@ -190,3 +184,23 @@ def create_pred_raster(rf_model, out_raster, actual_raster_dir, pred_year=2015, 
 
     pred_arr = pred_arr.reshape(raster_shape)
     rops.write_raster(pred_arr, actual_file, transform=actual_file.transform, outfile_path=out_raster)
+    return mae, rmse, r_squared
+
+
+def predict_rasters(rf_model, actual_raster_dir, out_dir, pred_years, drop_attrs=()):
+    """
+    Create prediction rasters from input data
+    :param rf_model: Pre-trained Random Forest Model
+    :param actual_raster_dir: Directory containing input rasters
+    :param out_dir: Output directory for predicted rasters
+    :param pred_years: Tuple containing prediction years
+    :param drop_attrs: Drop these specified attributes (Must be exactly the same as used in rf_regressor module)
+    :return:
+    """
+
+    for pred_year in pred_years:
+        out_pred_raster = out_dir + 'pred_' + str(pred_year) + '.tif'
+        mae, rmse, r_squared = create_pred_raster(rf_model, out_raster=out_pred_raster,
+                                                  actual_raster_dir=actual_raster_dir, pred_year=pred_year,
+                                                  drop_attrs=drop_attrs)
+        print('YEAR', pred_year, ': MAE =', mae, 'RMSE =', rmse, 'R^2 =', r_squared)

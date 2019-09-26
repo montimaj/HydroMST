@@ -125,24 +125,14 @@ new_gw_dir = gw_mask_dir + 'Converted/'
 print('DataFrame & Random Forest...')
 df_file = output_dir + '/raster_df.csv'
 rf_data_dir = file_dir + 'RF_Data/'
-df = rfr.create_dataframe(rf_data_dir, out_df=df_file, make_year_col=True, exclude_years=(2012, 2013, 2017))
+df = rfr.create_dataframe(rf_data_dir, out_df=df_file, make_year_col=True, exclude_years=(2017, ))
 # df = pd.read_csv(df_file)
-rf_model = rfr.rf_regressor(df, output_dir, n_estimators=200, random_state=884, test_size=0.2, pred_attr='GW_KS',
-                            exclude_year=True)
-# #
-out_pred_raster = output_dir + 'pred_2015.tif'
-rfr.create_pred_raster(rf_model, out_raster=out_pred_raster, actual_raster_dir=rf_data_dir, pred_year=2015,
-                       exclude_year=True)
-out_pred_raster = output_dir + 'pred_2014.tif'
-rfr.create_pred_raster(rf_model, out_raster=out_pred_raster, actual_raster_dir=rf_data_dir, pred_year=2014,
-                       exclude_year=True)
-out_pred_raster = output_dir + 'pred_2016.tif'
-rfr.create_pred_raster(rf_model, out_raster=out_pred_raster, actual_raster_dir=rf_data_dir, pred_year=2016,
-                       exclude_year=True)
-out_pred_raster = output_dir + 'pred_2012.tif'
-rfr.create_pred_raster(rf_model, out_raster=out_pred_raster, actual_raster_dir=rf_data_dir, pred_year=2012,
-                       exclude_year=True)
-out_pred_raster = output_dir + 'pred_2013.tif'
-rfr.create_pred_raster(rf_model, out_raster=out_pred_raster, actual_raster_dir=rf_data_dir, pred_year=2013,
-                       exclude_year=True)
+drop_attrs = ('YEAR', 'ET_FLT_KS', 'URBAN_KS')
+rf_model = rfr.rf_regressor(df, output_dir, n_estimators=500, random_state=0, test_size=0.2, pred_attr='GW_KS',
+                            drop_attrs=drop_attrs)
+pred_years = [2012, 2013, 2014, 2015, 2016, 2017]
+pred_out_dir = output_dir + 'Predicted_Rasters/'
+makedirs([pred_out_dir])
+rfr.predict_rasters(rf_model, pred_years=pred_years, drop_attrs=drop_attrs, out_dir=pred_out_dir,
+                    actual_raster_dir=rf_data_dir)
 
