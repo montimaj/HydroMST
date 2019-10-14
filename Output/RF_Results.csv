@@ -1,0 +1,152 @@
+N_Estimator,Random_State,F_IMP,Train_Score,Test_Score,MAE,RMSE
+500,0,0.287 0.26 0.247 0.207,0.942,0.593,27.124,46.189
+N_Estimator,Random_State,F_IMP,Train_Score,Test_Score,MAE,RMSE
+500,0,0.287 0.26 0.247 0.207,0.942,0.593,27.124,46.189
+N_Estimator,Random_State,F_IMP,Train_Score,Test_Score,MAE,RMSE
+500,0,0.287 0.234 0.24 0.204 0.034,0.942,0.634,21.804,37.662
+N_Estimator,Random_State,F_IMP,Train_Score,Test_Score,MAE,RMSE
+500,0,0.287 0.234 0.24 0.204 0.034,0.942,0.592,27.21,46.252
+N_Estimator,Random_State,F_IMP,Train_Score,Test_Score,MAE,RMSE
+500,0,0.287 0.234 0.24 0.204 0.034,0.942,0.687,21.087,36.134
+N_Estimator,Random_State,F_IMP,Train_Score,Test_Score,MAE,RMSE
+500,0,0.287 0.234 0.24 0.204 0.034,0.942,0.592,27.21,46.252
+N_Estimator,Random_State,F_IMP,Train_Score,Test_Score,MAE,RMSE
+500,0,0.287 0.234 0.24 0.204 0.034,0.942,0.592,27.21,46.252
+N_Estimator,Random_State,F_IMP,Train_Score,Test_Score,MAE,RMSE
+500,0,0.287 0.234 0.24 0.204 0.034,0.942,0.657,22.061,37.304
+N_Estimator,Random_State,F_IMP,Train_Score,Test_Score,MAE,RMSE
+500,0,0.287 0.234 0.24 0.204 0.034,0.942,0.62,19.444,33.643
+N_Estimator,Random_State,F_IMP,Train_Score,Test_Score,MAE,RMSE
+500,0,0.287 0.234 0.24 0.204 0.034,0.942,0.607,19.219,33.521
+N_Estimator,Random_State,F_IMP,Train_Score,Test_Score,MAE,RMSE
+500,0,0.287 0.26 0.247 0.207,0.942,0.598,19.64,33.944
+N_Estimator,Random_State,F_IMP,Train_Score,Test_Score,MAE,RMSE
+500,0,0.287 0.26 0.247 0.207,0.942,0.593,27.124,46.189
+N_Estimator,Random_State,F_IMP,Train_Score,Test_Score,MAE,RMSE
+500,0,0.287 0.26 0.247 0.207,0.942,0.685,21.265,36.223
+N_Estimator,Random_State,F_IMP,Train_Score,Test_Score,MAE,RMSE
+500,0,0.287 0.26 0.247 0.207,0.942,0.631,22.004,37.797
+N_Estimator,Random_State,F_IMP,Train_Score,Test_Score,MAE,RMSE
+500,0,0.287 0.26 0.247 0.207,0.942,0.631,22.004,37.797
+N_Estimator,Random_State,F_IMP,Train_Score,Test_Score,MAE,RMSE
+500,0,0.287 0.26 0.247 0.207,0.942,0.631,22.004,37.797
+N_Estimator,Random_State,F_IMP,Train_Score,Test_Score,MAE,RMSE
+500,0,0.287 0.26 0.247 0.207,0.942,0.631,22.004,37.797
+N_Estimator,Random_State,F_IMP,Train_Score,Test_Score,MAE,RMSE
+500,0,0.287 0.26 0.247 0.207,0.942,0.631,22.004,37.797
+N_Estimator,Random_State,F_IMP,Train_Score,Test_Score,MAE,RMSE
+500,0,0.287 0.26 0.247 0.207,0.942,0.631,22.004,37.797
+N_Estimator,Random_State,F_IMP,Train_Score,Test_Score,MAE,RMSE
+500,0,0.287 0.26 0.247 0.207,0.942,0.593,27.124,46.189
+N_Estimator,Random_State,F_IMP,Train_Score,Test_Score,MAE,RMSE
+500,0,0.287 0.26 0.247 0.207,0.942,0.685,21.265,36.223
+N_Estimator,Random_State,F_IMP,Train_Score,Test_Score,MAE,RMSE
+500,0,0.287 0.26 0.247 0.207,0.942,0.653,22.334,37.532
+N_Estimator,Random_State,F_IMP,Train_Score,Test_Score,MAE,RMSE
+500,0,0.287 0.26 0.247 0.207,0.942,0.618,19.655,33.717
+N_Estimator,Random_State,F_IMP,Train_Score,Test_Score,MAE,RMSE
+500,0,0.287 0.26 0.247 0.207,0.942,0.598,19.64,33.944
+N_Estimator,Random_State,F_IMP,Train_Score,Test_Score,MAE,RMSE
+500,0,0.287 0.26 0.247 0.207,0.942,0.631,22.004,37.797
+N_Estimator,Random_State,F_IMP,Train_Score,Test_Score,MAE,RMSE
+500,0,0.287 0.26 0.247 0.207,0.942,0.631,22.004,37.797
+N_Estimator,Random_State,F_IMP,Train_Score,Test_Score,MAE,RMSE
+500,0,0.284 0.007 0.259 0.244 0.206,0.942,0.632,21.99,37.759
+N_Estimator,Random_State,F_IMP,Train_Score,Test_Score,MAE,RMSE
+500,0,0.287 0.26 0.247 0.207,0.942,0.631,22.004,37.797
+N_Estimator,Random_State,F_IMP,Train_Score,Test_Score,MAE,RMSE
+500,0,0.339 0.333 0.328,0.901,0.271,33.511,53.143
+N_Estimator,Random_State,F_IMP,Train_Score,Test_Score,MAE,RMSE
+500,0,0.358 0.35 0.292,0.906,0.306,31.0,49.444
+N_Estimator,Random_State,F_IMP,Train_Score,Test_Score,MAE,RMSE
+500,0,0.316 0.234 0.263 0.188,0.942,0.637,20.755,35.729
+N_Estimator,Random_State,F_IMP,Train_Score,Test_Score,MAE,RMSE
+500,0,0.392 0.271 0.337,0.93,0.573,22.823,38.785
+N_Estimator,Random_State,F_IMP,Train_Score,Test_Score,MAE,RMSE
+500,0,0.303 0.249 0.251 0.197,0.943,0.633,20.528,35.165
+N_Estimator,Random_State,F_IMP,Train_Score,Test_Score,MAE,RMSE
+500,0,0.285 0.263 0.243 0.209,0.943,0.626,21.31,36.775
+N_Estimator,Random_State,F_IMP,Train_Score,Test_Score,MAE,RMSE
+500,0,0.304 0.256 0.248 0.193,0.944,0.63,20.209,34.904
+N_Estimator,Random_State,F_IMP,Train_Score,Test_Score,MAE,RMSE
+500,0,0.306 0.261 0.214 0.219,0.944,0.193,45.613,60.369
+N_Estimator,Random_State,F_IMP,Train_Score,Test_Score,MAE,RMSE
+1000,0,0.304 0.248 0.251 0.197,0.943,0.633,20.521,35.165
+N_Estimator,Random_State,F_IMP,Train_Score,Test_Score,MAE,RMSE
+500,0,0.398 0.305 0.297,0.931,0.563,22.069,38.373
+N_Estimator,Random_State,F_IMP,Train_Score,Test_Score,MAE,RMSE
+500,0,0.646 0.354,0.874,0.386,26.006,45.505
+N_Estimator,Random_State,F_IMP,Train_Score,Test_Score,MAE,RMSE
+500,0,0.303 0.249 0.251 0.197,0.943,0.633,20.528,35.165
+N_Estimator,Random_State,F_IMP,Train_Score,Test_Score,MAE,RMSE
+500,0,0.287 0.26 0.247 0.207,0.942,0.631,22.004,37.797
+N_Estimator,Random_State,F_IMP,Train_Score,Test_Score,MAE,RMSE
+500,0,0.287 0.26 0.247 0.207,0.942,0.631,22.004,37.797
+N_Estimator,Random_State,F_IMP,Train_Score,Test_Score,MAE,RMSE
+500,0,0.287 0.26 0.247 0.207,0.942,0.631,22.004,37.797
+N_Estimator,Random_State,F_IMP,Train_Score,Test_Score,MAE,RMSE
+500,0,0.156 0.113 0.15 0.271 0.174 0.136,0.964,0.706,18.514,33.734
+N_Estimator,Random_State,F_IMP,Train_Score,Test_Score,MAE,RMSE
+500,0,0.198 0.14 0.098 0.257 0.197 0.11,0.961,0.715,17.286,31.691
+N_Estimator,Random_State,F_IMP,Train_Score,Test_Score,MAE,RMSE
+500,0,0.102 0.11 0.149 0.268 0.172 0.134 0.066,0.964,0.702,18.614,33.974
+N_Estimator,Random_State,F_IMP,Train_Score,Test_Score,MAE,RMSE
+500,0,0.109 0.002 0.158 0.302 0.177 0.188 0.063,0.965,0.597,22.041,39.511
+N_Estimator,Random_State,F_IMP,Train_Score,Test_Score,MAE,RMSE
+500,0,0.182 0.164 0.293 0.203 0.158,0.956,0.69,19.118,34.646
+N_Estimator,Random_State,F_IMP,Train_Score,Test_Score,MAE,RMSE
+500,0,0.117 0.162 0.288 0.199 0.154 0.08,0.956,0.684,19.262,34.975
+N_Estimator,Random_State,F_IMP,Train_Score,Test_Score,MAE,RMSE
+500,0,0.177 0.102 0.165 0.15 0.253 0.154,0.959,0.728,16.162,29.969
+N_Estimator,Random_State,F_IMP,Train_Score,Test_Score,MAE,RMSE
+500,0,0.161 0.153 0.302 0.177 0.185 0.023,0.966,0.619,21.65,38.402
+N_Estimator,Random_State,F_IMP,Train_Score,Test_Score,MAE,RMSE
+500,0,0.324 0.318 0.299 0.06,0.908,0.33,31.778,50.955
+N_Estimator,Random_State,F_IMP,Train_Score,Test_Score,MAE,RMSE
+500,0,0.285 0.243 0.244 0.208 0.021,0.942,0.632,21.946,37.76
+N_Estimator,Random_State,F_IMP,Train_Score,Test_Score,MAE,RMSE
+500,0,0.181 0.157 0.292 0.203 0.157 0.009,0.956,0.692,19.092,34.576
+N_Estimator,Random_State,F_IMP,Train_Score,Test_Score,MAE,RMSE
+500,0,0.287 0.26 0.247 0.207,0.942,0.631,22.004,37.797
+N_Estimator,Random_State,F_IMP,Train_Score,Test_Score,MAE,RMSE
+500,0,0.156 0.113 0.15 0.271 0.174 0.136,0.964,0.706,18.514,33.734
+N_Estimator,Random_State,F_IMP,Train_Score,Test_Score,MAE,RMSE
+500,0,0.15 0.109 0.163 0.271 0.171 0.136,0.965,0.714,18.15,33.243
+N_Estimator,Random_State,F_IMP,Train_Score,Test_Score,MAE,RMSE
+500,0,0.174 0.212 0.099 0.145 0.249 0.12,0.955,0.724,15.212,28.416
+N_Estimator,Random_State,F_IMP,Train_Score,Test_Score,MAE,RMSE
+500,0,0.178 0.17 0.098 0.094 0.289 0.17,0.963,0.244,33.983,53.516
+N_Estimator,Random_State,F_IMP,Train_Score,Test_Score,MAE,RMSE
+500,0,0.162 0.192 0.092 0.116 0.298 0.14,0.96,0.056,29.119,54.88
+N_Estimator,Random_State,F_IMP,Train_Score,Test_Score,MAE,RMSE
+500,0,0.146 0.105 0.144 0.309 0.162 0.134,0.968,0.092,28.966,59.457
+N_Estimator,Random_State,F_IMP,Train_Score,Test_Score,MAE,RMSE
+500,0,0.177 0.13 0.096 0.303 0.174 0.12,0.967,0.071,29.111,58.978
+N_Estimator,Random_State,F_IMP,Train_Score,Test_Score,MAE,RMSE
+500,0,0.146 0.105 0.144 0.309 0.162 0.135,0.968,0.088,29.132,59.584
+N_Estimator,Random_State,F_IMP,Train_Score,Test_Score,MAE,RMSE
+500,0,0.145 0.104 0.14 0.309 0.161 0.134 0.006,0.968,0.093,28.934,59.434
+N_Estimator,Random_State,F_IMP,Train_Score,Test_Score,MAE,RMSE
+500,0,0.159 0.149 0.346 0.145 0.188 0.014,0.974,0.194,34.533,64.36
+N_Estimator,Random_State,F_IMP,Train_Score,Test_Score,MAE,RMSE
+500,0,0.201 0.178 0.365 0.221 0.036,0.952,0.235,34.437,62.705
+N_Estimator,Random_State,F_IMP,Train_Score,Test_Score,MAE,RMSE
+500,0,0.156 0.351 0.139 0.191 0.151 0.012,0.976,0.181,34.763,64.908
+N_Estimator,Random_State,F_IMP,Train_Score,Test_Score,MAE,RMSE
+500,0,0.086 0.226 0.418 0.247 0.024,0.99,0.061,36.977,69.491
+N_Estimator,Random_State,F_IMP,Train_Score,Test_Score,MAE,RMSE
+500,0,0.161 0.153 0.302 0.177 0.185 0.023,0.966,0.619,21.65,38.402
+N_Estimator,Random_State,F_IMP,Train_Score,Test_Score,MAE,RMSE
+500,0,0.156 0.113 0.15 0.271 0.174 0.136,0.964,0.706,18.514,33.734
+N_Estimator,Random_State,F_IMP,Train_Score,Test_Score,MAE,RMSE
+500,0,0.287 0.26 0.247 0.207,0.942,0.631,22.004,37.797
+N_Estimator,Random_State,F_IMP,Train_Score,Test_Score,MAE,RMSE
+500,0,0.324 0.318 0.299 0.06,0.908,0.33,31.778,50.955
+N_Estimator,Random_State,F_IMP,Train_Score,Test_Score,MAE,RMSE
+500,0,0.321 0.341 0.053 0.285,0.906,0.337,29.378,46.799
+N_Estimator,Random_State,F_IMP,Train_Score,Test_Score,MAE,RMSE
+500,0,0.175 0.146 0.171 0.293 0.018 0.196,0.958,0.647,19.314,34.164
+N_Estimator,Random_State,F_IMP,Train_Score,Test_Score,MAE,RMSE
+500,0,0.177 0.102 0.165 0.15 0.253 0.154,0.959,0.728,16.162,29.969
+N_Estimator,Random_State,F_IMP,Train_Score,Test_Score,MAE,RMSE
+500,0,0.175 0.146 0.171 0.293 0.018 0.196,0.958,0.647,19.314,34.164

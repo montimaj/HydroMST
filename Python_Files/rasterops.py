@@ -101,10 +101,10 @@ def crop_raster(input_raster_file, input_mask_path, outfile_path, plot_fig=False
         shape_file = gpd.read_file(input_mask_path)
         shape_file_geom = mapping(shape_file['geometry'][0])
         raster_file = rio.open(input_raster_file)
-        raster_crop, raster_affine = mask(raster_file, [shape_file_geom])
-        shape_extent = plotting_extent(raster_crop[0], raster_affine)
+        raster_crop, raster_transform = mask(raster_file, [shape_file_geom], crop=True)
+        shape_extent = plotting_extent(raster_crop[0], raster_transform)
         raster_crop = np.squeeze(raster_crop)
-        write_raster(raster_crop, raster_file, transform=raster_file.transform, outfile_path=outfile_path,
+        write_raster(raster_crop, raster_file, transform=raster_transform, outfile_path=outfile_path,
                      no_data_value=raster_file.nodata)
         if plot_fig:
              fig, ax = plt.subplots(figsize=(10, 8))
@@ -514,3 +514,35 @@ def convert_gw_data(input_raster_dir, outdir, pattern='*.tif'):
         raster_arr[np.isnan(raster_arr)] = NO_DATA_VALUE
         write_raster(raster_arr, raster_ref, transform=raster_ref.transform, outfile_path=out_raster)
 
+
+def crop_multiple_rasters(input_raster_dir, outdir, input_shp_file, pattern='GW*.tif'):
+    """
+    Crop multiple rasters using shape file extent
+    :param input_raster_dir: Input raster directory
+    :param outdir: Output directory
+    :param input_shp_file: Input shape file
+    :param pattern: Raster file name pattern
+    :return: None
+    """
+
+    for raster_file in glob(input_raster_dir + pattern):
+        out_raster = outdir + raster_file[raster_file.rfind('/') + 1:]
+        crop_raster(raster_file, input_mask_path=input_shp_file, ext_mask=False, outfile_path=out_raster)
+
+
+def fill_mean_value(input_raster_dir, outdir, pattern='GRACE*.tif'):
+    """
+    Replace all values with the mean value of the raster
+    :param input_raster_dir: Input raster directory
+    :param outdir: Output directory
+    :param pattern: Raster file name pattern
+    :return: None
+    """
+
+    for raster_file in glob(input_raster_dir + pattern):
+        out_raster = outdir + raster_file[raster_file.rfind('/') + 1:]
+        raster_arr, raster_file = read_raster_as_arr(raster_file)
+        mean_val = np.nanmean(raster_arr)
+        raster_arr[np.isnan(raster_arr)] = NO_DATA_VALUE
+        raster_arr[raster_arr != NO_DATA_VALUE] = mean_val
+        write_raster(raster_arr, raster_file, transform=raster_file.transform, outfile_path=out_raster)
