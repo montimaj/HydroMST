@@ -6,6 +6,7 @@ from glob import glob
 import numpy as np
 import matplotlib.pyplot as plt
 from collections import defaultdict
+from sklearn.inspection import plot_partial_dependence
 
 from Python_Files import rasterops as rops
 
@@ -120,8 +121,8 @@ def rf_regressor(input_df, out_dir, n_estimators=200, random_state=0, test_size=
                                                              drop_attrs=drop_attrs, test_year=test_year)
     regressor = RandomForestRegressor(n_estimators=n_estimators, random_state=random_state)
     regressor.fit(x_train, y_train)
+    print('Predictor... ')
     y_pred = regressor.predict(x_test)
-
     feature_imp = " ".join(str(np.round(i, 3)) for i in regressor.feature_importances_)
     train_score = np.round(regressor.score(x_train, y_train), 3)
     test_score = np.round(regressor.score(x_test, y_test), 3)
@@ -129,6 +130,10 @@ def rf_regressor(input_df, out_dir, n_estimators=200, random_state=0, test_size=
     rmse = np.round(np.sqrt(metrics.mean_squared_error(y_test, y_pred)), 3)
 
     if plot_graphs:
+        print('Plotting...')
+        plot_partial_dependence(regressor, features=[0, 1, 2, 3], X=x_train,
+                                feature_names=['ET_KS', 'GRACE_KS', 'P_KS', 'SW_KS'], n_jobs=4)
+        plt.show()
         plt.plot(y_pred, y_test, 'ro')
         plt.xlabel('GW_Predict')
         plt.ylabel('GW_Actual')
@@ -183,6 +188,10 @@ def create_pred_raster(rf_model, out_raster, actual_raster_dir, pred_year=2015, 
     rmse = np.round(np.sqrt(metrics.mean_squared_error(actual_values, pred_values)), 3)
 
     if plot_graphs:
+        print('Plotting...')
+        plot_partial_dependence(rf_model, features=[0, 1, 2, 3], X=input_df,
+                                feature_names=['ET_KS', 'GRACE_KS', 'P_KS', 'SW_KS'], n_jobs=4)
+        plt.show()
         plt.plot(pred_values, actual_values, 'ro')
         plt.xlabel('GW_Predict')
         plt.ylabel('GW_Actual')
@@ -193,7 +202,7 @@ def create_pred_raster(rf_model, out_raster, actual_raster_dir, pred_year=2015, 
     return mae, rmse, r_squared
 
 
-def predict_rasters(rf_model, actual_raster_dir, out_dir, pred_years, drop_attrs=()):
+def predict_rasters(rf_model, actual_raster_dir, out_dir, pred_years, drop_attrs=(), plot_graphs=False):
     """
     Create prediction rasters from input data
     :param rf_model: Pre-trained Random Forest Model
@@ -201,6 +210,7 @@ def predict_rasters(rf_model, actual_raster_dir, out_dir, pred_years, drop_attrs
     :param out_dir: Output directory for predicted rasters
     :param pred_years: Tuple containing prediction years
     :param drop_attrs: Drop these specified attributes (Must be exactly the same as used in rf_regressor module)
+    :param plot_graphs: Set true to show plots
     :return:
     """
 
@@ -208,5 +218,5 @@ def predict_rasters(rf_model, actual_raster_dir, out_dir, pred_years, drop_attrs
         out_pred_raster = out_dir + 'pred_' + str(pred_year) + '.tif'
         mae, rmse, r_squared = create_pred_raster(rf_model, out_raster=out_pred_raster,
                                                   actual_raster_dir=actual_raster_dir, pred_year=pred_year,
-                                                  drop_attrs=drop_attrs)
+                                                  drop_attrs=drop_attrs, plot_graphs=plot_graphs)
         print('YEAR', pred_year, ': MAE =', mae, 'RMSE =', rmse, 'R^2 =', r_squared)
