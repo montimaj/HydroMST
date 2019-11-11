@@ -204,3 +204,11 @@ N_Estimator,Random_State,F_IMP,Train_Score,Test_Score,MAE,RMSE
 500,0,0.287 0.26 0.247 0.207,0.942,0.631,22.004,37.797
 N_Estimator,Random_State,F_IMP,Train_Score,Test_Score,MAE,RMSE
 500,0,0.287 0.26 0.247 0.207,0.942,0.631,22.004,37.797
+N_Estimator,Random_State,F_IMP,Train_Score,Test_Score,MAE,RMSE
+500,0,0.272 0.288 0.24 0.2,0.945,-0.59,44.114,64.243
+N_Estimator,Random_State,F_IMP,Train_Score,Test_Score,MAE,RMSE
+500,0,0.273 0.275 0.237 0.197 0.018,0.945,-0.573,43.294,63.9
+N_Estimator,Random_State,F_IMP,Train_Score,Test_Score,MAE,RMSE
+500,0,0.33 0.348 0.322,0.903,0.034,32.503,50.079
+N_Estimator,Random_State,F_IMP,Train_Score,Test_Score,MAE,RMSE
+500,0,0.359 0.349 0.291,0.907,-0.051,50.034,71.913

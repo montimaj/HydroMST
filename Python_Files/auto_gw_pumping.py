@@ -177,16 +177,17 @@ df_file = output_dir + '/raster_df.csv'
 rf_data_dir = file_dir + 'RF_Data/'
 df = rfr.create_dataframe(rf_data_dir, out_df=df_file, make_year_col=True, exclude_years=(2017, ))
 # df = pd.read_csv(df_file)
-drop_attrs = ('YEAR', 'GRACE_AVG_KS', 'ET_FLT_KS', 'URBAN_KS', 'AGRI_KS', 'URBAN_FLT_KS')
+drop_attrs = ('YEAR', 'GRACE_KS', 'GRACE_AVG_KS', 'ET_FLT_KS', 'URBAN_KS', 'AGRI_KS', 'URBAN_FLT_KS')
 rf_model = rfr.rf_regressor(df, output_dir, n_estimators=500, random_state=0, test_size=0.2, pred_attr='GW_KS',
-                            drop_attrs=drop_attrs, test_year=None, shuffle=True, plot_graphs=True)
-pred_years = [2012, 2013, 2014, 2015, 2016]
-pred_out_dir = output_dir + 'Predicted_Rasters/'
-makedirs([pred_out_dir])
-rfr.predict_rasters(rf_model, pred_years=pred_years, drop_attrs=drop_attrs, out_dir=pred_out_dir,
-                    actual_raster_dir=rf_data_dir, plot_graphs=False)
-crop_dir = output_dir + 'Cropped_Rasters/'
-makedirs([crop_dir])
-rops.crop_multiple_rasters(rf_data_dir, outdir=crop_dir, input_shp_file=file_dir + 'Final_Mask/crop.shp')
-rops.crop_multiple_rasters(pred_out_dir, outdir=crop_dir, input_shp_file=file_dir + 'Final_Mask/crop.shp',
-                           pattern='*.tif')
+                            drop_attrs=drop_attrs, test_year=(2012, ), shuffle=True, plot_graphs=True,
+                            split_yearly=False)
+# pred_years = [2012, 2013, 2014, 2015, 2016]
+# pred_out_dir = output_dir + 'Predicted_Rasters/'
+# makedirs([pred_out_dir])
+# rfr.predict_rasters(rf_model, pred_years=pred_years, drop_attrs=drop_attrs, out_dir=pred_out_dir,
+#                     actual_raster_dir=rf_data_dir, plot_graphs=False)
+# crop_dir = output_dir + 'Cropped_Rasters/'
+# makedirs([crop_dir])
+# rops.crop_multiple_rasters(rf_data_dir, outdir=crop_dir, input_shp_file=file_dir + 'Final_Mask/crop.shp')
+# rops.crop_multiple_rasters(pred_out_dir, outdir=crop_dir, input_shp_file=file_dir + 'Final_Mask/crop.shp',
+#                            pattern='*.tif')

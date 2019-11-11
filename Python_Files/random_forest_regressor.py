@@ -99,8 +99,45 @@ def split_data_train_test(input_df, pred_attr='GW_KS', shuffle=True, random_stat
     return x_train_df, x_test_df, y_train_df[0].ravel(), y_test_df[0].ravel()
 
 
+def split_yearly_data(input_df, pred_attr='GW_KS', outdir=None, drop_attrs=(), test_years=(2016, )):
+    """
+    Split data based on the years
+    :param input_df: Input dataframe
+    :param pred_attr: Prediction attribute name
+    :param outdir: Set path to store intermediate files
+    :param drop_attrs: Drop these specified attributes
+    :param test_years: Build test data from only these years
+    :return: X_train, X_test, y_train, y_test
+    """
+
+    years = set(input_df['YEAR'])
+    x_train_df = pd.DataFrame()
+    x_test_df = pd.DataFrame()
+    y_train_df = pd.DataFrame()
+    y_test_df = pd.DataFrame()
+    drop_columns = [pred_attr] + [attr for attr in drop_attrs]
+    for year in years:
+        selected_data = input_df.loc[input_df['YEAR'] == year]
+        y_t = selected_data[pred_attr]
+        x_t = selected_data.drop(columns=drop_columns)
+        if year not in test_years:
+            x_train_df = x_train_df.append(x_t)
+            y_train_df = pd.concat([y_train_df, y_t])
+        else:
+            x_test_df = x_test_df.append(x_t)
+            y_test_df = pd.concat([y_test_df, y_t])
+
+    if outdir:
+        x_train_df.to_csv(outdir + 'X_Train.csv', index=False)
+        x_test_df.to_csv(outdir + 'X_Test.csv', index=False)
+        y_train_df.to_csv(outdir + 'Y_Train.csv', index=False)
+        y_test_df.to_csv(outdir + 'Y_Test.csv', index=False)
+
+    return x_train_df, x_test_df, y_train_df[0].ravel(), y_test_df[0].ravel()
+
+
 def rf_regressor(input_df, out_dir, n_estimators=200, random_state=0, test_size=0.2, pred_attr='GW_KS', shuffle=True,
-                 plot_graphs=False, drop_attrs=(), test_year=None):
+                 plot_graphs=False, drop_attrs=(), test_year=None, split_yearly=False):
     """
     Perform random forest regression
     :param input_df: Input pandas dataframe
@@ -112,13 +149,19 @@ def rf_regressor(input_df, out_dir, n_estimators=200, random_state=0, test_size=
     :param shuffle: Set False to stop data shuffling
     :param plot_graphs: Plot Actual vs Prediction graph
     :param drop_attrs: Drop these specified attributes
-    :param test_year: Build test data from only this year
+    :param test_year: Build test data from only this year. Use tuple of years to split train test data using
+    #split_yearly_data
+    :param split_yearly: Split train test data based on years
     :return: Random forest model
     """
 
-    x_train, x_test, y_train, y_test = split_data_train_test(input_df, pred_attr=pred_attr, test_size=test_size,
-                                                             random_state=random_state, shuffle=shuffle, outdir=out_dir,
-                                                             drop_attrs=drop_attrs, test_year=test_year)
+    if not split_yearly:
+        x_train, x_test, y_train, y_test = split_data_train_test(input_df, pred_attr=pred_attr, test_size=test_size,
+                                                                 random_state=random_state, shuffle=shuffle, outdir=out_dir,
+                                                                 drop_attrs=drop_attrs, test_year=test_year)
+    else:
+        x_train, x_test, y_train, y_test = split_yearly_data(input_df, pred_attr=pred_attr, outdir=out_dir,
+                                                             drop_attrs=drop_attrs, test_years=test_year)
     regressor = RandomForestRegressor(n_estimators=n_estimators, random_state=random_state)
     regressor.fit(x_train, y_train)
     print('Predictor... ')
@@ -189,8 +232,8 @@ def create_pred_raster(rf_model, out_raster, actual_raster_dir, pred_year=2015, 
 
     if plot_graphs:
         print('Plotting...')
-        plot_partial_dependence(rf_model, features=[0, 1, 2, 3], X=input_df,
-                                feature_names=['ET_KS', 'GRACE_KS', 'P_KS', 'SW_KS'], n_jobs=4)
+        plot_partial_dependence(rf_model, features=range(len(input_df.columns)), X=input_df,
+                                feature_names=input_df.columns.values.tolist(), n_jobs=4)
         plt.show()
         plt.plot(pred_values, actual_values, 'ro')
         plt.xlabel('GW_Predict')
