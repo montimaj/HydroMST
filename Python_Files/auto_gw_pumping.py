@@ -175,8 +175,9 @@ ks_reproj_file = ks_reclass_dir + 'ks_reproj.tif'
 print('DataFrame & Random Forest...')
 df_file = output_dir + '/raster_df.csv'
 rf_data_dir = file_dir + 'RF_Data/'
+grace_variables = ['GRACE_KS', 'GRACE_AVG_KS', 'GRACE_Trend_KS', 'GRACE_TA_KS']
 df = rfr.create_dataframe(rf_data_dir, out_df=df_file, make_year_col=True, exclude_years=(2017, ),
-                          categorical_grace=False)
+                          categorical_grace=False, grace_variables=grace_variables)
 df = pd.read_csv(df_file)
 drop_attrs = ('YEAR', 'GRACE_AVG_KS', 'GRACE_Trend_KS', 'GRACE_TA_KS', 'URBAN_KS', 'ET_FLT_KS', 'URBAN_FLT_KS',
               'AGRI_KS')

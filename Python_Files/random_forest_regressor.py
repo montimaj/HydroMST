@@ -12,7 +12,7 @@ from Python_Files import rasterops as rops
 
 
 def create_dataframe(input_file_dir, out_df, pattern='*.tif', exclude_years=(), exclude_vars=(), make_year_col=True,
-                     categorical_grace=False):
+                     categorical_grace=False, grace_variables=()):
     """
     Create dataframe from file list
     :param input_file_dir: Input directory where the file names begin with <Variable>_<Year>, e.g, ET_2015.tif
@@ -22,6 +22,7 @@ def create_dataframe(input_file_dir, out_df, pattern='*.tif', exclude_years=(), 
     :param exclude_vars: Exclude these variables from the dataframe
     :param make_year_col: Make a dataframe column entry for year
     :param categorical_grace: Make GRACE data categorical (Del TWS < 0 = 1 and Del TWS > 0 = 2)
+    :param grace_variables: GRACE variable names in the dataframe
     :return: Pandas dataframe
     """
 
@@ -53,11 +54,11 @@ def create_dataframe(input_file_dir, out_df, pattern='*.tif', exclude_years=(), 
 
     df = df.dropna(axis=0)
     if categorical_grace:
-        variables = ['GRACE_KS', 'GRACE_AVG_KS', 'GRACE_Trend_KS', 'GRACE_TA_KS']
-        for var in variables:
-            df[var] = np.where((df[var] > 0), 3, df[var])
-            df[var] = np.where(np.logical_and(df[var] >= -2, df[var] <= 0), 2, df[var])
-            df[var] = np.where(df[var] < -2, 1, df[var])
+        for var in grace_variables:
+            if var in df.columns.values.tolist():
+                df[var] = np.where((df[var] > 0), 3, df[var])
+                df[var] = np.where(np.logical_and(df[var] >= -2, df[var] <= 0), 2, df[var])
+                df[var] = np.where(df[var] < -2, 1, df[var])
     df.to_csv(out_df, index=False)
     return df
 
