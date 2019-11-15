@@ -11,7 +11,8 @@ from sklearn.inspection import plot_partial_dependence
 from Python_Files import rasterops as rops
 
 
-def create_dataframe(input_file_dir, out_df, pattern='*.tif', exclude_years=(), exclude_vars=(), make_year_col=True):
+def create_dataframe(input_file_dir, out_df, pattern='*.tif', exclude_years=(), exclude_vars=(), make_year_col=True,
+                     categorical_grace=False):
     """
     Create dataframe from file list
     :param input_file_dir: Input directory where the file names begin with <Variable>_<Year>, e.g, ET_2015.tif
@@ -20,6 +21,7 @@ def create_dataframe(input_file_dir, out_df, pattern='*.tif', exclude_years=(), 
     :param exclude_years: Exclude these years from the dataframe
     :param exclude_vars: Exclude these variables from the dataframe
     :param make_year_col: Make a dataframe column entry for year
+    :param categorical_grace: Make GRACE data categorical (Del TWS < 0 = 1 and Del TWS > 0 = 2)
     :return: Pandas dataframe
     """
 
@@ -50,6 +52,12 @@ def create_dataframe(input_file_dir, out_df, pattern='*.tif', exclude_years=(), 
             df = df.append(pd.DataFrame(data=raster_dict))
 
     df = df.dropna(axis=0)
+    if categorical_grace:
+        variables = ['GRACE_KS', 'GRACE_AVG_KS', 'GRACE_Trend_KS', 'GRACE_TA_KS']
+        for var in variables:
+            df[var] = np.where((df[var] > 0), 3, df[var])
+            df[var] = np.where(np.logical_and(df[var] >= -2, df[var] <= 0), 2, df[var])
+            df[var] = np.where(df[var] < -2, 1, df[var])
     df.to_csv(out_df, index=False)
     return df
 
@@ -99,7 +107,8 @@ def split_data_train_test(input_df, pred_attr='GW_KS', shuffle=True, random_stat
     return x_train_df, x_test_df, y_train_df[0].ravel(), y_test_df[0].ravel()
 
 
-def split_yearly_data(input_df, pred_attr='GW_KS', outdir=None, drop_attrs=(), test_years=(2016, )):
+def split_yearly_data(input_df, pred_attr='GW_KS', outdir=None, drop_attrs=(), test_years=(2016, ), shuffle=True,
+                      random_state=0):
     """
     Split data based on the years
     :param input_df: Input dataframe
@@ -107,6 +116,8 @@ def split_yearly_data(input_df, pred_attr='GW_KS', outdir=None, drop_attrs=(), t
     :param outdir: Set path to store intermediate files
     :param drop_attrs: Drop these specified attributes
     :param test_years: Build test data from only these years
+    :param shuffle: Set False to stop data shuffling
+    :param random_state: Seed for PRNG
     :return: X_train, X_test, y_train, y_test
     """
 
@@ -126,6 +137,13 @@ def split_yearly_data(input_df, pred_attr='GW_KS', outdir=None, drop_attrs=(), t
         else:
             x_test_df = x_test_df.append(x_t)
             y_test_df = pd.concat([y_test_df, y_t])
+
+    if shuffle:
+        random_state = np.random.RandomState(random_state)
+        x_train_df.reindex(random_state.permutation(x_train_df.index))
+        y_train_df.reindex(random_state.permutation(y_train_df.index))
+        x_test_df.reindex(random_state.permutation(x_test_df.index))
+        y_test_df.reindex(random_state.permutation(y_test_df.index))
 
     if outdir:
         x_train_df.to_csv(outdir + 'X_Train.csv', index=False)
@@ -157,11 +175,13 @@ def rf_regressor(input_df, out_dir, n_estimators=200, random_state=0, test_size=
 
     if not split_yearly:
         x_train, x_test, y_train, y_test = split_data_train_test(input_df, pred_attr=pred_attr, test_size=test_size,
-                                                                 random_state=random_state, shuffle=shuffle, outdir=out_dir,
-                                                                 drop_attrs=drop_attrs, test_year=test_year)
+                                                                 random_state=random_state, shuffle=shuffle,
+                                                                 outdir=out_dir, drop_attrs=drop_attrs,
+                                                                 test_year=test_year)
     else:
         x_train, x_test, y_train, y_test = split_yearly_data(input_df, pred_attr=pred_attr, outdir=out_dir,
-                                                             drop_attrs=drop_attrs, test_years=test_year)
+                                                             drop_attrs=drop_attrs, test_years=test_year,
+                                                             shuffle=shuffle, random_state=random_state)
     regressor = RandomForestRegressor(n_estimators=n_estimators, random_state=random_state)
     regressor.fit(x_train, y_train)
     print('Predictor... ')
@@ -174,8 +194,10 @@ def rf_regressor(input_df, out_dir, n_estimators=200, random_state=0, test_size=
 
     if plot_graphs:
         print('Plotting...')
-        plot_partial_dependence(regressor, features=[0, 1, 2, 3], X=x_train,
-                                feature_names=['ET_KS', 'GRACE_KS', 'P_KS', 'SW_KS'], n_jobs=4)
+        feature_names = x_train.columns.values.tolist()
+        num_features = len(feature_names)
+        plot_partial_dependence(regressor, features=range(num_features), X=x_train, feature_names=feature_names,
+                                n_jobs=num_features)
         plt.show()
         plt.plot(y_pred, y_test, 'ro')
         plt.xlabel('GW_Predict')
