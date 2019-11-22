@@ -1,6 +1,7 @@
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import train_test_split
 from sklearn import metrics
+import sklearn.utils as sk
 import pandas as pd
 from glob import glob
 import numpy as np
@@ -140,11 +141,10 @@ def split_yearly_data(input_df, pred_attr='GW_KS', outdir=None, drop_attrs=(), t
             y_test_df = pd.concat([y_test_df, y_t])
 
     if shuffle:
-        random_state = np.random.RandomState(random_state)
-        x_train_df.reindex(random_state.permutation(x_train_df.index))
-        y_train_df.reindex(random_state.permutation(y_train_df.index))
-        x_test_df.reindex(random_state.permutation(x_test_df.index))
-        y_test_df.reindex(random_state.permutation(y_test_df.index))
+        x_train_df = sk.shuffle(x_train_df, random_state=random_state)
+        y_train_df = sk.shuffle(y_train_df, random_state=random_state)
+        x_test_df = sk.shuffle(x_test_df, random_state=random_state)
+        y_test_df = sk.shuffle(y_test_df, random_state=random_state)
 
     if outdir:
         x_train_df.to_csv(outdir + 'X_Train.csv', index=False)

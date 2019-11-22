@@ -7,6 +7,7 @@ from shapely.geometry import Point
 import rasterio as rio
 import numpy as np
 import subprocess
+import fiona
 from glob import glob
 
 NO_DATA_VALUE = -32767.0
@@ -84,6 +85,20 @@ def csv2shp(input_csv_file, outfile_path, delim=',', source_crs='epsg:4326', tar
     input_df = input_df.dropna(axis=1)
     long, lat = input_df.columns[long_lat_pos[0]], input_df.columns[long_lat_pos[1]]
     geometry = [Point(xy) for xy in zip(input_df[long], input_df[lat])]
+    gdf2shp(input_df, geometry, source_crs, target_crs, outfile_path)
+
+
+def gdf2shp(input_df, geometry, source_crs, target_crs, outfile_path):
+    """
+    Convert Geodatafarme to SHP
+    :param input_df: Input geodataframe
+    :param geometry: Geometry (Point) list
+    :param source_crs: CRS of the source file
+    :param target_crs: Target CRS
+    :param outfile_path: Output file path
+    :return:
+    """
+
     crs = {'init': source_crs}
     gdf = gpd.GeoDataFrame(input_df, crs=crs, geometry=geometry)
     gdf.to_file(outfile_path)
@@ -146,7 +161,7 @@ def csvs2shps(input_dir, output_dir, pattern='*.csv', target_crs='EPSG:4326', de
         csv2shp(file, outfile_path=outfile_path, delim=delim, target_crs=target_crs, long_lat_pos=long_lat_pos)
 
 
-def shps2rasters(input_dir, output_dir, value_field_pos=2, xres=1000, yres=1000, gridding=True, smoothing=4800,
+def shps2rasters(input_dir, output_dir, value_field_pos=0, xres=1000, yres=1000, gridding=True, smoothing=4800,
                  gdal_path='/usr/local/Cellar/gdal/2.4.2/bin/'):
     """
     Convert all Shapefiles to corresponding TIFF files
@@ -168,3 +183,37 @@ def shps2rasters(input_dir, output_dir, value_field_pos=2, xres=1000, yres=1000,
         outfile_path = output_dir + file[file.rfind('/') + 1: file.rfind('.') + 1] + 'tif'
         shp2raster(file, outfile_path=outfile_path, value_field_pos=value_field_pos, xres=xres, yres=yres,
                    gdal_path=gdal_path, gridding=gridding, smoothing=smoothing)
+
+
+def extract_gdb_data(input_gdb_dir, attr_name, year_list, outdir, source_crs='epsg:4326', target_crs='epsg:4326',
+                     shpfile=True, shp_file_prefix='GW_KS'):
+    """
+    Extract yearly data from GDB and store them in separate files
+    :param input_gdb_dir: Input GDB directory
+    :param attr_name: Attribute name to extract data from
+    :param year_list: List of years to extract
+    :param outdir: Output directory
+    :param source_crs: CRS of the source file
+    :param target_crs: Target CRS
+    :param shpfile: Set False to store output files in CSV format (default is SHP)
+    :param shp_file_prefix: Prefix for output SHP file names
+    :return: None
+    """
+
+    num_layers = len(fiona.listlayers(input_gdb_dir))
+    gdb_data = gpd.read_file(input_gdb_dir, driver='FileGDB', layer=num_layers - 1)
+    attr_list = [attr_name + '_' + str(year) for year in year_list]
+    for index, attr in enumerate(attr_list):
+        outfile = outdir + shp_file_prefix + '_' + str(year_list[index])
+        print('Writing...', attr)
+        if shpfile:
+            outfile += '.shp'
+            gdf2shp(gdb_data[attr], geometry=gdb_data['geometry'], source_crs=source_crs, target_crs=target_crs,
+                    outfile_path=outfile)
+        else:
+            outfile += '.csv'
+            df = gdb_data[[attr, 'geometry']]
+            df.to_csv(outfile, mode='w', index=False)
+
+
+

@@ -28,22 +28,30 @@ file_dir = '../Files/'
 output_dir = '../Output/'
 input_ts_dir = input_dir + 'Time_Series/'
 output_shp_dir = file_dir + 'GW_Shapefiles/'
-output_gw_raster_dir = file_dir + 'GW_Rasters/'
-makedirs([output_dir, output_shp_dir, output_gw_raster_dir])
+output_all_shp_dir = file_dir + 'GW_All_Shapefiles/'
+output_gw_raster_dir = file_dir + 'GW_Rasters_All/'
+makedirs([output_dir, output_shp_dir, output_gw_raster_dir, output_all_shp_dir])
+
+
+# print('Extracting GW data from GDB...')
+# input_gdb_dir = input_dir + 'ks_pumping_data.gdb'
+# attr_name = 'Af_used'
+# year_list = range(2002, 2018)
+# vops.extract_gdb_data(input_gdb_dir, attr_name=attr_name, year_list=year_list, outdir=output_all_shp_dir)
 
 # print('Converting CSV to SHP...')
 # vops.csvs2shps(input_ts_dir, output_shp_dir, target_crs='epsg:26914', delim='\t', pattern='*.txt')
 # print('Reprojecting KS Watershed Vector...')
 # ks_watershed_file = input_dir + 'Watersheds/ks_merged/ks_watershed.shp'
-# ks_watershed_reproj_dir = file_dir + 'Watersheds/ks_reproj/'
+ks_watershed_reproj_dir = file_dir + 'Watersheds/ks_reproj/'
 # makedirs([ks_watershed_reproj_dir])
-# ks_watershed_reproj_file = ks_watershed_reproj_dir + 'ks_watershed_reproj.shp'
+ks_watershed_reproj_file = ks_watershed_reproj_dir + 'ks_watershed_reproj.shp'
 # ref_shp = glob(output_shp_dir + '*.shp')[0]
 # vops.reproject_vector(ks_watershed_file, outfile_path=ks_watershed_reproj_file, ref_file=ref_shp, raster=False)
 # print('Clipping GW shapefiles...')
-clipped_gw_shp_dir = output_shp_dir + 'Clipped/'
+clipped_gw_shp_dir = output_all_shp_dir + 'Clipped/'
 # makedirs([clipped_gw_shp_dir])
-# vops.clip_vectors(output_shp_dir, clip_file=ks_watershed_reproj_file, outdir=clipped_gw_shp_dir)
+# vops.clip_vectors(output_all_shp_dir, clip_file=ks_watershed_reproj_file, outdir=clipped_gw_shp_dir)
 # print('Converting SHP to TIF...')
 # vops.shps2rasters(clipped_gw_shp_dir, output_gw_raster_dir, xres=5000, yres=5000, smoothing=0)
 #
@@ -74,20 +82,20 @@ ks_reclass_file = ks_reclass_dir + 'ks_reclass.tif'
 # ks_reclass2 = rops.gdal_warp_syscall(ks_reclass_file, ks_reclass_file_2)
 #
 # print('Reprojecting rasters...')
-# raster_reproj_dir = file_dir + 'Reproj_Rasters/'
+# raster_reproj_dir = file_dir + 'Reproj_Rasters_All/'
 # makedirs([raster_reproj_dir])
 ref_raster = glob(gw_mask_dir + '*.tif')[0]
-# rops.reproject_rasters(input_ts_dir, ref_raster=ref_raster, outdir=raster_reproj_dir, pattern='GRACE_Trend*.tif')
+# rops.reproject_rasters(input_dir_2, ref_raster=ref_raster, outdir=raster_reproj_dir, pattern='*.tif')
 #
 # print('Masking rasters...')
-raster_mask_dir = file_dir + 'Masked_Rasters/'
+raster_mask_dir = file_dir + 'Masked_Rasters_All/'
 # makedirs([raster_mask_dir])
-# rops.mask_rasters(raster_reproj_dir, ref_raster=ref_raster, outdir=raster_mask_dir, pattern='GRACE_Trend*.tif')
+# rops.mask_rasters(raster_reproj_dir, ref_raster=ref_raster, outdir=raster_mask_dir, pattern='*.tif')
 #
 # print('Filtering ET files...')
-et_flt_dir = file_dir + 'ET_FLT/'
+# et_flt_dir = file_dir + 'ET_FLT_All/'
 # makedirs([et_flt_dir])
-ks_reproj_file = ks_reclass_dir + 'ks_reproj.tif'
+# ks_reproj_file = ks_reclass_dir + 'ks_reproj.tif'
 # rops.gdal_warp_syscall(ks_reclass_file, outfile_path=ks_reproj_file, from_raster=ref_raster)
 # rops.apply_et_filter(raster_mask_dir, outdir=et_flt_dir, ref_raster1=ks_reproj_file, ref_raster2=ref_raster)
 #
@@ -137,7 +145,7 @@ ks_reproj_file = ks_reclass_dir + 'ks_reproj.tif'
 #                            ignore_nan=False)
 
 # print('Updated GW files...This will take significant time as pixelwise operations are performed!!')
-# updated_gw_dir = gw_mask_dir + 'Updated/'
+updated_gw_dir = gw_mask_dir + 'Updated/'
 # makedirs([updated_gw_dir])
 # rops.compute_rasters_from_shp(input_raster_dir=gw_mask_dir, input_shp_dir=clipped_gw_shp_dir, outdir=updated_gw_dir)
 
@@ -151,45 +159,28 @@ ks_reproj_file = ks_reclass_dir + 'ks_reproj.tif'
 # makedirs([grace_dir])
 # rops.fill_mean_value(raster_mask_dir, outdir=grace_dir)
 
-# print('Reprojecting rasters...')
-# raster_reproj_dir = file_dir + 'Reproj_Rasters_Summer/'
-# makedirs([raster_reproj_dir])
-# ref_raster = glob(gw_mask_dir + '*.tif')[0]
-# rops.reproject_rasters(input_dir_2, ref_raster=ref_raster, outdir=raster_reproj_dir)
-#
-# print('Masking rasters...')
-# raster_mask_dir = file_dir + 'Masked_Rasters_Summer/'
-# makedirs([raster_mask_dir])
-# rops.mask_rasters(raster_reproj_dir, ref_raster=ref_raster, outdir=raster_mask_dir)
-
-# print('Filtering ET files...')
-# et_flt_dir = file_dir + 'ET_FLT_Summer/'
-# makedirs([et_flt_dir])
-# rops.apply_et_filter(raster_mask_dir, outdir=et_flt_dir, ref_raster1=ks_reproj_file, ref_raster2=ref_raster)
-
 # print('GRACE Trend average...')
 # grace_dir = raster_mask_dir + 'GRACE_TREND_AVERAGED/'
 # makedirs([grace_dir])
 # rops.fill_mean_value(raster_mask_dir, outdir=grace_dir, pattern='GRACE_Trend*.tif')
 
 print('DataFrame & Random Forest...')
-df_file = output_dir + '/raster_df.csv'
-rf_data_dir = file_dir + 'RF_Data/'
+df_file = output_dir + '/raster_df_all.csv'
+rf_data_dir = file_dir + 'RF_Data_All/'
 grace_variables = ['GRACE_KS', 'GRACE_AVG_KS', 'GRACE_Trend_KS', 'GRACE_TA_KS']
-df = rfr.create_dataframe(rf_data_dir, out_df=df_file, make_year_col=True, exclude_years=(2017, ),
+df = rfr.create_dataframe(rf_data_dir, out_df=df_file, make_year_col=True, exclude_years=(2017,),
                           categorical_grace=False, grace_variables=grace_variables)
-df = pd.read_csv(df_file)
-drop_attrs = ('YEAR', 'GRACE_AVG_KS', 'GRACE_Trend_KS', 'GRACE_TA_KS', 'URBAN_KS', 'ET_FLT_KS', 'URBAN_FLT_KS',
-              'AGRI_KS')
-rf_model = rfr.rf_regressor(df, output_dir, n_estimators=500, random_state=0, test_size=0.2, pred_attr='GW_KS',
-                            drop_attrs=drop_attrs, test_year=(2012,), shuffle=True, plot_graphs=False,
+# df = pd.read_csv(df_file)
+drop_attrs = ('YEAR', 'URBAN_KS', 'ET_FLT_KS', 'URBAN_FLT_KS', 'AGRI_KS')
+rf_model = rfr.rf_regressor(df, output_dir, n_estimators=200, random_state=0, test_size=0.2, pred_attr='GW_KS',
+                            drop_attrs=drop_attrs, test_year=(2014,), shuffle=True, plot_graphs=False,
                             split_yearly=True)
-pred_years = [2012, 2013, 2014, 2015, 2016]
-pred_out_dir = output_dir + 'Predicted_Rasters/'
+pred_years = range(2002, 2018)
+pred_out_dir = output_dir + 'Predicted_Rasters_All/'
 makedirs([pred_out_dir])
 rfr.predict_rasters(rf_model, pred_years=pred_years, drop_attrs=drop_attrs, out_dir=pred_out_dir,
                     actual_raster_dir=rf_data_dir, plot_graphs=False)
-crop_dir = output_dir + 'Cropped_Rasters/'
+crop_dir = output_dir + 'Cropped_Rasters_All/'
 makedirs([crop_dir])
 rops.crop_multiple_rasters(rf_data_dir, outdir=crop_dir, input_shp_file=file_dir + 'Final_Mask/crop.shp')
 rops.crop_multiple_rasters(pred_out_dir, outdir=crop_dir, input_shp_file=file_dir + 'Final_Mask/crop.shp',

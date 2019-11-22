@@ -432,7 +432,7 @@ def retrieve_pixel_coords(geo_coord, data_source, gdalpath='/usr/local/Cellar/gd
 
 
 def compute_raster_shp(input_raster_file, input_shp_file, outfile_path, nan_fill=0, point_arithmetic='sum',
-                       value_field_pos=2, gdalpath='/usr/local/Cellar/gdal/2.4.2/bin/'):
+                       value_field_pos=0, gdalpath='/usr/local/Cellar/gdal/2.4.2/bin/'):
     """
     Replace/Insert values in an existing raster based on the point coordinates from the shape file and applying suitable
     arithmetic on the point values (the raster and the shape file must be having the same CRS)
@@ -470,7 +470,7 @@ def compute_raster_shp(input_raster_file, input_shp_file, outfile_path, nan_fill
 
 
 def compute_rasters_from_shp(input_raster_dir, input_shp_dir, outdir, nan_fill=0, point_arithmetic='sum',
-                             value_field_pos=2, pattern='*.tif', gdalpath='/usr/local/Cellar/gdal/2.4.2/bin/'):
+                             value_field_pos=0, pattern='*.tif', gdalpath='/usr/local/Cellar/gdal/2.4.2/bin/'):
     """
     Replace/Insert values of all rasters in a directory based on the point coordinates from the shape file and applying
     suitable arithmetic on the point values
