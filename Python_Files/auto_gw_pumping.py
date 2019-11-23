@@ -173,7 +173,7 @@ df = rfr.create_dataframe(rf_data_dir, out_df=df_file, make_year_col=True, exclu
 # df = pd.read_csv(df_file)
 drop_attrs = ('YEAR', 'URBAN_KS', 'ET_FLT_KS')
 rf_model = rfr.rf_regressor(df, output_dir, n_estimators=500, random_state=0, test_size=0.2, pred_attr='GW_KS',
-                            drop_attrs=drop_attrs, test_year=(2014,), shuffle=True, plot_graphs=False,
+                            drop_attrs=drop_attrs, test_year=(2009,), shuffle=True, plot_graphs=False,
                             split_yearly=True)
 pred_years = range(2002, 2017)
 pred_out_dir = output_dir + 'Predicted_Rasters_All/'
