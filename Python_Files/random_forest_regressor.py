@@ -60,6 +60,7 @@ def create_dataframe(input_file_dir, out_df, pattern='*.tif', exclude_years=(), 
                 df[var] = np.where((df[var] > 0), 3, df[var])
                 df[var] = np.where(np.logical_and(df[var] >= -2, df[var] <= 0), 2, df[var])
                 df[var] = np.where(df[var] < -2, 1, df[var])
+    df = df.reindex(sorted(df.columns), axis=1)
     df.to_csv(out_df, index=False)
     return df
 
@@ -228,7 +229,7 @@ def create_pred_raster(rf_model, out_raster, actual_raster_dir, pred_year=2015, 
     """
 
     raster_files = glob(actual_raster_dir + '*_' + str(pred_year) + '*.tif')
-    raster_arr_dict = {}
+    raster_arr_dict = defaultdict(lambda: [])
     for raster_file in raster_files:
         sep = raster_file.rfind('_')
         variable, year = raster_file[raster_file.rfind('/') + 1: sep], raster_file[sep + 1: raster_file.rfind('.')]
@@ -241,6 +242,7 @@ def create_pred_raster(rf_model, out_raster, actual_raster_dir, pred_year=2015, 
         raster_arr_dict['YEAR'] = [year] * raster_arr.shape[0]
 
     input_df = pd.DataFrame(data=raster_arr_dict)
+    input_df = input_df.reindex(sorted(input_df.columns), axis=1)
     actual_arr = raster_arr_dict[pred_attr]
     drop_columns = [pred_attr] + [attr for attr in drop_attrs]
     input_df = input_df.drop(columns=drop_columns)
