@@ -82,15 +82,15 @@ ks_reclass_file = ks_reclass_dir + 'ks_reclass.tif'
 # ks_reclass2 = rops.gdal_warp_syscall(ks_reclass_file, ks_reclass_file_2)
 #
 # print('Reprojecting rasters...')
-# raster_reproj_dir = file_dir + 'Reproj_Rasters_All/'
-# makedirs([raster_reproj_dir])
+raster_reproj_dir = file_dir + 'Reproj_Rasters_All/'
+makedirs([raster_reproj_dir])
 ref_raster = glob(gw_mask_dir + '*.tif')[0]
-# rops.reproject_rasters(input_dir_2, ref_raster=ref_raster, outdir=raster_reproj_dir, pattern='*.tif')
+# rops.reproject_rasters(input_dir_2, ref_raster=ref_raster, outdir=raster_reproj_dir, pattern='GRACE_AT*.tif')
 #
 # print('Masking rasters...')
-raster_mask_dir = file_dir + 'Masked_Rasters_All/'
+# raster_mask_dir = file_dir + 'Masked_Rasters_All/'
 # makedirs([raster_mask_dir])
-# rops.mask_rasters(raster_reproj_dir, ref_raster=ref_raster, outdir=raster_mask_dir, pattern='*.tif')
+# rops.mask_rasters(raster_reproj_dir, ref_raster=ref_raster, outdir=raster_mask_dir, pattern='GRACE_AT*.tif')
 #
 # print('Filtering ET files...')
 # et_flt_dir = file_dir + 'ET_FLT_All/'
@@ -159,6 +159,11 @@ updated_gw_dir = gw_mask_dir + 'Updated/'
 # makedirs([grace_dir])
 # rops.fill_mean_value(raster_mask_dir, outdir=grace_dir)
 
+# print('GRACE Scale...')
+# grace_dir = raster_mask_dir + 'GRACE_Scaled/'
+# makedirs([grace_dir])
+# rops.scale_raster_data(raster_mask_dir, grace_dir, pattern='GRACE_AT*.tif')
+
 # print('GRACE Trend average...')
 # grace_dir = raster_mask_dir + 'GRACE_TREND_AVERAGED/'
 # makedirs([grace_dir])
@@ -167,13 +172,11 @@ updated_gw_dir = gw_mask_dir + 'Updated/'
 print('DataFrame & Random Forest...')
 df_file = output_dir + '/raster_df_all.csv'
 rf_data_dir = file_dir + 'RF_Data_All/'
-grace_variables = ['GRACE_KS', 'GRACE_AVG_KS', 'GRACE_Trend_KS', 'GRACE_TA_KS']
-df = rfr.create_dataframe(rf_data_dir, out_df=df_file, make_year_col=True, exclude_years=(2017,),
-                          categorical_grace=False, grace_variables=grace_variables)
+df = rfr.create_dataframe(rf_data_dir, out_df=df_file, make_year_col=True, exclude_years=(2017,))
 # df = pd.read_csv(df_file)
-drop_attrs = ('YEAR', 'URBAN_KS', 'ET_FLT_KS')
+drop_attrs = ('YEAR', 'URBAN_KS', 'ET_FLT_KS', 'GRACE_AT_KS')
 rf_model = rfr.rf_regressor(df, output_dir, n_estimators=500, random_state=0, test_size=0.2, pred_attr='GW_KS',
-                            drop_attrs=drop_attrs, test_year=(2009,), shuffle=True, plot_graphs=False,
+                            drop_attrs=drop_attrs, test_year=(2014, ), shuffle=True, plot_graphs=False,
                             split_yearly=True)
 pred_years = range(2002, 2017)
 pred_out_dir = output_dir + 'Predicted_Rasters_All/'

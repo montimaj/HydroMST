@@ -510,7 +510,25 @@ def convert_gw_data(input_raster_dir, outdir, pattern='*.tif'):
         raster_arr, raster_ref = read_raster_as_arr(raster_file)
         transform = raster_ref.get_transform()
         xres, yres = transform[1] / 1000., -transform[5] / 1000.
-        raster_arr *= 1.233 / (xres * yres)
+        raster_arr[~np.isnan(raster_arr)] *= 1.233 / (xres * yres)
+        raster_arr[np.isnan(raster_arr)] = NO_DATA_VALUE
+        write_raster(raster_arr, raster_ref, transform=raster_ref.transform, outfile_path=out_raster)
+
+
+def scale_raster_data(input_raster_dir, outdir, scaling_factor=10, pattern='*.tif'):
+    """
+    Scale raster data if required
+    :param input_raster_dir: Input raster directory
+    :param outdir: Output raster directory
+    :param scaling_factor: Scaling factor
+    :param pattern: Raster extension
+    :return: None
+    """
+
+    for raster_file in glob(input_raster_dir + pattern):
+        out_raster = outdir + raster_file[raster_file.rfind('/') + 1:]
+        raster_arr, raster_ref = read_raster_as_arr(raster_file)
+        raster_arr[~np.isnan(raster_arr)] *= scaling_factor
         raster_arr[np.isnan(raster_arr)] = NO_DATA_VALUE
         write_raster(raster_arr, raster_ref, transform=raster_ref.transform, outfile_path=out_raster)
 

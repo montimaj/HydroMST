@@ -12,8 +12,7 @@ from sklearn.inspection import plot_partial_dependence
 from Python_Files import rasterops as rops
 
 
-def create_dataframe(input_file_dir, out_df, pattern='*.tif', exclude_years=(), exclude_vars=(), make_year_col=True,
-                     categorical_grace=False, grace_variables=()):
+def create_dataframe(input_file_dir, out_df, pattern='*.tif', exclude_years=(), exclude_vars=(), make_year_col=True):
     """
     Create dataframe from file list
     :param input_file_dir: Input directory where the file names begin with <Variable>_<Year>, e.g, ET_2015.tif
@@ -22,7 +21,8 @@ def create_dataframe(input_file_dir, out_df, pattern='*.tif', exclude_years=(), 
     :param exclude_years: Exclude these years from the dataframe
     :param exclude_vars: Exclude these variables from the dataframe
     :param make_year_col: Make a dataframe column entry for year
-    :param categorical_grace: Make GRACE data categorical (Del TWS < 0 = 1 and Del TWS > 0 = 2)
+    :param scale_grace: Use this when you forget to convert TWS in cm to mm beforehand
+    :param scaling_factor: Default scaling factor for GRACE (1 cm  = 10 mm)
     :param grace_variables: GRACE variable names in the dataframe
     :return: Pandas dataframe
     """
@@ -54,12 +54,6 @@ def create_dataframe(input_file_dir, out_df, pattern='*.tif', exclude_years=(), 
             df = df.append(pd.DataFrame(data=raster_dict))
 
     df = df.dropna(axis=0)
-    if categorical_grace:
-        for var in grace_variables:
-            if var in df.columns.values.tolist():
-                df[var] = np.where((df[var] > 0), 3, df[var])
-                df[var] = np.where(np.logical_and(df[var] >= -2, df[var] <= 0), 2, df[var])
-                df[var] = np.where(df[var] < -2, 1, df[var])
     df = df.reindex(sorted(df.columns), axis=1)
     df.to_csv(out_df, index=False)
     return df
