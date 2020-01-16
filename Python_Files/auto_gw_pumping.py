@@ -22,6 +22,30 @@ def makedirs(directory_list):
             os.makedirs(directory_name)
 
 
+def optimize_hyperparameters(test_cases, est_range, f_range):
+    """
+    Function for optimizing the primary hyperparameters
+    :param test_cases: Test cases in a list
+    :param est_range: Number of estimators range
+    :param f_range: Number of max features range
+    :return: None
+    """
+
+    ts = []
+    for n in range(1, len(test_cases) + 1):
+        ts.append('T' + str(n))
+    for ne in est_range:
+        for nf in f_range:
+            for y, t in zip(test_cases, ts):
+                if not isinstance(y, range):
+                    ty = (y,)
+                else:
+                    ty = y
+                rfr.rf_regressor(df, output_dir, n_estimators=ne, random_state=0, pred_attr=pred_attr,
+                                 drop_attrs=drop_attrs, test_year=ty, shuffle=False, plot_graphs=False,
+                                 split_yearly=True, bootstrap=True, max_features=nf, test_case=t)
+
+
 input_dir = '../Data/'
 input_dir_2 = '../Data_Summer/'
 file_dir = '../Files/'
@@ -169,20 +193,31 @@ updated_gw_dir = gw_mask_dir + 'Updated/'
 # makedirs([grace_dir])
 # rops.fill_mean_value(raster_mask_dir, outdir=grace_dir, pattern='GRACE_Trend*.tif')
 
+# Dataframe Creation (All the previous steps are for data pre-processing)
 print('DataFrame & Random Forest...')
 df_file = output_dir + '/raster_df_all.csv'
 rf_data_dir = file_dir + 'RF_Data_All/'
 df = rfr.create_dataframe(rf_data_dir, out_df=df_file, make_year_col=True, exclude_years=(2017,))
 # df = pd.read_csv(df_file)
 drop_attrs = ('YEAR', 'URBAN_KS', 'ET_FLT_KS', 'GRACE_AT_KS')
-rf_model = rfr.rf_regressor(df, output_dir, n_estimators=500, random_state=0, test_size=0.2, pred_attr='GW_KS',
-                            drop_attrs=drop_attrs, test_year=(2014, ), shuffle=True, plot_graphs=False,
-                            split_yearly=True)
+pred_attr = 'GW_KS'
+
+# # Hyperparameter Optimization
+# n_features = len(df.columns) - len(drop_attrs) - 1
+# test_cases = [2014, 2012, range(2012, 2017)]
+# est_range = range(100, 601, 100)
+# f_range = range(1, n_features + 1)
+# optimize_hyperparameters(test_cases, est_range, f_range)
+
+# Final Model and Prediction
+rf_model = rfr.rf_regressor(df, output_dir, n_estimators=500, random_state=0, pred_attr=pred_attr,
+                            drop_attrs=drop_attrs, test_year=(2014,), shuffle=False, plot_graphs=False,
+                            split_yearly=True, bootstrap=True, max_features=5)
 pred_years = range(2002, 2017)
 pred_out_dir = output_dir + 'Predicted_Rasters_All/'
 makedirs([pred_out_dir])
 rfr.predict_rasters(rf_model, pred_years=pred_years, drop_attrs=drop_attrs, out_dir=pred_out_dir,
-                     actual_raster_dir=rf_data_dir, plot_graphs=False)
+                    actual_raster_dir=rf_data_dir, plot_graphs=False, pred_attr=pred_attr)
 crop_dir = output_dir + 'Cropped_Rasters_All/'
 makedirs([crop_dir])
 rops.crop_multiple_rasters(rf_data_dir, outdir=crop_dir, input_shp_file=file_dir + 'Final_Mask/crop.shp')

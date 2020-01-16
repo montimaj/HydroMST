@@ -150,19 +150,23 @@ def split_yearly_data(input_df, pred_attr='GW_KS', outdir=None, drop_attrs=(), t
     return x_train_df, x_test_df, y_train_df[0].ravel(), y_test_df[0].ravel()
 
 
-def rf_regressor(input_df, out_dir, n_estimators=200, random_state=0, test_size=0.2, pred_attr='GW_KS', shuffle=True,
-                 plot_graphs=False, drop_attrs=(), test_year=None, split_yearly=False):
+def rf_regressor(input_df, out_dir, n_estimators=200, random_state=0, bootstrap=True, max_features=None, test_size=0.2,
+                 pred_attr='GW_KS', shuffle=True, plot_graphs=False, drop_attrs=(), test_case='', test_year=None,
+                 split_yearly=True):
     """
     Perform random forest regression
     :param input_df: Input pandas dataframe
     :param out_dir: Output file directory for storing intermediate results
     :param n_estimators: RF hyperparameter
     :param random_state: RF hyperparameter
-    :param test_size: RF hyperparameter
+    :param bootstrap: RF hyperparameter
+    :param max_features: RF hyperparameter
+    :param test_size: Required only if split_yearly=False
     :param pred_attr: Prediction attribute name in the dataframe
     :param shuffle: Set False to stop data shuffling
     :param plot_graphs: Plot Actual vs Prediction graph
     :param drop_attrs: Drop these specified attributes
+    :param test_case: Used for writing the test case number to the CSV
     :param test_year: Build test data from only this year. Use tuple of years to split train test data using
     #split_yearly_data
     :param split_yearly: Split train test data based on years
@@ -178,33 +182,34 @@ def rf_regressor(input_df, out_dir, n_estimators=200, random_state=0, test_size=
         x_train, x_test, y_train, y_test = split_yearly_data(input_df, pred_attr=pred_attr, outdir=out_dir,
                                                              drop_attrs=drop_attrs, test_years=test_year,
                                                              shuffle=shuffle, random_state=random_state)
-    regressor = RandomForestRegressor(n_estimators=n_estimators, random_state=random_state)
+    regressor = RandomForestRegressor(n_estimators=n_estimators, random_state=random_state, bootstrap=bootstrap,
+                                      max_features=max_features)
     regressor.fit(x_train, y_train)
     print('Predictor... ')
     y_pred = regressor.predict(x_test)
-    feature_imp = " ".join(str(np.round(i, 3)) for i in regressor.feature_importances_)
-    train_score = np.round(regressor.score(x_train, y_train), 3)
-    test_score = np.round(regressor.score(x_test, y_test), 3)
-    mae = np.round(metrics.mean_absolute_error(y_test, y_pred), 3)
-    rmse = np.round(np.sqrt(metrics.mean_squared_error(y_test, y_pred)), 3)
+    feature_imp = " ".join(str(np.round(i, 2)) for i in regressor.feature_importances_)
+    train_score = np.round(regressor.score(x_train, y_train), 2)
+    test_score = np.round(regressor.score(x_test, y_test), 2)
+    mae = np.round(metrics.mean_absolute_error(y_test, y_pred), 2)
+    rmse = np.round(np.sqrt(metrics.mean_squared_error(y_test, y_pred)), 2)
 
     if plot_graphs:
         print('Plotting...')
         feature_names = x_train.columns.values.tolist()
         num_features = len(feature_names)
         plot_partial_dependence(regressor, features=range(num_features), X=x_train, feature_names=feature_names,
-                                n_jobs=num_features)
+                                n_jobs=-1)
         plt.show()
         plt.plot(y_pred, y_test, 'ro')
         plt.xlabel('GW_Predict')
         plt.ylabel('GW_Actual')
         plt.show()
 
-    df = {'N_Estimator': [n_estimators], 'Random_State': [random_state], 'F_IMP': [feature_imp],
+    df = {'Test': [test_case], 'N_Estimator': [n_estimators], 'MF': [max_features], 'F_IMP': [feature_imp],
           'Train_Score': [train_score], 'Test_Score': [test_score], 'MAE': [mae], 'RMSE': [rmse]}
     print('Model statistics:', df)
     df = pd.DataFrame(data=df)
-    df.to_csv(out_dir + 'RF_Results.csv', mode='a', index=False)
+    df.to_csv(out_dir + 'RF_Results.csv', mode='a', index=False, header=False)
     return regressor
 
 
@@ -236,8 +241,9 @@ def create_pred_raster(rf_model, out_raster, actual_raster_dir, pred_year=2015, 
         raster_arr_dict['YEAR'] = [year] * raster_arr.shape[0]
 
     input_df = pd.DataFrame(data=raster_arr_dict)
+    input_df = input_df.dropna(axis=0)
     input_df = input_df.reindex(sorted(input_df.columns), axis=1)
-    actual_arr = raster_arr_dict[pred_attr]
+    actual_arr = raster_arr_dict[pred_attr] # input_df[pred_attr]
     drop_columns = [pred_attr] + [attr for attr in drop_attrs]
     input_df = input_df.drop(columns=drop_columns)
     pred_arr = rf_model.predict(input_df)
@@ -245,14 +251,17 @@ def create_pred_raster(rf_model, out_raster, actual_raster_dir, pred_year=2015, 
     pred_arr[nan_pos] = actual_file.nodata
     actual_values = actual_arr[actual_arr != actual_file.nodata]
     pred_values = pred_arr[pred_arr != actual_file.nodata]
+    # actual_values = actual_arr
+    # pred_values = pred_arr
     mae = np.round(metrics.mean_absolute_error(actual_values, pred_values), 3)
     r_squared = np.round(metrics.r2_score(actual_values, pred_values), 3)
     rmse = np.round(np.sqrt(metrics.mean_squared_error(actual_values, pred_values)), 3)
 
     if plot_graphs:
         print('Plotting...')
+
         plot_partial_dependence(rf_model, features=range(len(input_df.columns)), X=input_df,
-                                feature_names=input_df.columns.values.tolist(), n_jobs=4)
+                                feature_names=input_df.columns.values.tolist(), n_jobs=-1)
         plt.show()
         plt.plot(pred_values, actual_values, 'ro')
         plt.xlabel('GW_Predict')
@@ -264,7 +273,8 @@ def create_pred_raster(rf_model, out_raster, actual_raster_dir, pred_year=2015, 
     return mae, rmse, r_squared
 
 
-def predict_rasters(rf_model, actual_raster_dir, out_dir, pred_years, drop_attrs=(), plot_graphs=False):
+def predict_rasters(rf_model, actual_raster_dir, out_dir, pred_years, drop_attrs=(), plot_graphs=False,
+                    pred_attr='GW_KS'):
     """
     Create prediction rasters from input data
     :param rf_model: Pre-trained Random Forest Model
@@ -273,6 +283,7 @@ def predict_rasters(rf_model, actual_raster_dir, out_dir, pred_years, drop_attrs
     :param pred_years: Tuple containing prediction years
     :param drop_attrs: Drop these specified attributes (Must be exactly the same as used in rf_regressor module)
     :param plot_graphs: Set true to show plots
+    :param pred_attr: Prediction Attribute
     :return:
     """
 
@@ -280,5 +291,5 @@ def predict_rasters(rf_model, actual_raster_dir, out_dir, pred_years, drop_attrs
         out_pred_raster = out_dir + 'pred_' + str(pred_year) + '.tif'
         mae, rmse, r_squared = create_pred_raster(rf_model, out_raster=out_pred_raster,
                                                   actual_raster_dir=actual_raster_dir, pred_year=pred_year,
-                                                  drop_attrs=drop_attrs, plot_graphs=plot_graphs)
+                                                  drop_attrs=drop_attrs, plot_graphs=plot_graphs, pred_attr=pred_attr)
         print('YEAR', pred_year, ': MAE =', mae, 'RMSE =', rmse, 'R^2 =', r_squared)
