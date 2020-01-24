@@ -533,7 +533,7 @@ def scale_raster_data(input_raster_dir, outdir, scaling_factor=10, pattern='*.ti
         write_raster(raster_arr, raster_ref, transform=raster_ref.transform, outfile_path=out_raster)
 
 
-def crop_multiple_rasters(input_raster_dir, outdir, input_shp_file, pattern='GW*.tif'):
+def crop_multiple_rasters(input_raster_dir, outdir, input_shp_file, pattern='*.tif'):
     """
     Crop multiple rasters using shape file extent
     :param input_raster_dir: Input raster directory

@@ -214,7 +214,7 @@ def rf_regressor(input_df, out_dir, n_estimators=200, random_state=0, bootstrap=
 
 
 def create_pred_raster(rf_model, out_raster, actual_raster_dir, pred_year=2015, pred_attr='GW_KS',
-                       plot_graphs=False, drop_attrs=()):
+                       plot_graphs=False, drop_attrs=(), only_pred=False):
     """
     Create prediction raster
     :param rf_model: Pre-built Random Forest Model
@@ -224,7 +224,8 @@ def create_pred_raster(rf_model, out_raster, actual_raster_dir, pred_year=2015, 
     :param pred_attr: Prediction attribute name in the dataframe
     :param plot_graphs: Plot Actual vs Prediction graph
     :param drop_attrs: Drop these specified attributes (Must be exactly the same as used in rf_regressor module)
-    :return: MAE, RMSE, and R^2 statistics
+    :param only_pred: Set true to disable raster creation and for showing only the error metrics
+    :return: MAE, RMSE, and R^2 statistics (rounded to 2 decimal places)
     """
 
     raster_files = glob(actual_raster_dir + '*_' + str(pred_year) + '*.tif')
@@ -235,27 +236,33 @@ def create_pred_raster(rf_model, out_raster, actual_raster_dir, pred_year=2015, 
         raster_arr, actual_file = rops.read_raster_as_arr(raster_file)
         raster_shape = raster_arr.shape
         raster_arr = raster_arr.reshape(raster_shape[0] * raster_shape[1])
-        nan_pos = np.isnan(raster_arr)
-        raster_arr[nan_pos] = 0
+        if not only_pred:
+            nan_pos = np.isnan(raster_arr)
+            raster_arr[nan_pos] = 0
         raster_arr_dict[variable] = raster_arr
         raster_arr_dict['YEAR'] = [year] * raster_arr.shape[0]
 
     input_df = pd.DataFrame(data=raster_arr_dict)
     input_df = input_df.dropna(axis=0)
     input_df = input_df.reindex(sorted(input_df.columns), axis=1)
-    actual_arr = raster_arr_dict[pred_attr] # input_df[pred_attr]
+    if only_pred:
+        actual_arr = input_df[pred_attr]
+    else:
+        actual_arr = raster_arr_dict[pred_attr]
     drop_columns = [pred_attr] + [attr for attr in drop_attrs]
     input_df = input_df.drop(columns=drop_columns)
     pred_arr = rf_model.predict(input_df)
-    actual_arr[nan_pos] = actual_file.nodata
-    pred_arr[nan_pos] = actual_file.nodata
-    actual_values = actual_arr[actual_arr != actual_file.nodata]
-    pred_values = pred_arr[pred_arr != actual_file.nodata]
-    # actual_values = actual_arr
-    # pred_values = pred_arr
-    mae = np.round(metrics.mean_absolute_error(actual_values, pred_values), 3)
-    r_squared = np.round(metrics.r2_score(actual_values, pred_values), 3)
-    rmse = np.round(np.sqrt(metrics.mean_squared_error(actual_values, pred_values)), 3)
+    if not only_pred:
+        actual_arr[nan_pos] = actual_file.nodata
+        pred_arr[nan_pos] = actual_file.nodata
+        actual_values = actual_arr[actual_arr != actual_file.nodata]
+        pred_values = pred_arr[pred_arr != actual_file.nodata]
+    else:
+        actual_values = actual_arr
+        pred_values = pred_arr
+    mae = np.round(metrics.mean_absolute_error(actual_values, pred_values), 2)
+    r_squared = np.round(metrics.r2_score(actual_values, pred_values), 2)
+    rmse = np.round(np.sqrt(metrics.mean_squared_error(actual_values, pred_values)), 2)
 
     if plot_graphs:
         print('Plotting...')
@@ -267,14 +274,14 @@ def create_pred_raster(rf_model, out_raster, actual_raster_dir, pred_year=2015, 
         plt.xlabel('GW_Predict')
         plt.ylabel('GW_Actual')
         plt.show()
-
-    pred_arr = pred_arr.reshape(raster_shape)
-    rops.write_raster(pred_arr, actual_file, transform=actual_file.transform, outfile_path=out_raster)
+    if not only_pred:
+        pred_arr = pred_arr.reshape(raster_shape)
+        rops.write_raster(pred_arr, actual_file, transform=actual_file.transform, outfile_path=out_raster)
     return mae, rmse, r_squared
 
 
 def predict_rasters(rf_model, actual_raster_dir, out_dir, pred_years, drop_attrs=(), plot_graphs=False,
-                    pred_attr='GW_KS'):
+                    pred_attr='GW_KS', only_pred=False):
     """
     Create prediction rasters from input data
     :param rf_model: Pre-trained Random Forest Model
@@ -284,12 +291,14 @@ def predict_rasters(rf_model, actual_raster_dir, out_dir, pred_years, drop_attrs
     :param drop_attrs: Drop these specified attributes (Must be exactly the same as used in rf_regressor module)
     :param plot_graphs: Set true to show plots
     :param pred_attr: Prediction Attribute
-    :return:
+    :param only_pred: Set true to disable raster creation and for showing only the error metrics
+    :return: None
     """
 
     for pred_year in pred_years:
         out_pred_raster = out_dir + 'pred_' + str(pred_year) + '.tif'
         mae, rmse, r_squared = create_pred_raster(rf_model, out_raster=out_pred_raster,
                                                   actual_raster_dir=actual_raster_dir, pred_year=pred_year,
-                                                  drop_attrs=drop_attrs, plot_graphs=plot_graphs, pred_attr=pred_attr)
+                                                  drop_attrs=drop_attrs, plot_graphs=plot_graphs, pred_attr=pred_attr,
+                                                  only_pred=only_pred)
         print('YEAR', pred_year, ': MAE =', mae, 'RMSE =', rmse, 'R^2 =', r_squared)
