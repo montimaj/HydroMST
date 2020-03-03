@@ -10,7 +10,6 @@ from collections import defaultdict
 from sklearn.inspection import plot_partial_dependence
 from sklearn.inspection import partial_dependence
 from mpl_toolkits.mplot3d import axes3d
-from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 from Python_Files import rasterops as rops
 
@@ -165,8 +164,8 @@ def create_pdplots(x_train, rf_model, plot_3d=False):
     feature_indices = range(len(feature_names))
     feature_dict = {}
     if plot_3d:
-        for fi in feature_indices[2:]:
-            for fj in feature_indices[3:]:
+        for fi in feature_indices:
+            for fj in feature_indices:
                 feature_check = (fi != fj) and ((fi, fj) not in feature_dict.keys()) and ((fj, fi) not in
                                                                                           feature_dict.keys())
                 if feature_check:
