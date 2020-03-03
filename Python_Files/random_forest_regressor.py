@@ -8,6 +8,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 from collections import defaultdict
 from sklearn.inspection import plot_partial_dependence
+from sklearn.inspection import partial_dependence
+from mpl_toolkits.mplot3d import axes3d
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 from Python_Files import rasterops as rops
 
@@ -21,9 +24,6 @@ def create_dataframe(input_file_dir, out_df, pattern='*.tif', exclude_years=(), 
     :param exclude_years: Exclude these years from the dataframe
     :param exclude_vars: Exclude these variables from the dataframe
     :param make_year_col: Make a dataframe column entry for year
-    :param scale_grace: Use this when you forget to convert TWS in cm to mm beforehand
-    :param scaling_factor: Default scaling factor for GRACE (1 cm  = 10 mm)
-    :param grace_variables: GRACE variable names in the dataframe
     :return: Pandas dataframe
     """
 
@@ -150,9 +150,49 @@ def split_yearly_data(input_df, pred_attr='GW_KS', outdir=None, drop_attrs=(), t
     return x_train_df, x_test_df, y_train_df[0].ravel(), y_test_df[0].ravel()
 
 
+def create_pdplots(x_train, rf_model, plot_3d=False):
+    """
+    Create partial dependence plots
+    :param x_train: Training set
+    :param rf_model: Random Forest model
+    :param plot_3d: Set True for creating pairwise 3D plots
+    :return: None
+    """
+
+    print('Plotting...')
+    x_train = x_train[:500]
+    feature_names = x_train.columns.values.tolist()
+    feature_indices = range(len(feature_names))
+    feature_dict = {}
+    if plot_3d:
+        for fi in feature_indices[2:]:
+            for fj in feature_indices[3:]:
+                feature_check = (fi != fj) and ((fi, fj) not in feature_dict.keys()) and ((fj, fi) not in
+                                                                                          feature_dict.keys())
+                if feature_check:
+                    print(feature_names[fi], feature_names[fj])
+                    feature_dict[(fi, fj)] = True
+                    feature_dict[(fj, fi)] = True
+                    pdp, axes = partial_dependence(rf_model, x_train, features=(fi, fj))
+                    x, y = np.meshgrid(axes[0], axes[1])
+                    z = pdp[0].T
+                    fig = plt.figure()
+                    ax = axes3d.Axes3D(fig)
+                    surf = ax.plot_surface(x, y, z, cmap='viridis', edgecolor='k')
+                    ax.set_xlabel(feature_names[fi])
+                    ax.set_ylabel(feature_names[fj])
+                    ax.set_zlabel('Partial dependence')
+
+                    plt.colorbar(surf, shrink=0.3, aspect=5)
+                    plt.show()
+    else:
+        plot_partial_dependence(rf_model, features=feature_indices, X=x_train, feature_names=feature_names, n_jobs=-1)
+        plt.show()
+
+
 def rf_regressor(input_df, out_dir, n_estimators=200, random_state=0, bootstrap=True, max_features=None, test_size=0.2,
-                 pred_attr='GW_KS', shuffle=True, plot_graphs=False, drop_attrs=(), test_case='', test_year=None,
-                 split_yearly=True):
+                 pred_attr='GW_KS', shuffle=True, plot_graphs=False, plot_3d=False, drop_attrs=(), test_case='',
+                 test_year=None, split_yearly=True):
     """
     Perform random forest regression
     :param input_df: Input pandas dataframe
@@ -165,6 +205,7 @@ def rf_regressor(input_df, out_dir, n_estimators=200, random_state=0, bootstrap=
     :param pred_attr: Prediction attribute name in the dataframe
     :param shuffle: Set False to stop data shuffling
     :param plot_graphs: Plot Actual vs Prediction graph
+    :param plot_3d: Plot pairwise 3D partial dependence plots
     :param drop_attrs: Drop these specified attributes
     :param test_case: Used for writing the test case number to the CSV
     :param test_year: Build test data from only this year. Use tuple of years to split train test data using
@@ -194,16 +235,7 @@ def rf_regressor(input_df, out_dir, n_estimators=200, random_state=0, bootstrap=
     rmse = np.round(np.sqrt(metrics.mean_squared_error(y_test, y_pred)), 2)
 
     if plot_graphs:
-        print('Plotting...')
-        feature_names = x_train.columns.values.tolist()
-        num_features = len(feature_names)
-        plot_partial_dependence(regressor, features=range(num_features), X=x_train, feature_names=feature_names,
-                                n_jobs=-1)
-        plt.show()
-        plt.plot(y_pred, y_test, 'ro')
-        plt.xlabel('GW_Predict')
-        plt.ylabel('GW_Actual')
-        plt.show()
+        create_pdplots(x_train, regressor, plot_3d)
 
     df = {'Test': [test_case], 'N_Estimator': [n_estimators], 'MF': [max_features], 'F_IMP': [feature_imp],
           'Train_Score': [train_score], 'Test_Score': [test_score], 'MAE': [mae], 'RMSE': [rmse]}
@@ -213,8 +245,8 @@ def rf_regressor(input_df, out_dir, n_estimators=200, random_state=0, bootstrap=
     return regressor
 
 
-def create_pred_raster(rf_model, out_raster, actual_raster_dir, pred_year=2015, pred_attr='GW_KS',
-                       plot_graphs=False, drop_attrs=(), only_pred=False):
+def create_pred_raster(rf_model, out_raster, actual_raster_dir, pred_year=2015, pred_attr='GW_KS', drop_attrs=(),
+                       only_pred=False):
     """
     Create prediction raster
     :param rf_model: Pre-built Random Forest Model
@@ -222,7 +254,6 @@ def create_pred_raster(rf_model, out_raster, actual_raster_dir, pred_year=2015, 
     :param actual_raster_dir: Ground truth raster files required for prediction
     :param pred_year: Prediction year
     :param pred_attr: Prediction attribute name in the dataframe
-    :param plot_graphs: Plot Actual vs Prediction graph
     :param drop_attrs: Drop these specified attributes (Must be exactly the same as used in rf_regressor module)
     :param only_pred: Set true to disable raster creation and for showing only the error metrics
     :return: MAE, RMSE, and R^2 statistics (rounded to 2 decimal places)
@@ -264,24 +295,14 @@ def create_pred_raster(rf_model, out_raster, actual_raster_dir, pred_year=2015, 
     r_squared = np.round(metrics.r2_score(actual_values, pred_values), 2)
     rmse = np.round(np.sqrt(metrics.mean_squared_error(actual_values, pred_values)), 2)
 
-    if plot_graphs:
-        print('Plotting...')
-
-        plot_partial_dependence(rf_model, features=range(len(input_df.columns)), X=input_df,
-                                feature_names=input_df.columns.values.tolist(), n_jobs=-1)
-        plt.show()
-        plt.plot(pred_values, actual_values, 'ro')
-        plt.xlabel('GW_Predict')
-        plt.ylabel('GW_Actual')
-        plt.show()
     if not only_pred:
         pred_arr = pred_arr.reshape(raster_shape)
         rops.write_raster(pred_arr, actual_file, transform=actual_file.transform, outfile_path=out_raster)
     return mae, rmse, r_squared
 
 
-def predict_rasters(rf_model, actual_raster_dir, out_dir, pred_years, drop_attrs=(), plot_graphs=False,
-                    pred_attr='GW_KS', only_pred=False):
+def predict_rasters(rf_model, actual_raster_dir, out_dir, pred_years, drop_attrs=(), pred_attr='GW_KS',
+                    only_pred=False):
     """
     Create prediction rasters from input data
     :param rf_model: Pre-trained Random Forest Model
@@ -289,7 +310,6 @@ def predict_rasters(rf_model, actual_raster_dir, out_dir, pred_years, drop_attrs
     :param out_dir: Output directory for predicted rasters
     :param pred_years: Tuple containing prediction years
     :param drop_attrs: Drop these specified attributes (Must be exactly the same as used in rf_regressor module)
-    :param plot_graphs: Set true to show plots
     :param pred_attr: Prediction Attribute
     :param only_pred: Set true to disable raster creation and for showing only the error metrics
     :return: None
@@ -299,6 +319,5 @@ def predict_rasters(rf_model, actual_raster_dir, out_dir, pred_years, drop_attrs
         out_pred_raster = out_dir + 'pred_' + str(pred_year) + '.tif'
         mae, rmse, r_squared = create_pred_raster(rf_model, out_raster=out_pred_raster,
                                                   actual_raster_dir=actual_raster_dir, pred_year=pred_year,
-                                                  drop_attrs=drop_attrs, plot_graphs=plot_graphs, pred_attr=pred_attr,
-                                                  only_pred=only_pred)
+                                                  drop_attrs=drop_attrs, pred_attr=pred_attr, only_pred=only_pred)
         print('YEAR', pred_year, ': MAE =', mae, 'RMSE =', rmse, 'R^2 =', r_squared)
