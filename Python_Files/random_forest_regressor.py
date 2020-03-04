@@ -1,11 +1,14 @@
+
+import sklearn.utils as sk
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import pickle
+
+from glob import glob
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import train_test_split
 from sklearn import metrics
-import sklearn.utils as sk
-import pandas as pd
-from glob import glob
-import numpy as np
-import matplotlib.pyplot as plt
 from collections import defaultdict
 from sklearn.inspection import plot_partial_dependence
 from sklearn.inspection import partial_dependence
@@ -149,11 +152,12 @@ def split_yearly_data(input_df, pred_attr='GW_KS', outdir=None, drop_attrs=(), t
     return x_train_df, x_test_df, y_train_df[0].ravel(), y_test_df[0].ravel()
 
 
-def create_pdplots(x_train, rf_model, plot_3d=False):
+def create_pdplots(x_train, rf_model, outdir, plot_3d=False):
     """
     Create partial dependence plots
     :param x_train: Training set
     :param rf_model: Random Forest model
+    :param outdir: Output directory for storing partial dependence data
     :param plot_3d: Set True for creating pairwise 3D plots
     :return: None
     """
@@ -172,16 +176,25 @@ def create_pdplots(x_train, rf_model, plot_3d=False):
                     print(feature_names[fi], feature_names[fj])
                     feature_dict[(fi, fj)] = True
                     feature_dict[(fj, fi)] = True
-                    pdp, axes = partial_dependence(rf_model, x_train, features=(fi, fj))
-                    x, y = np.meshgrid(axes[0], axes[1])
-                    z = pdp[0].T
+                    f_pefix = outdir + 'PDP_' + feature_names[fi] + '_' + feature_names[fj]
+                    saved_files = glob(outdir + '*' + feature_names[fi] + '_' + feature_names[fj] + '*')
+                    if not saved_files:
+                        pdp, axes = partial_dependence(rf_model, x_train, features=(fi, fj))
+                        x, y = np.meshgrid(axes[0], axes[1])
+                        z = pdp[0].T
+                        np.save(f_pefix + '_X', x)
+                        np.save(f_pefix + '_Y', y)
+                        np.save(f_pefix + '_Z', z)
+                    else:
+                        x = np.load(f_pefix + '_X.npy')
+                        y = np.load(f_pefix + '_Y.npy')
+                        z = np.load(f_pefix + '_Z.npy')
                     fig = plt.figure()
                     ax = axes3d.Axes3D(fig)
                     surf = ax.plot_surface(x, y, z, cmap='viridis', edgecolor='k')
                     ax.set_xlabel(feature_names[fi])
                     ax.set_ylabel(feature_names[fj])
                     ax.set_zlabel('Partial dependence')
-
                     plt.colorbar(surf, shrink=0.3, aspect=5)
                     plt.show()
     else:
@@ -190,8 +203,8 @@ def create_pdplots(x_train, rf_model, plot_3d=False):
 
 
 def rf_regressor(input_df, out_dir, n_estimators=200, random_state=0, bootstrap=True, max_features=None, test_size=0.2,
-                 pred_attr='GW_KS', shuffle=True, plot_graphs=False, plot_3d=False, drop_attrs=(), test_case='',
-                 test_year=None, split_yearly=True):
+                 pred_attr='GW_KS', shuffle=True, plot_graphs=False, plot_3d=False, plot_dir=None, drop_attrs=(),
+                 test_case='', test_year=None, split_yearly=True, load_model=True):
     """
     Perform random forest regression
     :param input_df: Input pandas dataframe
@@ -205,26 +218,38 @@ def rf_regressor(input_df, out_dir, n_estimators=200, random_state=0, bootstrap=
     :param shuffle: Set False to stop data shuffling
     :param plot_graphs: Plot Actual vs Prediction graph
     :param plot_3d: Plot pairwise 3D partial dependence plots
+    :param plot_dir: Directory for storing PDP data
     :param drop_attrs: Drop these specified attributes
     :param test_case: Used for writing the test case number to the CSV
     :param test_year: Build test data from only this year. Use tuple of years to split train test data using
     #split_yearly_data
     :param split_yearly: Split train test data based on years
+    :param load_model: Load an earlier pre-trained RF model
     :return: Random forest model
     """
 
-    if not split_yearly:
-        x_train, x_test, y_train, y_test = split_data_train_test(input_df, pred_attr=pred_attr, test_size=test_size,
-                                                                 random_state=random_state, shuffle=shuffle,
-                                                                 outdir=out_dir, drop_attrs=drop_attrs,
-                                                                 test_year=test_year)
+    saved_model = glob(out_dir + '*rf_model*')
+    if load_model and saved_model:
+        regressor = pickle.load(open(out_dir + 'rf_model', mode='rb'))
+        x_train = pd.read_csv(out_dir + 'X_Train.csv')
+        y_train = pd.read_csv(out_dir + 'Y_Train.csv')
+        x_test = pd.read_csv(out_dir + 'X_Test.csv')
+        y_test = pd.read_csv(out_dir + 'Y_Test.csv')
     else:
-        x_train, x_test, y_train, y_test = split_yearly_data(input_df, pred_attr=pred_attr, outdir=out_dir,
-                                                             drop_attrs=drop_attrs, test_years=test_year,
-                                                             shuffle=shuffle, random_state=random_state)
-    regressor = RandomForestRegressor(n_estimators=n_estimators, random_state=random_state, bootstrap=bootstrap,
-                                      max_features=max_features)
-    regressor.fit(x_train, y_train)
+        if not split_yearly:
+            x_train, x_test, y_train, y_test = split_data_train_test(input_df, pred_attr=pred_attr, test_size=test_size,
+                                                                     random_state=random_state, shuffle=shuffle,
+                                                                     outdir=out_dir, drop_attrs=drop_attrs,
+                                                                     test_year=test_year)
+        else:
+            x_train, x_test, y_train, y_test = split_yearly_data(input_df, pred_attr=pred_attr, outdir=out_dir,
+                                                                 drop_attrs=drop_attrs, test_years=test_year,
+                                                                 shuffle=shuffle, random_state=random_state)
+        regressor = RandomForestRegressor(n_estimators=n_estimators, random_state=random_state, bootstrap=bootstrap,
+                                          max_features=max_features)
+        regressor.fit(x_train, y_train)
+        pickle.dump(regressor, open(out_dir + 'rf_model', mode='wb'))
+
     print('Predictor... ')
     y_pred = regressor.predict(x_test)
     feature_imp = " ".join(str(np.round(i, 2)) for i in regressor.feature_importances_)
@@ -232,15 +257,13 @@ def rf_regressor(input_df, out_dir, n_estimators=200, random_state=0, bootstrap=
     test_score = np.round(regressor.score(x_test, y_test), 2)
     mae = np.round(metrics.mean_absolute_error(y_test, y_pred), 2)
     rmse = np.round(np.sqrt(metrics.mean_squared_error(y_test, y_pred)), 2)
-
-    if plot_graphs:
-        create_pdplots(x_train, regressor, plot_3d)
-
     df = {'Test': [test_case], 'N_Estimator': [n_estimators], 'MF': [max_features], 'F_IMP': [feature_imp],
           'Train_Score': [train_score], 'Test_Score': [test_score], 'MAE': [mae], 'RMSE': [rmse]}
     print('Model statistics:', df)
     df = pd.DataFrame(data=df)
     df.to_csv(out_dir + 'RF_Results.csv', mode='a', index=False, header=False)
+    if plot_graphs:
+        create_pdplots(x_train=x_train, rf_model=regressor, outdir=plot_dir, plot_3d=plot_3d)
     return regressor
 
 

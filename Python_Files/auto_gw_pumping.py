@@ -210,9 +210,11 @@ pred_attr = 'GW'
 # optimize_hyperparameters(test_cases, est_range, f_range)
 
 # Final Model and Prediction
+plot_dir = output_dir + 'Partial_Plots/PDP_Data/'
+makedirs([plot_dir])
 rf_model = rfr.rf_regressor(df, output_dir, n_estimators=500, random_state=0, pred_attr=pred_attr,
                             drop_attrs=drop_attrs, test_year=(2014,), shuffle=False, plot_graphs=True, plot_3d=True,
-                            split_yearly=True, bootstrap=True, max_features=3)
+                            split_yearly=True, bootstrap=True, plot_dir=plot_dir, max_features=3, load_model=True)
 # pred_years = range(2002, 2017)
 # pred_out_dir = output_dir + 'Predicted_Rasters_All/'
 # makedirs([pred_out_dir])
