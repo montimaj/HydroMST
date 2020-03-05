@@ -163,13 +163,15 @@ def create_pdplots(x_train, rf_model, outdir, plot_3d=False):
     """
 
     print('Plotting...')
-    x_train = x_train[:500]
     feature_names = x_train.columns.values.tolist()
+    plot_labels = {'AGRI': 'Agriculture density', 'URBAN': 'Urban density', 'SW': 'Surface water density',
+                   'ET': 'Evapotranspiration', 'P': 'Precipitation', 'GRACE': 'Total water storage change'}
     feature_indices = range(len(feature_names))
     feature_dict = {}
     if plot_3d:
-        for fi in feature_indices:
-            for fj in feature_indices:
+        x_train = x_train[:500]
+        for fi in feature_indices[:1]:
+            for fj in feature_indices[4: 5]:
                 feature_check = (fi != fj) and ((fi, fj) not in feature_dict.keys()) and ((fj, fi) not in
                                                                                           feature_dict.keys())
                 if feature_check:
@@ -192,13 +194,16 @@ def create_pdplots(x_train, rf_model, outdir, plot_3d=False):
                     fig = plt.figure()
                     ax = axes3d.Axes3D(fig)
                     surf = ax.plot_surface(x, y, z, cmap='viridis', edgecolor='k')
-                    ax.set_xlabel(feature_names[fi])
-                    ax.set_ylabel(feature_names[fj])
+                    ax.set_xlabel(plot_labels[feature_names[fi]])
+                    ax.set_ylabel(plot_labels[feature_names[fj]])
                     ax.set_zlabel('Partial dependence')
                     plt.colorbar(surf, shrink=0.3, aspect=5)
                     plt.show()
     else:
-        plot_partial_dependence(rf_model, features=feature_indices, X=x_train, feature_names=feature_names, n_jobs=-1)
+        fnames = []
+        for name in feature_names:
+            fnames.append(plot_labels[name])
+        plot_partial_dependence(rf_model, features=feature_indices, X=x_train, feature_names=fnames, n_jobs=-1)
         plt.show()
 
 
