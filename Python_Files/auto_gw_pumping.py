@@ -197,10 +197,10 @@ updated_gw_dir = gw_mask_dir + 'Updated/'
 print('DataFrame & Random Forest...')
 df_file = output_dir + '/raster_df_all.csv'
 rf_data_dir = file_dir + 'RF_Data_All/'
-# df = rfr.create_dataframe(rf_data_dir, out_df=df_file, make_year_col=True, exclude_years=(2017,))
-df = pd.read_csv(df_file)
+df = rfr.create_dataframe(rf_data_dir, out_df=df_file, make_year_col=True, exclude_years=(2017,))
+# df = pd.read_csv(df_file)
 drop_attrs = ('YEAR', 'URBAN_KS', 'ET_FLT_KS', 'GRACE_AT_KS')
-pred_attr = 'GW'
+pred_attr = 'GW_KS'
 
 # # Hyperparameter Optimization
 # n_features = len(df.columns) - len(drop_attrs) - 1
@@ -213,13 +213,13 @@ pred_attr = 'GW'
 plot_dir = output_dir + 'Partial_Plots/PDP_Data/'
 makedirs([plot_dir])
 rf_model = rfr.rf_regressor(df, output_dir, n_estimators=500, random_state=0, pred_attr=pred_attr,
-                            drop_attrs=drop_attrs, test_year=(2014,), shuffle=False, plot_graphs=True, plot_3d=False,
-                            split_yearly=True, bootstrap=True, plot_dir=plot_dir, max_features=3, load_model=True)
-# pred_years = range(2002, 2017)
-# pred_out_dir = output_dir + 'Predicted_Rasters_All/'
-# makedirs([pred_out_dir])
-# rfr.predict_rasters(rf_model, pred_years=pred_years, drop_attrs=drop_attrs, out_dir=pred_out_dir,
-#                     actual_raster_dir=rf_data_dir, pred_attr=pred_attr, only_pred=False)
+                            drop_attrs=drop_attrs, test_year=(2014,), shuffle=False, plot_graphs=False, plot_3d=False,
+                            split_yearly=True, bootstrap=True, plot_dir=plot_dir, max_features=3, load_model=False)
+pred_years = range(2002, 2017)
+pred_out_dir = output_dir + 'Predicted_Rasters_All/'
+makedirs([pred_out_dir])
+rfr.predict_rasters(rf_model, pred_years=pred_years, drop_attrs=drop_attrs, out_dir=pred_out_dir,
+                    actual_raster_dir=rf_data_dir, pred_attr=pred_attr, only_pred=False)
 # crop_dir = output_dir + 'Cropped_Rasters_All/'
 # makedirs([crop_dir])
 # rops.crop_multiple_rasters(rf_data_dir, outdir=crop_dir, input_shp_file=file_dir + 'Final_Mask/crop.shp',

@@ -61,6 +61,16 @@ def create_dataframe(input_file_dir, out_df, pattern='*.tif', exclude_years=(), 
     return df
 
 
+def get_rf_model(rf_file):
+    """
+    Get existing RF model object
+    :param rf_file: File path to RF model
+    :return: RandomForestRegressor
+    """
+
+    return pickle.load(open(rf_file, mode='rb'))
+
+
 def split_data_train_test(input_df, pred_attr='GW_KS', shuffle=True, random_state=0, test_size=0.2, outdir=None,
                           drop_attrs=(), test_year=None):
     """
@@ -235,7 +245,7 @@ def rf_regressor(input_df, out_dir, n_estimators=200, random_state=0, bootstrap=
 
     saved_model = glob(out_dir + '*rf_model*')
     if load_model and saved_model:
-        regressor = pickle.load(open(out_dir + 'rf_model', mode='rb'))
+        regressor = get_rf_model(out_dir + 'rf_model')
         x_train = pd.read_csv(out_dir + 'X_Train.csv')
         y_train = pd.read_csv(out_dir + 'Y_Train.csv')
         x_test = pd.read_csv(out_dir + 'X_Test.csv')

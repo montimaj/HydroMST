@@ -36,7 +36,8 @@ def read_raster_as_arr(raster_file, band=1, get_file=True, rasterio_obj=False, c
     raster_arr = raster_file.read(band)
     if change_dtype:
         raster_arr = raster_arr.astype(np.float32)
-        raster_arr[np.isclose(raster_arr, raster_file.nodata)] = np.nan
+        if raster_file.nodata:
+            raster_arr[np.isclose(raster_arr, raster_file.nodata)] = np.nan
     if get_file:
         return raster_arr, raster_file
     return raster_arr
@@ -130,6 +131,23 @@ def reclassify_raster(input_raster_file, class_dict, outfile_path):
         raster_arr[np.logical_and(raster_arr > key[0], raster_arr <= key[1])] = class_dict[key]
     raster_arr = raster_arr.astype(np.float32)
     raster_arr[raster_arr == 0] = NO_DATA_VALUE
+    write_raster(raster_arr, raster_file, transform=raster_file.transform, outfile_path=outfile_path)
+    return raster_arr
+
+
+def reclassify_raster2(input_raster_file, class_dict, outfile_path):
+    """
+    Reclassify raster data based on given class dictionary (left and right inclusive)
+    :param input_raster_file: Input raster file path
+    :param class_dict: Classification dictionary containing (from, to) as keys and "becomes" as value
+    :param outfile_path: Output file path (only tiff file)
+    :return: Reclassified raster
+    """
+
+    raster_arr, raster_file = read_raster_as_arr(input_raster_file, change_dtype=False)
+    for key in class_dict.keys():
+        raster_arr[np.logical_and(raster_arr >= key[0], raster_arr <= key[1])] = class_dict[key]
+    raster_arr = raster_arr.astype(np.float32)
     write_raster(raster_arr, raster_file, transform=raster_file.transform, outfile_path=outfile_path)
     return raster_arr
 
