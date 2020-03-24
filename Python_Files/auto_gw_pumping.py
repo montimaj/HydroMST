@@ -213,7 +213,7 @@ pred_attr = 'GW_KS'
 plot_dir = output_dir + 'Partial_Plots/PDP_Data/'
 makedirs([plot_dir])
 rf_model = rfr.rf_regressor(df, output_dir, n_estimators=500, random_state=0, pred_attr=pred_attr,
-                            drop_attrs=drop_attrs, test_year=(2014,), shuffle=False, plot_graphs=False, plot_3d=False,
+                            drop_attrs=drop_attrs, test_year=(2012,), shuffle=False, plot_graphs=False, plot_3d=False,
                             split_yearly=True, bootstrap=True, plot_dir=plot_dir, max_features=3, load_model=True)
 pred_years = range(2002, 2017)
 pred_out_dir = output_dir + 'Predicted_Rasters_All/'
