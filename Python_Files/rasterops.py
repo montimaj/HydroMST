@@ -14,6 +14,7 @@ from glob import glob
 import scipy.ndimage.filters as flt
 import subprocess
 import xmltodict
+import os
 
 NO_DATA_VALUE = -32767.0
 
@@ -93,7 +94,7 @@ def crop_raster(input_raster_file, input_mask_path, outfile_path, plot_fig=False
         transform = src_raster_file.GetGeoTransform()
         xres, yres = transform[1], transform[5]
         no_data = src_band.GetNoDataValue()
-        layer_name = input_mask_path[input_mask_path.rfind('/') + 1: input_mask_path.rfind('.')]
+        layer_name = input_mask_path[input_mask_path.rfind(os.sep) + 1: input_mask_path.rfind('.')]
         sys_call = [gdalwarp_path, '-tr', str(xres), str(yres), '-tap', '-cutline', input_mask_path, '-cl', layer_name,
                     '-crop_to_cutline', '-dstnodata', str(no_data), '-overwrite', '-ot', 'Float32', '-of', 'GTiff',
                     input_raster_file, outfile_path]
@@ -108,12 +109,12 @@ def crop_raster(input_raster_file, input_mask_path, outfile_path, plot_fig=False
         write_raster(raster_crop, raster_file, transform=raster_transform, outfile_path=outfile_path,
                      no_data_value=raster_file.nodata)
         if plot_fig:
-             fig, ax = plt.subplots(figsize=(10, 8))
-             raster_plot = ax.imshow(raster_crop[0], extent=shape_extent)
-             ax.set_title(plot_title)
-             ax.set_axis_off()
-             fig.colorbar(raster_plot)
-             plt.show()
+            fig, ax = plt.subplots(figsize=(10, 8))
+            raster_plot = ax.imshow(raster_crop[0], extent=shape_extent)
+            ax.set_title(plot_title)
+            ax.set_axis_off()
+            fig.colorbar(raster_plot)
+            plt.show()
         return raster_crop
 
 
@@ -164,7 +165,7 @@ def stack_rasters(input_dir, pattern):
     months = {'jan': 'January', 'feb': 'February', 'mar': 'March', 'apr': 'April', 'may': 'May', 'jun': 'June',
               'jul': 'July', 'aug': 'August', 'sep': 'September', 'oct': 'October', 'nov': 'November',
               'dec': 'December'}
-    for raster_file in glob(input_dir + '/' + pattern):
+    for raster_file in glob(input_dir + os.sep + pattern):
         month_yr = raster_file[raster_file.rfind('_') + 1: raster_file.rfind('.')]
         month, year = months[month_yr[:3].lower()], int('20' + month_yr[3:])
         raster_stack[(month, year)] = rio.open(raster_file)
@@ -358,7 +359,7 @@ def crop_rasters(input_raster_dir, input_mask_file, outdir, pattern='*.tif', ext
     """
 
     for raster_file in glob(input_raster_dir + pattern):
-        out_raster = outdir + raster_file[raster_file.rfind('/') + 1: raster_file.rfind('.')] + '_Masked.tif'
+        out_raster = outdir + raster_file[raster_file.rfind(os.sep) + 1: raster_file.rfind('.')] + '_Masked.tif'
         crop_raster(raster_file, input_mask_file, out_raster, ext_mask=ext_mask, gdalwarp_path=gdalwarp_path)
 
 
@@ -377,7 +378,7 @@ def smooth_rasters(input_raster_dir, ref_file, outdir, pattern='*_Masked.tif', s
     """
 
     for raster_file in glob(input_raster_dir + pattern):
-        out_raster = outdir + raster_file[raster_file.rfind('/') + 1: raster_file.rfind('.')] + '_Smoothed.tif'
+        out_raster = outdir + raster_file[raster_file.rfind(os.sep) + 1: raster_file.rfind('.')] + '_Smoothed.tif'
         apply_gaussian_filter(raster_file, ref_file=ref_file, outfile_path=out_raster, sigma=sigma, normalize=normalize,
                               ignore_nan=ignore_nan)
 
@@ -393,7 +394,7 @@ def reproject_rasters(input_raster_dir, ref_raster, outdir, pattern='*.tif'):
     """
 
     for raster_file in glob(input_raster_dir + pattern):
-        out_raster = outdir + raster_file[raster_file.rfind('/') + 1: raster_file.rfind('.')] + '_Reproj.tif'
+        out_raster = outdir + raster_file[raster_file.rfind(os.sep) + 1: raster_file.rfind('.')] + '_Reproj.tif'
         gdal_warp_syscall(raster_file, from_raster=ref_raster, outfile_path=out_raster)
 
 
@@ -408,7 +409,7 @@ def mask_rasters(input_raster_dir, ref_raster, outdir, pattern='*.tif'):
     """
 
     for raster_file in glob(input_raster_dir + pattern):
-        out_raster = outdir + raster_file[raster_file.rfind('/') + 1: raster_file.rfind('.')] + '_Masked.tif'
+        out_raster = outdir + raster_file[raster_file.rfind(os.sep) + 1: raster_file.rfind('.')] + '_Masked.tif'
         filter_nans(raster_file, ref_raster, outfile_path=out_raster)
 
 
@@ -425,7 +426,7 @@ def apply_et_filter(input_raster_dir, ref_raster1, ref_raster2, outdir, pattern=
     """
 
     for raster_file in glob(input_raster_dir + pattern):
-        out_raster = outdir + raster_file[raster_file.rfind('/') + 1: raster_file.rfind('.')] + '_flt.tif'
+        out_raster = outdir + raster_file[raster_file.rfind(os.sep) + 1: raster_file.rfind('.')] + '_flt.tif'
         apply_raster_filter(ref_raster1, raster_file, outfile_path=out_raster, flt_values=flt_values)
         filter_nans(out_raster, ref_file=ref_raster2, outfile_path=out_raster)
 
@@ -508,7 +509,7 @@ def compute_rasters_from_shp(input_raster_dir, input_shp_dir, outdir, nan_fill=0
     raster_files.sort()
     shp_files.sort()
     for raster_file, shp_file in zip(raster_files, shp_files):
-        out_raster = outdir + raster_file[raster_file.rfind('/') + 1:]
+        out_raster = outdir + raster_file[raster_file.rfind(os.sep) + 1:]
         print('Processing for', raster_file, shp_file, '...')
         compute_raster_shp(raster_file, input_shp_file=shp_file, outfile_path=out_raster, nan_fill=nan_fill,
                            point_arithmetic=point_arithmetic, value_field_pos=value_field_pos, gdalpath=gdalpath)
@@ -524,7 +525,7 @@ def convert_gw_data(input_raster_dir, outdir, pattern='*.tif'):
     """
 
     for raster_file in glob(input_raster_dir + pattern):
-        out_raster = outdir + raster_file[raster_file.rfind('/') + 1:]
+        out_raster = outdir + raster_file[raster_file.rfind(os.sep) + 1:]
         raster_arr, raster_ref = read_raster_as_arr(raster_file)
         transform = raster_ref.get_transform()
         xres, yres = transform[1] / 1000., -transform[5] / 1000.
@@ -544,7 +545,7 @@ def scale_raster_data(input_raster_dir, outdir, scaling_factor=10, pattern='*.ti
     """
 
     for raster_file in glob(input_raster_dir + pattern):
-        out_raster = outdir + raster_file[raster_file.rfind('/') + 1:]
+        out_raster = outdir + raster_file[raster_file.rfind(os.sep) + 1:]
         raster_arr, raster_ref = read_raster_as_arr(raster_file)
         raster_arr[~np.isnan(raster_arr)] *= scaling_factor
         raster_arr[np.isnan(raster_arr)] = NO_DATA_VALUE
@@ -562,7 +563,7 @@ def crop_multiple_rasters(input_raster_dir, outdir, input_shp_file, pattern='*.t
     """
 
     for raster_file in glob(input_raster_dir + pattern):
-        out_raster = outdir + raster_file[raster_file.rfind('/') + 1:]
+        out_raster = outdir + raster_file[raster_file.rfind(os.sep) + 1:]
         crop_raster(raster_file, input_mask_path=input_shp_file, ext_mask=False, outfile_path=out_raster)
 
 
@@ -576,7 +577,7 @@ def fill_mean_value(input_raster_dir, outdir, pattern='GRACE*.tif'):
     """
 
     for raster_file in glob(input_raster_dir + pattern):
-        out_raster = outdir + raster_file[raster_file.rfind('/') + 1:]
+        out_raster = outdir + raster_file[raster_file.rfind(os.sep) + 1:]
         raster_arr, raster_file = read_raster_as_arr(raster_file)
         mean_val = np.nanmean(raster_arr)
         raster_arr[np.isnan(raster_arr)] = NO_DATA_VALUE

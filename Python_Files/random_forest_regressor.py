@@ -4,6 +4,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import pickle
+import os
 
 from glob import glob
 from sklearn.ensemble import RandomForestRegressor
@@ -32,7 +33,7 @@ def create_dataframe(input_file_dir, out_df, pattern='*.tif', exclude_years=(), 
     raster_file_dict = defaultdict(lambda: [])
     for f in glob(input_file_dir + pattern):
         sep = f.rfind('_')
-        variable, year = f[f.rfind('/') + 1: sep], f[sep + 1: f.rfind('.')]
+        variable, year = f[f.rfind(os.sep) + 1: sep], f[sep + 1: f.rfind('.')]
         if variable not in exclude_vars and int(year) not in exclude_years:
             raster_file_dict[int(year)].append(f)
 
@@ -45,7 +46,7 @@ def create_dataframe(input_file_dir, out_df, pattern='*.tif', exclude_years=(), 
         for raster_file in file_list:
             raster_arr = rops.read_raster_as_arr(raster_file, get_file=False)
             raster_arr = raster_arr.reshape(raster_arr.shape[0] * raster_arr.shape[1])
-            variable = raster_file[raster_file.rfind('/') + 1: raster_file.rfind('_')]
+            variable = raster_file[raster_file.rfind(os.sep) + 1: raster_file.rfind('_')]
             raster_dict[variable] = raster_arr
         if make_year_col:
             raster_dict['YEAR'] = [year] * raster_arr.shape[0]
@@ -300,7 +301,7 @@ def create_pred_raster(rf_model, out_raster, actual_raster_dir, pred_year=2015, 
     raster_arr_dict = defaultdict(lambda: [])
     for raster_file in raster_files:
         sep = raster_file.rfind('_')
-        variable, year = raster_file[raster_file.rfind('/') + 1: sep], raster_file[sep + 1: raster_file.rfind('.')]
+        variable, year = raster_file[raster_file.rfind(os.sep) + 1: sep], raster_file[sep + 1: raster_file.rfind('.')]
         raster_arr, actual_file = rops.read_raster_as_arr(raster_file)
         raster_shape = raster_arr.shape
         raster_arr = raster_arr.reshape(raster_shape[0] * raster_shape[1])
