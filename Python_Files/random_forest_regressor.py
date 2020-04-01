@@ -13,6 +13,7 @@ from sklearn import metrics
 from collections import defaultdict
 from sklearn.inspection import plot_partial_dependence
 from sklearn.inspection import partial_dependence
+from sklearn.inspection import permutation_importance
 from mpl_toolkits.mplot3d import axes3d
 
 from Python_Files import rasterops as rops
@@ -175,14 +176,15 @@ def create_pdplots(x_train, rf_model, outdir, plot_3d=False):
 
     print('Plotting...')
     feature_names = x_train.columns.values.tolist()
-    plot_labels = {'AGRI': 'Agriculture density', 'URBAN': 'Urban density', 'SW': 'Surface water density',
-                   'ET': 'Evapotranspiration', 'P': 'Precipitation', 'GRACE': 'Total water storage change'}
+    plot_labels = {'AGRI_KS': 'Agriculture density', 'URBAN_FLT_KS': 'Urban density', 'SW_KS': 'Surface water density',
+                   'ET_KS': 'Evapotranspiration', 'P_KS': 'Precipitation'}
+    plot_labels = {'AGRI_KS': 'AGRI', 'URBAN_FLT_KS': 'URBAN', 'SW_KS': 'SW', 'ET_KS': 'ET (mm)', 'P_KS': 'P (mm)'}
     feature_indices = range(len(feature_names))
     feature_dict = {}
     if plot_3d:
         x_train = x_train[:500]
-        for fi in feature_indices[:1]:
-            for fj in feature_indices[4: 5]:
+        for fi in feature_indices:
+            for fj in feature_indices:
                 feature_check = (fi != fj) and ((fi, fj) not in feature_dict.keys()) and ((fj, fi) not in
                                                                                           feature_dict.keys())
                 if feature_check:
@@ -207,7 +209,7 @@ def create_pdplots(x_train, rf_model, outdir, plot_3d=False):
                     surf = ax.plot_surface(x, y, z, cmap='viridis', edgecolor='k')
                     ax.set_xlabel(plot_labels[feature_names[fi]])
                     ax.set_ylabel(plot_labels[feature_names[fj]])
-                    ax.set_zlabel('Partial dependence')
+                    ax.set_zlabel('GW Pumping (mm)')
                     plt.colorbar(surf, shrink=0.3, aspect=5)
                     plt.show()
     else:
@@ -262,19 +264,27 @@ def rf_regressor(input_df, out_dir, n_estimators=200, random_state=0, bootstrap=
                                                                  drop_attrs=drop_attrs, test_years=test_year,
                                                                  shuffle=shuffle, random_state=random_state)
         regressor = RandomForestRegressor(n_estimators=n_estimators, random_state=random_state, bootstrap=bootstrap,
-                                          max_features=max_features)
+                                          max_features=max_features, n_jobs=-1, oob_score=True)
         regressor.fit(x_train, y_train)
         pickle.dump(regressor, open(out_dir + 'rf_model', mode='wb'))
 
     print('Predictor... ')
     y_pred = regressor.predict(x_test)
     feature_imp = " ".join(str(np.round(i, 2)) for i in regressor.feature_importances_)
+    permutation_imp_train = permutation_importance(regressor, x_train, y_train, n_repeats=10, random_state=random_state,
+                                                   n_jobs=-1)
+    permutation_imp_train = " ".join(str(np.round(i, 2)) for i in permutation_imp_train.importances_mean)
+    permutation_imp_test = permutation_importance(regressor, x_test, y_test, n_repeats=10, random_state=random_state,
+                                                  n_jobs=-1)
+    permutation_imp_test = " ".join(str(np.round(i, 2)) for i in permutation_imp_test.importances_mean)
     train_score = np.round(regressor.score(x_train, y_train), 2)
     test_score = np.round(regressor.score(x_test, y_test), 2)
     mae = np.round(metrics.mean_absolute_error(y_test, y_pred), 2)
     rmse = np.round(np.sqrt(metrics.mean_squared_error(y_test, y_pred)), 2)
+    oob_score = np.round(regressor.oob_score_, 2)
     df = {'Test': [test_case], 'N_Estimator': [n_estimators], 'MF': [max_features], 'F_IMP': [feature_imp],
-          'Train_Score': [train_score], 'Test_Score': [test_score], 'MAE': [mae], 'RMSE': [rmse]}
+          'P_IMP_TRAIN': [permutation_imp_train], 'P_IMP_TEST': [permutation_imp_test], 'Train_Score': [train_score],
+          'Test_Score': [test_score], 'OOB_Score': [oob_score], 'MAE': [mae], 'RMSE': [rmse]}
     print('Model statistics:', df)
     df = pd.DataFrame(data=df)
     df.to_csv(out_dir + 'RF_Results.csv', mode='a', index=False, header=False)
@@ -331,7 +341,7 @@ def create_pred_raster(rf_model, out_raster, actual_raster_dir, pred_year=2015, 
         pred_values = pred_arr
     mae = np.round(metrics.mean_absolute_error(actual_values, pred_values), 2)
     r_squared = np.round(metrics.r2_score(actual_values, pred_values), 2)
-    rmse = np.round(np.sqrt(metrics.mean_squared_error(actual_values, pred_values)), 2)
+    rmse = np.round(metrics.mean_squared_error(actual_values, pred_values, squared=False), 2)
 
     if not only_pred:
         pred_arr = pred_arr.reshape(raster_shape)
