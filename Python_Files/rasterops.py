@@ -315,7 +315,7 @@ def gdal_warp_syscall(input_raster_file, outfile_path, resampling_factor=1, resa
     :param resampling_func: Resampling function
     :param downsampling: Downsample raster (default True)
     :param from_raster: Reproject input raster considering another raster
-    :param gdalwarp_path: gdalwarp system path
+    :param gdalwarp_path: gdalwarp system path , in Windows replace with OSGeo4W path, e.g. 'C:/OSGeo4W64/OSGeo4W.bat'
     :return: None
     """
 
@@ -339,9 +339,13 @@ def gdal_warp_syscall(input_raster_file, outfile_path, resampling_factor=1, resa
                        gdal.GRA_Mode: 'mode', gdal.GRA_Max: 'max', gdal.GRA_Min: 'min', gdal.GRA_Med: 'med',
                        gdal.GRA_Q1: 'q1', gdal.GRA_Q3: 'q3'}
     resampling_func = resampling_dict[resampling_func]
-    sys_call = [gdalwarp_path, '-t_srs', dst_proj, '-te', extent[0], extent[1], extent[2], extent[3],
+    args = ['-t_srs', dst_proj, '-te', extent[0], extent[1], extent[2], extent[3],
                 '-dstnodata', str(no_data), '-r', str(resampling_func), '-tr', str(xres), str(yres), '-ot', 'Float32',
                 '-overwrite', input_raster_file, outfile_path]
+    sys_call = [gdalwarp_path] + args
+    if os.name == 'nt':
+        sys_call = [gdalwarp_path] + ['gdalwarp'] + args
+    print(sys_call)
     subprocess.call(sys_call)
 
 
@@ -383,19 +387,20 @@ def smooth_rasters(input_raster_dir, ref_file, outdir, pattern='*_Masked.tif', s
                               ignore_nan=ignore_nan)
 
 
-def reproject_rasters(input_raster_dir, ref_raster, outdir, pattern='*.tif'):
+def reproject_rasters(input_raster_dir, ref_raster, outdir, pattern='*.tif', gdalwarp_path='/usr/bin/gdalwarp'):
     """
     Reproject rasters in a directory
     :param input_raster_dir: Directory containing raster files which are named as *_<Year>.*
     :param ref_raster: Reference raster file to consider while reprojecting
     :param outdir: Output directory for storing reprojected rasters
     :param pattern: Raster extension
+    :param gdalwarp_path: Path to gdalwarp
     :return: None
     """
 
     for raster_file in glob(input_raster_dir + pattern):
         out_raster = outdir + raster_file[raster_file.rfind(os.sep) + 1: raster_file.rfind('.')] + '_Reproj.tif'
-        gdal_warp_syscall(raster_file, from_raster=ref_raster, outfile_path=out_raster)
+        gdal_warp_syscall(raster_file, from_raster=ref_raster, outfile_path=out_raster, gdalwarp_path=gdalwarp_path)
 
 
 def mask_rasters(input_raster_dir, ref_raster, outdir, pattern='*.tif'):

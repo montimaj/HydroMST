@@ -67,13 +67,13 @@ makedirs([output_dir, output_shp_dir, output_gw_raster_dir, output_all_shp_dir])
 # vops.csvs2shps(input_ts_dir, output_shp_dir, target_crs='epsg:26914', delim='\t', pattern='*.txt')
 # print('Reprojecting KS Watershed Vector...')
 # ks_watershed_file = input_dir + 'Watersheds/ks_merged/ks_watershed.shp'
-ks_watershed_reproj_dir = file_dir + 'Watersheds/ks_reproj/'
+# ks_watershed_reproj_dir = file_dir + 'Watersheds/ks_reproj/'
 # makedirs([ks_watershed_reproj_dir])
-ks_watershed_reproj_file = ks_watershed_reproj_dir + 'ks_watershed_reproj.shp'
+# ks_watershed_reproj_file = ks_watershed_reproj_dir + 'ks_watershed_reproj.shp'
 # ref_shp = glob(output_shp_dir + '*.shp')[0]
 # vops.reproject_vector(ks_watershed_file, outfile_path=ks_watershed_reproj_file, ref_file=ref_shp, raster=False)
 # print('Clipping GW shapefiles...')
-clipped_gw_shp_dir = output_all_shp_dir + 'Clipped/'
+# clipped_gw_shp_dir = output_all_shp_dir + 'Clipped/'
 # makedirs([clipped_gw_shp_dir])
 # vops.clip_vectors(output_all_shp_dir, clip_file=ks_watershed_reproj_file, outdir=clipped_gw_shp_dir)
 # print('Converting SHP to TIF...')
@@ -81,7 +81,7 @@ clipped_gw_shp_dir = output_all_shp_dir + 'Clipped/'
 #
 #
 # print('Masking Rasters using KS Watershed...')
-gw_mask_dir = output_gw_raster_dir + 'Masked/'
+# gw_mask_dir = output_gw_raster_dir + 'Masked/'
 # makedirs([gw_mask_dir])
 # rops.crop_rasters(output_gw_raster_dir, input_mask_file=ks_watershed_reproj_file, outdir=gw_mask_dir)
 #
@@ -98,23 +98,25 @@ gw_mask_dir = output_gw_raster_dir + 'Masked/'
 #                  }
 #
 # ks_cdl_file = input_dir + 'CDL/CDL_KS_2015.tif'
-ks_reclass_dir = file_dir + 'KS_Reclass/'
+# ks_reclass_dir = file_dir + 'KS_Reclass/'
 # makedirs([ks_reclass_dir])
-ks_reclass_file = ks_reclass_dir + 'ks_reclass.tif'
+# ks_reclass_file = ks_reclass_dir + 'ks_reclass.tif'
 # ks_reclass = rops.reclassify_raster(ks_cdl_file, ks_class_dict, ks_reclass_file)
 # ks_reclass_file_2 = ks_reclass_dir + 'ks_reclass2.tif'
 # ks_reclass2 = rops.gdal_warp_syscall(ks_reclass_file, ks_reclass_file_2)
 #
 # print('Reprojecting rasters...')
-raster_reproj_dir = file_dir + 'Reproj_Rasters_All/'
-makedirs([raster_reproj_dir])
+# raster_reproj_dir = file_dir + 'Reproj_Rasters_All/'
+# makedirs([raster_reproj_dir])
 # ref_raster = glob(gw_mask_dir + '*.tif')[0]
-# rops.reproject_rasters(input_dir_2, ref_raster=ref_raster, outdir=raster_reproj_dir, pattern='GRACE_AT*.tif')
+# ref_raster = glob('../Files/RF_Data_All/' + '*.tif')[0]
+# rops.reproject_rasters(input_ts_dir + 'GRACE_AVG/', ref_raster=ref_raster, outdir=raster_reproj_dir,
+#                        pattern='GRACE_DA*.tif', gdalwarp_path='C:/OSGeo4W64/OSGeo4W.bat')
 #
 # print('Masking rasters...')
 # raster_mask_dir = file_dir + 'Masked_Rasters_All/'
 # makedirs([raster_mask_dir])
-# rops.mask_rasters(raster_reproj_dir, ref_raster=ref_raster, outdir=raster_mask_dir, pattern='GRACE_AT*.tif')
+# rops.mask_rasters(raster_reproj_dir, ref_raster=ref_raster, outdir=raster_mask_dir, pattern='GRACE_DA*.tif')
 #
 # print('Filtering ET files...')
 # et_flt_dir = file_dir + 'ET_FLT_All/'
@@ -169,7 +171,7 @@ makedirs([raster_reproj_dir])
 #                            ignore_nan=False)
 
 # print('Updated GW files...This will take significant time as pixelwise operations are performed!!')
-updated_gw_dir = gw_mask_dir + 'Updated/'
+# updated_gw_dir = gw_mask_dir + 'Updated/'
 # makedirs([updated_gw_dir])
 # rops.compute_rasters_from_shp(input_raster_dir=gw_mask_dir, input_shp_dir=clipped_gw_shp_dir, outdir=updated_gw_dir)
 
@@ -186,7 +188,7 @@ updated_gw_dir = gw_mask_dir + 'Updated/'
 # print('GRACE Scale...')
 # grace_dir = raster_mask_dir + 'GRACE_Scaled/'
 # makedirs([grace_dir])
-# rops.scale_raster_data(raster_mask_dir, grace_dir, pattern='GRACE_AT*.tif')
+# rops.scale_raster_data(raster_mask_dir, grace_dir, pattern='GRACE_DA*.tif')
 
 # print('GRACE Trend average...')
 # grace_dir = raster_mask_dir + 'GRACE_TREND_AVERAGED/'
@@ -202,7 +204,7 @@ df = rfr.create_dataframe(rf_data_dir, out_df=df_file, make_year_col=True, exclu
 drop_attrs = ('YEAR', 'URBAN_KS', 'ET_FLT_KS', 'GRACE_Trend_KS')
 pred_attr = 'GW_KS'
 
-# # Hyperparameter Optimization
+# Hyperparameter Optimization
 # n_features = len(df.columns) - len(drop_attrs) - 1
 # test_cases = [2014, 2012, range(2012, 2017)]
 # est_range = range(100, 601, 100)

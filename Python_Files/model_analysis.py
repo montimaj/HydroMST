@@ -61,6 +61,6 @@ def create_time_series_plot(input_df):
 
 gw_dir = '../Files/RF_Data_All/'
 pred_gw_dir = '../Output/Predicted_Rasters_All/'
-grace_dir = '../Files/RF_Data_All/'
+grace_dir = '../Files/Masked_Rasters_All/GRACE_DA_Scaled/'
 ts_df = create_gw_time_series(gw_dir, pred_gw_dir, grace_dir)
 create_time_series_plot(ts_df)
