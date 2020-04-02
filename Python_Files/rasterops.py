@@ -583,3 +583,18 @@ def fill_mean_value(input_raster_dir, outdir, pattern='GRACE*.tif'):
         raster_arr[np.isnan(raster_arr)] = NO_DATA_VALUE
         raster_arr[raster_arr != NO_DATA_VALUE] = mean_val
         write_raster(raster_arr, raster_file, transform=raster_file.transform, outfile_path=out_raster)
+
+
+def create_raster_dict(input_raster_dir, pattern='*.tif'):
+    """
+    Create a raster dictionary keyed by years
+    :param input_raster_dir: Input raster directory
+    :param pattern: File pattern
+    :return: Dictionary of rasters present in the directory
+    """
+
+    raster_dict = {}
+    for raster_file in glob(input_raster_dir + pattern):
+        year = raster_file[raster_file.rfind('_') + 1: raster_file.rfind('.')]
+        raster_dict[int(year)] = read_raster_as_arr(raster_file, get_file=False)
+    return raster_dict

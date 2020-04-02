@@ -40,8 +40,7 @@ def create_dataframe(input_file_dir, out_df, pattern='*.tif', exclude_years=(), 
 
     raster_dict = {}
     flag = False
-    years = [yr for yr in raster_file_dict.keys()]
-    years.sort()
+    years = sorted(list(raster_file_dict.keys()))
     for year in years:
         file_list = raster_file_dict[year]
         for raster_file in file_list:
