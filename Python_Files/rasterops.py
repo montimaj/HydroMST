@@ -3,9 +3,6 @@
 
 import matplotlib.pyplot as plt
 import rasterio as rio
-from rasterio.plot import plotting_extent
-from rasterio.mask import mask
-from shapely.geometry import mapping
 import geopandas as gpd
 import numpy as np
 import gdal
@@ -15,6 +12,12 @@ import scipy.ndimage.filters as flt
 import subprocess
 import xmltodict
 import os
+
+from rasterio.plot import plotting_extent
+from rasterio.mask import mask
+from shapely.geometry import mapping
+from collections import defaultdict
+from datetime import datetime
 
 NO_DATA_VALUE = -32767.0
 
@@ -399,7 +402,7 @@ def reproject_rasters(input_raster_dir, ref_raster, outdir, pattern='*.tif', gda
     """
 
     for raster_file in glob(input_raster_dir + pattern):
-        out_raster = outdir + raster_file[raster_file.rfind(os.sep) + 1: raster_file.rfind('.')] + '_Reproj.tif'
+        out_raster = outdir + raster_file[raster_file.rfind(os.sep) + 1:]
         gdal_warp_syscall(raster_file, from_raster=ref_raster, outfile_path=out_raster, gdalwarp_path=gdalwarp_path)
 
 
@@ -414,7 +417,7 @@ def mask_rasters(input_raster_dir, ref_raster, outdir, pattern='*.tif'):
     """
 
     for raster_file in glob(input_raster_dir + pattern):
-        out_raster = outdir + raster_file[raster_file.rfind(os.sep) + 1: raster_file.rfind('.')] + '_Masked.tif'
+        out_raster = outdir + raster_file[raster_file.rfind(os.sep) + 1:]
         filter_nans(raster_file, ref_raster, outfile_path=out_raster)
 
 
@@ -603,3 +606,49 @@ def create_raster_dict(input_raster_dir, pattern='*.tif'):
         year = raster_file[raster_file.rfind('_') + 1: raster_file.rfind('.')]
         raster_dict[int(year)] = read_raster_as_arr(raster_file, get_file=False)
     return raster_dict
+
+
+def create_yearly_avg_raster_dict(input_raster_dir, pattern='GRACE*.tif'):
+    """
+    Create a raster dictionary keyed by years and the values averaged over each year
+    :param input_raster_dir: Input raster directory
+    :param pattern: File pattern
+    :return: Dictionary of rasters present in the directory
+    """
+
+    raster_dict = defaultdict(lambda: [])
+    for raster_file in glob(input_raster_dir + pattern):
+        year = raster_file[raster_file.rfind('_') + 1: raster_file.rfind('.')]
+        raster_arr = read_raster_as_arr(raster_file, get_file=False)
+        raster_dict[int(year)].append(raster_arr)
+    yearly_avg_raster_dict = {}
+    for year in raster_dict.keys():
+        raster_list = raster_dict[year]
+        sum_arr = np.full_like(raster_list[0], fill_value=0)
+        for raster in raster_list:
+            sum_arr += raster
+        sum_arr /= len(raster_list)
+        yearly_avg_raster_dict[year] = np.nanmean(sum_arr)
+    return yearly_avg_raster_dict
+
+
+def create_monthly_avg_raster_dict(input_raster_dir, pattern='GRACE*.tif'):
+    """
+    Create a raster dictionary keyed by years and the values averaged over each year
+    :param input_raster_dir: Input raster directory
+    :param pattern: File pattern
+    :return: Dictionary of rasters present in the directory
+    """
+
+    raster_dict = {}
+    for raster_file in glob(input_raster_dir + pattern):
+        file_name = raster_file[raster_file.rfind(os.sep) + 1:]
+        dt = file_name[file_name.find('_') + 1: file_name.rfind('.')]
+        dt = datetime.strptime(dt, '%b_%Y')
+        raster_arr = read_raster_as_arr(raster_file, get_file=False)
+        raster_dict[dt] = np.nanmean(raster_arr)
+    return raster_dict
+
+
+
+

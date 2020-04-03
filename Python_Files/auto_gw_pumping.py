@@ -108,15 +108,15 @@ makedirs([output_dir, output_shp_dir, output_gw_raster_dir, output_all_shp_dir])
 # print('Reprojecting rasters...')
 # raster_reproj_dir = file_dir + 'Reproj_Rasters_All/'
 # makedirs([raster_reproj_dir])
-# ref_raster = glob(gw_mask_dir + '*.tif')[0]
+# # ref_raster = glob(gw_mask_dir + '*.tif')[0]
 # ref_raster = glob('../Files/RF_Data_All/' + '*.tif')[0]
-# rops.reproject_rasters(input_ts_dir + 'GRACE_AVG/', ref_raster=ref_raster, outdir=raster_reproj_dir,
-#                        pattern='GRACE_DA*.tif', gdalwarp_path='C:/OSGeo4W64/OSGeo4W.bat')
+# rops.reproject_rasters(input_ts_dir + 'GRACE_Monthly/', ref_raster=ref_raster, outdir=raster_reproj_dir,
+#                       pattern='GRACE*.tif', gdalwarp_path='C:/OSGeo4W64/OSGeo4W.bat')
 #
 # print('Masking rasters...')
-# raster_mask_dir = file_dir + 'Masked_Rasters_All/'
+raster_mask_dir = file_dir + 'Masked_Rasters_All/'
 # makedirs([raster_mask_dir])
-# rops.mask_rasters(raster_reproj_dir, ref_raster=ref_raster, outdir=raster_mask_dir, pattern='GRACE_DA*.tif')
+# rops.mask_rasters(raster_reproj_dir, ref_raster=ref_raster, outdir=raster_mask_dir, pattern='GRACE*.tif')
 #
 # print('Filtering ET files...')
 # et_flt_dir = file_dir + 'ET_FLT_All/'
@@ -188,7 +188,7 @@ makedirs([output_dir, output_shp_dir, output_gw_raster_dir, output_all_shp_dir])
 # print('GRACE Scale...')
 # grace_dir = raster_mask_dir + 'GRACE_Scaled/'
 # makedirs([grace_dir])
-# rops.scale_raster_data(raster_mask_dir, grace_dir, pattern='GRACE_DA*.tif')
+# rops.scale_raster_data(raster_mask_dir, grace_dir, pattern='GRACE*.tif')
 
 # print('GRACE Trend average...')
 # grace_dir = raster_mask_dir + 'GRACE_TREND_AVERAGED/'
