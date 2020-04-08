@@ -5,7 +5,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pickle
 import os
-
 from glob import glob
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import train_test_split
@@ -15,7 +14,6 @@ from sklearn.inspection import plot_partial_dependence
 from sklearn.inspection import partial_dependence
 from sklearn.inspection import permutation_importance
 from mpl_toolkits.mplot3d import axes3d
-
 from Python_Files import rasterops as rops
 
 
@@ -247,7 +245,7 @@ def rf_regressor(input_df, out_dir, n_estimators=200, random_state=0, bootstrap=
 
     saved_model = glob(out_dir + '*rf_model*')
     if load_model and saved_model:
-        regressor = get_rf_model(out_dir + 'rf_model')
+        regressor = get_rf_model(saved_model[0])
         x_train = pd.read_csv(out_dir + 'X_Train.csv')
         y_train = pd.read_csv(out_dir + 'Y_Train.csv')
         x_test = pd.read_csv(out_dir + 'X_Test.csv')
@@ -293,7 +291,7 @@ def rf_regressor(input_df, out_dir, n_estimators=200, random_state=0, bootstrap=
 
 
 def create_pred_raster(rf_model, out_raster, actual_raster_dir, pred_year=2015, pred_attr='GW_KS', drop_attrs=(),
-                       only_pred=False):
+                       only_pred=False, calculate_errors=True):
     """
     Create prediction raster
     :param rf_model: Pre-built Random Forest Model
@@ -302,7 +300,9 @@ def create_pred_raster(rf_model, out_raster, actual_raster_dir, pred_year=2015, 
     :param pred_year: Prediction year
     :param pred_attr: Prediction attribute name in the dataframe
     :param drop_attrs: Drop these specified attributes (Must be exactly the same as used in rf_regressor module)
-    :param only_pred: Set true to disable raster creation and for showing only the error metrics
+    :param only_pred: Set true to disable raster creation and for showing only the error metrics,
+    automatically set to False if calculate_errors is False
+    :param calculate_errors: Calculate error metrics if actual observations are present
     :return: MAE, RMSE, and R^2 statistics (rounded to 2 decimal places)
     """
 
@@ -323,25 +323,32 @@ def create_pred_raster(rf_model, out_raster, actual_raster_dir, pred_year=2015, 
     input_df = pd.DataFrame(data=raster_arr_dict)
     input_df = input_df.dropna(axis=0)
     input_df = input_df.reindex(sorted(input_df.columns), axis=1)
-    if only_pred:
-        actual_arr = input_df[pred_attr]
+    drop_attr_list = [attr for attr in drop_attrs]
+    if not calculate_errors:
+        input_df = input_df.drop(columns=drop_attr_list)
+        pred_arr = rf_model.predict(input_df)
+        if not only_pred:
+            pred_arr[nan_pos] = actual_file.nodata
+        mae, rmse, r_squared = (np.nan, ) * 3
     else:
-        actual_arr = raster_arr_dict[pred_attr]
-    drop_columns = [pred_attr] + [attr for attr in drop_attrs]
-    input_df = input_df.drop(columns=drop_columns)
-    pred_arr = rf_model.predict(input_df)
-    if not only_pred:
-        actual_arr[nan_pos] = actual_file.nodata
-        pred_arr[nan_pos] = actual_file.nodata
-        actual_values = actual_arr[actual_arr != actual_file.nodata]
-        pred_values = pred_arr[pred_arr != actual_file.nodata]
-    else:
-        actual_values = actual_arr
-        pred_values = pred_arr
-    mae = np.round(metrics.mean_absolute_error(actual_values, pred_values), 2)
-    r_squared = np.round(metrics.r2_score(actual_values, pred_values), 2)
-    rmse = np.round(metrics.mean_squared_error(actual_values, pred_values, squared=False), 2)
-
+        if only_pred:
+            actual_arr = input_df[pred_attr]
+        else:
+            actual_arr = raster_arr_dict[pred_attr]
+        drop_columns = [pred_attr] + drop_attr_list
+        input_df = input_df.drop(columns=drop_columns)
+        pred_arr = rf_model.predict(input_df)
+        if not only_pred:
+            actual_arr[nan_pos] = actual_file.nodata
+            pred_arr[nan_pos] = actual_file.nodata
+            actual_values = actual_arr[actual_arr != actual_file.nodata]
+            pred_values = pred_arr[pred_arr != actual_file.nodata]
+        else:
+            actual_values = actual_arr
+            pred_values = pred_arr
+        mae = np.round(metrics.mean_absolute_error(actual_values, pred_values), 2)
+        r_squared = np.round(metrics.r2_score(actual_values, pred_values), 2)
+        rmse = np.round(metrics.mean_squared_error(actual_values, pred_values, squared=False), 2)
     if not only_pred:
         pred_arr = pred_arr.reshape(raster_shape)
         rops.write_raster(pred_arr, actual_file, transform=actual_file.transform, outfile_path=out_raster)
@@ -349,7 +356,7 @@ def create_pred_raster(rf_model, out_raster, actual_raster_dir, pred_year=2015, 
 
 
 def predict_rasters(rf_model, actual_raster_dir, out_dir, pred_years, drop_attrs=(), pred_attr='GW_KS',
-                    only_pred=False):
+                    only_pred=False, exclude_years=(2019, )):
     """
     Create prediction rasters from input data
     :param rf_model: Pre-trained Random Forest Model
@@ -359,12 +366,17 @@ def predict_rasters(rf_model, actual_raster_dir, out_dir, pred_years, drop_attrs
     :param drop_attrs: Drop these specified attributes (Must be exactly the same as used in rf_regressor module)
     :param pred_attr: Prediction Attribute
     :param only_pred: Set true to disable raster creation and for showing only the error metrics
+    :param exclude_years: Exclude these years from error analysis, only the respective predicted rasters are generated
     :return: None
     """
 
     for pred_year in pred_years:
         out_pred_raster = out_dir + 'pred_' + str(pred_year) + '.tif'
+        calculate_errors = True
+        if pred_year in exclude_years:
+            calculate_errors = False
         mae, rmse, r_squared = create_pred_raster(rf_model, out_raster=out_pred_raster,
                                                   actual_raster_dir=actual_raster_dir, pred_year=pred_year,
-                                                  drop_attrs=drop_attrs, pred_attr=pred_attr, only_pred=only_pred)
+                                                  drop_attrs=drop_attrs, pred_attr=pred_attr, only_pred=only_pred,
+                                                  calculate_errors=calculate_errors)
         print('YEAR', pred_year, ': MAE =', mae, 'RMSE =', rmse, 'R^2 =', r_squared)

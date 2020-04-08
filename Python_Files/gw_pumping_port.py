@@ -3,11 +3,11 @@
 # This is the Python 3 port of the R implementation
 
 import gdal
-
+import numpy as np
 from Python_Files import rasterops as rops
 from Python_Files import vectorops as vops
 from Python_Files import random_forest_regressor as rfr
-import numpy as np
+
 
 input_dir = '/Users/smxnv/Documents/Data/'
 output_dir = '/Users/smxnv/Documents/Output/'
