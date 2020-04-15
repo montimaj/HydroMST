@@ -160,7 +160,7 @@ def create_time_series_forecast_plot(input_df_list, forecast_years=(2019, )):
     ax1.set_xlabel('')
     ax2.invert_yaxis()
     ax2.set_ylabel('Monthly TWS (mm)')
-    ax2.set_xlabel('YEAR')
+    ax2.set_xlabel('Year')
     ax2.legend(loc=2, bbox_to_anchor=(0.1, 1), frameon=False, fancybox=False, labels=['GRACE TWS'])
     plt.show()
 
