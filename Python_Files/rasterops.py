@@ -11,6 +11,8 @@ import scipy.ndimage.filters as flt
 import subprocess
 import xmltodict
 import os
+import multiprocessing
+from joblib import Parallel, delayed
 from rasterio.plot import plotting_extent
 from rasterio.mask import mask
 from shapely.geometry import mapping
@@ -76,25 +78,27 @@ def write_raster(raster_data, raster_file, transform, outfile_path, no_data_valu
         dst.write(raster_data, raster_file.count)
 
 
-def make_gdal_sys_call_str(gdal_path, gdal_command, args):
+def make_gdal_sys_call_str(gdal_path, gdal_command, args, verbose=True):
     """
     Make GDAL system call string
     :param gdal_path: GDAL directory path, in Windows replace with OSGeo4W directory path, e.g. '/usr/bin/gdal/' on
     Linux or Mac and 'C:/OSGeo4W64/' on Windows, the '/' at the end is mandatory
     :param gdal_command: GDAL command to use
     :param args: GDAL arguments as a list
+    :param verbose: Set True to print system call info
     :return: GDAL system call string,
     """
 
     if os.name == 'nt':
         gdal_path += 'OSGeo4W.bat'
     sys_call = [gdal_path] + [gdal_command] + args
-    print(sys_call)
+    if verbose:
+        print(sys_call)
     return sys_call
 
 
 def crop_raster(input_raster_file, input_mask_path, outfile_path, plot_fig=False, plot_title="", ext_mask=True,
-                gdal_path='/usr/local/Cellar/gdal/2.4.2/bin/'):
+                gdal_path='/usr/local/Cellar/gdal/2.4.2/bin/', verbose=True):
     """
     Crop raster data based on given shapefile
     :param input_raster_file: Input raster dataset path
@@ -105,6 +109,7 @@ def crop_raster(input_raster_file, input_mask_path, outfile_path, plot_fig=False
     :param ext_mask: Set true to extract raster by mask file
     :param gdal_path: GDAL directory path, in Windows replace with OSGeo4W directory path, e.g. '/usr/bin/gdal/' on
     Linux or Mac and 'C:/OSGeo4W64/' on Windows, the '/' at the end is mandatory
+    :param verbose: Set True to print system call info 
     :return: Cropped raster dataset (if ext_mask is False)
     """
 
@@ -118,7 +123,7 @@ def crop_raster(input_raster_file, input_mask_path, outfile_path, plot_fig=False
         args = ['-tr', str(xres), str(yres), '-tap', '-cutline', input_mask_path, '-cl', layer_name,
                 '-crop_to_cutline', '-dstnodata', str(no_data), '-overwrite', '-ot', 'Float32', '-of', 'GTiff',
                 input_raster_file, outfile_path]
-        sys_call = make_gdal_sys_call_str(gdal_path=gdal_path, gdal_command='gdalwarp', args=args)
+        sys_call = make_gdal_sys_call_str(gdal_path=gdal_path, gdal_command='gdalwarp', args=args, verbose=verbose)
         subprocess.call(sys_call)
     else:
         shape_file = gpd.read_file(input_mask_path)
@@ -326,8 +331,9 @@ def get_raster_extents(gdal_raster):
     return str(ulx), str(lry), str(lrx), str(uly)
 
 
-def gdal_warp_syscall(input_raster_file, outfile_path, resampling_factor=1, resampling_func=gdal.GRA_NearestNeighbour,
-                      downsampling=True, from_raster=None, gdal_path='/usr/local/Cellar/gdal/2.4.2/bin/'):
+def reproject_raster(input_raster_file, outfile_path, resampling_factor=1, resampling_func=gdal.GRA_NearestNeighbour,
+                     downsampling=True, from_raster=None, gdal_path='/usr/local/Cellar/gdal/2.4.2/bin/', 
+                     verbose=True):
     """
     System call for mitigating GDALGetResampleFunction error at runtime
     :param input_raster_file: Input raster file
@@ -338,6 +344,7 @@ def gdal_warp_syscall(input_raster_file, outfile_path, resampling_factor=1, resa
     :param from_raster: Reproject input raster considering another raster
     :param gdal_path: GDAL directory path, in Windows replace with OSGeo4W directory path, e.g. '/usr/bin/gdal/' on
     Linux or Mac and 'C:/OSGeo4W64/' on Windows, the '/' at the end is mandatory
+    :param verbose: Set True to print system call info
     :return: None
     """
 
@@ -364,12 +371,12 @@ def gdal_warp_syscall(input_raster_file, outfile_path, resampling_factor=1, resa
     args = ['-t_srs', dst_proj, '-te', extent[0], extent[1], extent[2], extent[3],
             '-dstnodata', str(no_data), '-r', str(resampling_func), '-tr', str(xres), str(yres), '-ot', 'Float32',
             '-overwrite', input_raster_file, outfile_path]
-    sys_call = make_gdal_sys_call_str(gdal_path=gdal_path, gdal_command='gdalwarp', args=args)
+    sys_call = make_gdal_sys_call_str(gdal_path=gdal_path, gdal_command='gdalwarp', args=args, verbose=verbose)
     subprocess.call(sys_call)
 
 
 def crop_rasters(input_raster_dir, input_mask_file, outdir, pattern='*.tif', ext_mask=True,
-                 gdal_path='/usr/local/Cellar/gdal/2.4.2/bin/'):
+                 gdal_path='/usr/local/Cellar/gdal/2.4.2/bin/', verbose=True):
     """
     Crop multiple rasters in a directory
     :param input_raster_dir: Directory containing raster files which are named as *_<Year>.*
@@ -379,12 +386,13 @@ def crop_rasters(input_raster_dir, input_mask_file, outdir, pattern='*.tif', ext
     :param ext_mask: Set False to extract by geometry only
     :param gdal_path: GDAL directory path, in Windows replace with OSGeo4W directory path, e.g. '/usr/bin/gdal/' on
     Linux or Mac and 'C:/OSGeo4W64/' on Windows, the '/' at the end is mandatory
+    :param verbose: Set True to print system call info
     :return: None
     """
 
     for raster_file in glob(input_raster_dir + pattern):
         out_raster = outdir + raster_file[raster_file.rfind(os.sep) + 1:]
-        crop_raster(raster_file, input_mask_file, out_raster, ext_mask=ext_mask, gdal_path=gdal_path)
+        crop_raster(raster_file, input_mask_file, out_raster, ext_mask=ext_mask, gdal_path=gdal_path, verbose=verbose)
 
 
 def smooth_rasters(input_raster_dir, ref_file, outdir, pattern='*_Masked.tif', sigma=5, normalize=False,
@@ -407,7 +415,7 @@ def smooth_rasters(input_raster_dir, ref_file, outdir, pattern='*_Masked.tif', s
                               ignore_nan=ignore_nan)
 
 
-def reproject_rasters(input_raster_dir, ref_raster, outdir, pattern='*.tif', gdal_path='/usr/bin/'):
+def reproject_rasters(input_raster_dir, ref_raster, outdir, pattern='*.tif', gdal_path='/usr/bin/', verbose=True):
     """
     Reproject rasters in a directory
     :param input_raster_dir: Directory containing raster files which are named as *_<Year>.*
@@ -416,12 +424,14 @@ def reproject_rasters(input_raster_dir, ref_raster, outdir, pattern='*.tif', gda
     :param pattern: Raster extension
     :param gdal_path: GDAL directory path, in Windows replace with OSGeo4W directory path, e.g. '/usr/bin/gdal/' on
     Linux or Mac and 'C:/OSGeo4W64/' on Windows, the '/' at the end is mandatory
+    :param verbose: Set True to print system call info
     :return: None
     """
 
     for raster_file in glob(input_raster_dir + pattern):
         out_raster = outdir + raster_file[raster_file.rfind(os.sep) + 1:]
-        gdal_warp_syscall(raster_file, from_raster=ref_raster, outfile_path=out_raster, gdal_path=gdal_path)
+        reproject_raster(raster_file, from_raster=ref_raster, outfile_path=out_raster, gdal_path=gdal_path, 
+                          verbose=verbose)
 
 
 def mask_rasters(input_raster_dir, ref_raster, outdir, pattern='*.tif'):
@@ -457,7 +467,7 @@ def apply_et_filter(input_raster_dir, ref_raster1, ref_raster2, outdir, pattern=
         filter_nans(out_raster, ref_file=ref_raster2, outfile_path=out_raster)
 
 
-def retrieve_pixel_coords(geo_coord, data_source, gdal_path='/usr/local/Cellar/gdal/2.4.2/bin/'):
+def retrieve_pixel_coords(geo_coord, data_source, gdal_path='/usr/local/Cellar/gdal/2.4.2/bin/', verbose=True):
     """
     Get pixels coordinates from geo-coordinates
     :param geo_coord: Geo-cooridnate tuple
@@ -465,11 +475,12 @@ def retrieve_pixel_coords(geo_coord, data_source, gdal_path='/usr/local/Cellar/g
     :param gdal_path: GDAL directory path, in Windows replace with OSGeo4W directory path, e.g. '/usr/bin/gdal/' on
     Linux or Mac and 'C:/OSGeo4W64/' on Windows, the '/' at the end is mandatory
     :return: Pixel coordinates in x and y direction (should be reversed in the caller function to get the actual pixel
+    :param verbose: Set True to print system call info
     position)
     """
 
     args = ['-xml', '-geoloc', data_source, str(geo_coord[0]), str(geo_coord[1])]
-    sys_call = make_gdal_sys_call_str(gdal_path=gdal_path, gdal_command='gdallocationinfo', args=args)
+    sys_call = make_gdal_sys_call_str(gdal_path=gdal_path, gdal_command='gdallocationinfo', args=args, verbose=verbose)
     p = subprocess.Popen(sys_call, stdout=subprocess.PIPE)
     p.wait()
     gdalloc_xml = xmltodict.parse(p.stdout.read())
@@ -478,7 +489,7 @@ def retrieve_pixel_coords(geo_coord, data_source, gdal_path='/usr/local/Cellar/g
 
 
 def compute_raster_shp(input_raster_file, input_shp_file, outfile_path, nan_fill=0, point_arithmetic='sum',
-                       value_field_pos=0, gdal_path='/usr/local/Cellar/gdal/2.4.2/bin/'):
+                       value_field_pos=0, gdal_path='/usr/local/Cellar/gdal/2.4.2/bin/', verbose=True):
     """
     Replace/Insert values in an existing raster based on the point coordinates from the shape file and applying suitable
     arithmetic on the point values (the raster and the shape file must be having the same CRS)
@@ -491,6 +502,7 @@ def compute_raster_shp(input_raster_file, input_shp_file, outfile_path, nan_fill
     :param value_field_pos: Shapefile value field position to use (zero indexing)
     :param gdal_path: GDAL directory path, in Windows replace with OSGeo4W directory path, e.g. '/usr/bin/gdal/' on
     Linux or Mac and 'C:/OSGeo4W64/' on Windows, the '/' at the end is mandatory
+    :param verbose: Set True to print system call info
     :return: None
     """
 
@@ -501,7 +513,7 @@ def compute_raster_shp(input_raster_file, input_shp_file, outfile_path, nan_fill
     count_arr[np.isnan(raster_arr)] = np.nan
     for idx, point in np.ndenumerate(shp_data['geometry']):
         geocoords = point.x, point.y
-        px, py = retrieve_pixel_coords(geocoords, input_raster_file, gdal_path=gdal_path)
+        px, py = retrieve_pixel_coords(geocoords, input_raster_file, gdal_path=gdal_path, verbose=verbose)
         pval = shp_data[shp_data.columns[value_field_pos]][idx[0]]
         if np.isnan(raster_arr[py, px]):
             raster_arr[py, px] = 0
@@ -517,7 +529,8 @@ def compute_raster_shp(input_raster_file, input_shp_file, outfile_path, nan_fill
 
 
 def compute_rasters_from_shp(input_raster_dir, input_shp_dir, outdir, nan_fill=0, point_arithmetic='sum',
-                             value_field_pos=0, pattern='*.tif', gdal_path='/usr/local/Cellar/gdal/2.4.2/bin/'):
+                             value_field_pos=0, pattern='*.tif', gdal_path='/usr/local/Cellar/gdal/2.4.2/bin/', 
+                             verbose=True):
     """
     Replace/Insert values of all rasters in a directory based on the point coordinates from the shape file and applying
     suitable arithmetic on the point values
@@ -531,17 +544,43 @@ def compute_rasters_from_shp(input_raster_dir, input_shp_dir, outdir, nan_fill=0
     :param pattern: Raster extension
     :param gdal_path: GDAL directory path, in Windows replace with OSGeo4W directory path, e.g. '/usr/bin/gdal/' on
     Linux or Mac and 'C:/OSGeo4W64/' on Windows, the '/' at the end is mandatory
+    :param verbose: Set True to print system call info
     :return: None
     """
 
     raster_files, shp_files = glob(input_raster_dir + pattern), glob(input_shp_dir + '*.shp')
     raster_files.sort()
     shp_files.sort()
-    for raster_file, shp_file in zip(raster_files, shp_files):
-        out_raster = outdir + raster_file[raster_file.rfind(os.sep) + 1:]
-        print('Processing for', raster_file, shp_file, '...')
-        compute_raster_shp(raster_file, input_shp_file=shp_file, outfile_path=out_raster, nan_fill=nan_fill,
-                           point_arithmetic=point_arithmetic, value_field_pos=value_field_pos, gdal_path=gdal_path)
+    num_cores = multiprocessing.cpu_count()
+    Parallel(n_jobs=num_cores)(delayed(parellel_raster_compute)(raster_file, shp_file, outdir=outdir, nan_fill=nan_fill,
+                                                                point_arithmetic=point_arithmetic,
+                                                                value_field_pos=value_field_pos, gdal_path=gdal_path,
+                                                                verbose=verbose)
+                               for raster_file, shp_file in zip(raster_files, shp_files))
+
+
+def parellel_raster_compute(raster_file, shp_file, outdir, nan_fill=0, point_arithmetic='sum', value_field_pos=0,
+                            gdal_path='/usr/local/Cellar/gdal/2.4.2/bin/', verbose=True):
+    """
+    Use this from #compute_rasters_shp to parallelize raster creation from shpfiles
+    :param raster_file: Input raster file
+    :param shp_file: Input shape file
+    :param outdir: Output raster directory
+    :param nan_fill: This value is for filling up raster cells where there are no points present from the shapefile
+    :param point_arithmetic: Apply sum operation cummulatively on the point values (use None' to keep as is
+    or use 'mean' for using the mean of the point values within a particular raster pixel)
+    :param value_field_pos: Shapefile value field position to use (zero indexing)
+    :param gdal_path: GDAL directory path, in Windows replace with OSGeo4W directory path, e.g. '/usr/bin/gdal/' on
+    Linux or Mac and 'C:/OSGeo4W64/' on Windows, the '/' at the end is mandatory
+    :param verbose: Set True to print system call info
+    :return: None
+    """
+
+    out_raster = outdir + raster_file[raster_file.rfind(os.sep) + 1:]
+    print('Processing for', raster_file, shp_file, '...')
+    compute_raster_shp(raster_file, input_shp_file=shp_file, outfile_path=out_raster, nan_fill=nan_fill,
+                       point_arithmetic=point_arithmetic, value_field_pos=value_field_pos, gdal_path=gdal_path,
+                       verbose=verbose)
 
 
 def convert_gw_data(input_raster_dir, outdir, pattern='*.tif'):
@@ -581,19 +620,21 @@ def scale_raster_data(input_raster_dir, outdir, scaling_factor=10, pattern='*.ti
         write_raster(raster_arr, raster_ref, transform=raster_ref.transform, outfile_path=out_raster)
 
 
-def crop_multiple_rasters(input_raster_dir, outdir, input_shp_file, pattern='*.tif'):
+def crop_multiple_rasters(input_raster_dir, outdir, input_shp_file, pattern='*.tif', verbose=True):
     """
     Crop multiple rasters using shape file extent
     :param input_raster_dir: Input raster directory
     :param outdir: Output directory
     :param input_shp_file: Input shape file
     :param pattern: Raster file name pattern
+    :param verbose: Set True to print system call info
     :return: None
     """
 
     for raster_file in glob(input_raster_dir + pattern):
         out_raster = outdir + raster_file[raster_file.rfind(os.sep) + 1:]
-        crop_raster(raster_file, input_mask_path=input_shp_file, ext_mask=False, outfile_path=out_raster)
+        crop_raster(raster_file, input_mask_path=input_shp_file, ext_mask=False, outfile_path=out_raster, 
+                    verbose=verbose)
 
 
 def fill_mean_value(input_raster_dir, outdir, pattern='GRACE*.tif'):

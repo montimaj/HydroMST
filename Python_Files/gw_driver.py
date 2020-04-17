@@ -54,52 +54,44 @@ input_dir_2 = '../Data_Summer/'
 file_dir = '../Files_New/'
 output_dir = '../Output/'
 input_ts_dir = input_dir + 'Time_Series_New/'
-output_shp_dir = file_dir + 'GW_Shapefiles/'
 output_all_shp_dir = file_dir + 'GW_All_Shapefiles/'
 output_gw_raster_dir = file_dir + 'GW_Rasters_All/'
-makedirs([output_dir, output_shp_dir, output_gw_raster_dir, output_all_shp_dir])
+makedirs([output_dir, output_gw_raster_dir, output_all_shp_dir])
 
 
-# print('Extracting GW data from GDB...')
-# input_gdb_dir = input_dir + 'ks_pd_data_updated2018.gdb'
-# attr_name = 'AF_USED'
-# year_list = range(2018, 2019)
-# vops.extract_gdb_data(input_gdb_dir, attr_name=attr_name, year_list=year_list, outdir=output_all_shp_dir)
-#
-# print('Converting CSV to SHP...')
-# vops.csvs2shps(input_ts_dir, output_shp_dir, target_crs='epsg:26914', delim='\t', pattern='*.txt')
-# print('Reprojecting KS Watershed Vector...')
+print('Extracting GW data from GDB...')
+input_gdb_dir = input_dir + 'ks_pd_data_updated2018.gdb'
+attr_name = 'AF_USED'
+year_list = range(2002, 2019)
+vops.extract_gdb_data(input_gdb_dir, attr_name=attr_name, year_list=year_list, outdir=output_all_shp_dir)
+
+print('Reprojecting KS Vector...')
 # ks_watershed_file = input_dir + 'Watersheds/ks_merged/ks_watershed.shp'
-ks_watershed_reproj_dir = file_dir + 'Watersheds/ks_reproj/'
-# makedirs([ks_watershed_reproj_dir])
-ks_watershed_reproj_file = ks_watershed_reproj_dir + 'ks_watershed_reproj.shp'
-# ref_shp = glob(output_shp_dir + '*.shp')[0]
-# vops.reproject_vector(ks_watershed_file, outfile_path=ks_watershed_reproj_file, ref_file=ref_shp, raster=False)
-# print('Clipping GW shapefiles...')
+ks_gmd_file = input_dir + 'gmds/ks_gmds.shp'
+ks_gmd_reproj_dir = file_dir + 'gmds/ks_reproj/'
+makedirs([ks_gmd_reproj_dir])
+ks_gmd_reproj_file = ks_gmd_reproj_dir + 'ks_gmd_reproj.shp'
+ref_shp = glob(output_all_shp_dir + '*.shp')[0]
+vops.reproject_vector(ks_gmd_file, outfile_path=ks_gmd_reproj_file, ref_file=ref_shp, raster=False)
+print('Clipping GW shapefiles...')
 clipped_gw_shp_dir = output_all_shp_dir + 'Clipped/'
-# makedirs([clipped_gw_shp_dir])
-# vops.clip_vectors(output_all_shp_dir, clip_file=ks_watershed_reproj_file, outdir=clipped_gw_shp_dir,
-#                   gdal_path='C:/OSGeo4W64/')
-# print('Converting SHP to TIF...')
-# vops.shps2rasters(clipped_gw_shp_dir, output_gw_raster_dir, xres=5000, yres=5000, smoothing=0,
-#                   gdal_path='C:/OSGeo4W64/')
-#
-# print('Masking Rasters using KS Watershed...')
-gw_mask_dir = output_gw_raster_dir + 'Masked/'
-# makedirs([gw_mask_dir])
-# rops.crop_rasters(output_gw_raster_dir, input_mask_file=ks_watershed_reproj_file, outdir=gw_mask_dir,
-#                   gdal_path='C:/OSGeo4W64/')
+makedirs([clipped_gw_shp_dir])
+vops.clip_vectors(output_all_shp_dir, clip_file=ks_gmd_reproj_file, outdir=clipped_gw_shp_dir)
+print('Converting SHP to TIF...')
+vops.shps2rasters(clipped_gw_shp_dir, output_gw_raster_dir, xres=5000, yres=5000, smoothing=0,
+                  gdal_path='C:/OSGeo4W64/')
 
-# print('Updated GW files...This will take significant time as pixelwise operations are performed!!')
-updated_gw_dir = gw_mask_dir + 'Updated/'
-# makedirs([updated_gw_dir])
-# rops.compute_rasters_from_shp(input_raster_dir=gw_mask_dir, input_shp_dir=clipped_gw_shp_dir, outdir=updated_gw_dir,
-#                               gdal_path='C:/OSGeo4W64/')
 
-# print('Changing GW units from acreft to mm')
-# new_gw_dir = gw_mask_dir + 'Converted/'
-# makedirs([new_gw_dir])
-# rops.convert_gw_data(updated_gw_dir, new_gw_dir)
+print('Updated GW files...This will take significant time as pixelwise operations are performed!!')
+updated_gw_dir = output_gw_raster_dir + 'Updated/'
+makedirs([updated_gw_dir])
+rops.compute_rasters_from_shp(input_raster_dir=output_gw_raster_dir, input_shp_dir=clipped_gw_shp_dir,
+                              outdir=updated_gw_dir, gdal_path='C:/OSGeo4W64/', verbose=False)
+
+print('Changing GW units from acreft to mm')
+new_gw_dir = output_gw_raster_dir + 'Converted/'
+makedirs([new_gw_dir])
+rops.convert_gw_data(updated_gw_dir, new_gw_dir)
 
 # print('Reclassifying KS CDL 2015 data...')
 # ks_class_dict = {(0, 59.5): 1,
@@ -117,8 +109,8 @@ updated_gw_dir = gw_mask_dir + 'Updated/'
 # makedirs([ks_reclass_dir])
 # ks_reclass_file = ks_reclass_dir + 'ks_reclass.tif'
 # ks_reclass = rops.reclassify_raster(ks_cdl_file, ks_class_dict, ks_reclass_file)
-# ks_reclass_file_2 = ks_reclass_dir + 'ks_reclass2.tif'
-# ks_reclass2 = rops.gdal_warp_syscall(ks_reclass_file, ks_reclass_file_2)
+# ks_reclass_reproj_file = ks_reclass_dir + 'ks_reclass2.tif'
+# rops.reproject_raster(ks_reclass_file, ks_reclass_file_2)
 #
 # print('Reprojecting rasters...')
 # raster_reproj_dir = file_dir + 'Reproj_Rasters_All/'
@@ -132,13 +124,6 @@ updated_gw_dir = gw_mask_dir + 'Updated/'
 # raster_mask_dir = file_dir + 'Masked_Rasters_All/'
 # makedirs([raster_mask_dir])
 # rops.mask_rasters(raster_reproj_dir, ref_raster=ref_raster, outdir=raster_mask_dir, pattern='*.tif')
-#
-# print('Filtering ET files...')
-# et_flt_dir = file_dir + 'ET_FLT_All/'
-# makedirs([et_flt_dir])
-# ks_reproj_file = ks_reclass_dir + 'ks_reproj.tif'
-# rops.gdal_warp_syscall(ks_reclass_file, outfile_path=ks_reproj_file, from_raster=ref_raster)
-# rops.apply_et_filter(raster_mask_dir, outdir=et_flt_dir, ref_raster1=ks_reproj_file, ref_raster2=ref_raster)
 #
 # print('Surface Water file...')
 # water_dir = file_dir + 'SW/'
@@ -184,21 +169,6 @@ updated_gw_dir = gw_mask_dir + 'Updated/'
 # et_raster = glob(et_flt_dir + '*.tif')[0]
 # rops.apply_gaussian_filter(agri_masked, ref_file=et_raster, outfile_path=agri_flt, sigma=3, normalize=True,
 #                            ignore_nan=False)
-
-# print('GRACE average...')
-# grace_dir = raster_mask_dir + 'GRACE_AVERAGED/'
-# makedirs([grace_dir])
-# rops.fill_mean_value(raster_mask_dir, outdir=grace_dir)
-
-# print('GRACE Scale...')
-# grace_dir = raster_mask_dir + 'GRACE_Scaled/'
-# makedirs([grace_dir])
-# rops.scale_raster_data(raster_mask_dir, grace_dir, pattern='GRACE*.tif')
-
-# print('GRACE Trend average...')
-# grace_dir = raster_mask_dir + 'GRACE_TREND_AVERAGED/'
-# makedirs([grace_dir])
-# rops.fill_mean_value(raster_mask_dir, outdir=grace_dir, pattern='GRACE_Trend*.tif')
 
 # Dataframe Creation (All the previous steps are for data pre-processing)
 print('DataFrame & Random Forest...')
