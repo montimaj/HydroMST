@@ -599,8 +599,8 @@ def convert_gw_data(input_raster_dir, outdir, pattern='*.tif'):
         out_raster = outdir + raster_file[raster_file.rfind(os.sep) + 1:]
         raster_arr, raster_ref = read_raster_as_arr(raster_file)
         transform = raster_ref.get_transform()
-        xres, yres = transform[1] / 1000., -transform[5] / 1000.
-        raster_arr[~np.isnan(raster_arr)] *= 1.233 / (xres * yres)
+        xres, yres = transform[1] / 1000., transform[5] / 1000.
+        raster_arr[~np.isnan(raster_arr)] *= 1.233 / (np.abs(xres * yres))
         raster_arr[np.isnan(raster_arr)] = NO_DATA_VALUE
         write_raster(raster_arr, raster_ref, transform=raster_ref.transform, outfile_path=out_raster)
 

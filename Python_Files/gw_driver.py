@@ -82,16 +82,16 @@ clipped_gw_shp_dir = output_all_shp_dir + 'Clipped/'
 #                   gdal_path='C:/OSGeo4W64/')
 
 
-print('Updated GW files...This will take significant time as pixelwise operations are performed!!')
+# print('Updated GW files...This will take significant time as pixelwise operations are performed!!')
 updated_gw_dir = output_gw_raster_dir + 'Updated/'
-makedirs([updated_gw_dir])
-rops.compute_rasters_from_shp(input_raster_dir=output_gw_raster_dir, input_shp_dir=clipped_gw_shp_dir,
-                              outdir=updated_gw_dir, gdal_path='/usr/bin/', verbose=False)
+# makedirs([updated_gw_dir])
+# rops.compute_rasters_from_shp(input_raster_dir=output_gw_raster_dir, input_shp_dir=clipped_gw_shp_dir,
+#                               outdir=updated_gw_dir, gdal_path='/usr/bin/', verbose=False)
 
-print('Changing GW units from acreft to mm')
-new_gw_dir = output_gw_raster_dir + 'Converted/'
-makedirs([new_gw_dir])
-rops.convert_gw_data(updated_gw_dir, new_gw_dir)
+# print('Changing GW units from acreft to mm')
+# new_gw_dir = output_gw_raster_dir + 'Converted/'
+# makedirs([new_gw_dir])
+# rops.convert_gw_data(updated_gw_dir, new_gw_dir)
 
 # print('Reclassifying KS CDL 2015 data...')
 # ks_class_dict = {(0, 59.5): 1,
