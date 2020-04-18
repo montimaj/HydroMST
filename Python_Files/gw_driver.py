@@ -86,7 +86,7 @@ print('Updated GW files...This will take significant time as pixelwise operation
 updated_gw_dir = output_gw_raster_dir + 'Updated/'
 makedirs([updated_gw_dir])
 rops.compute_rasters_from_shp(input_raster_dir=output_gw_raster_dir, input_shp_dir=clipped_gw_shp_dir,
-                              outdir=updated_gw_dir, gdal_path='C:/OSGeo4W64/', verbose=False)
+                              outdir=updated_gw_dir, gdal_path='/usr/bin/', verbose=False)
 
 print('Changing GW units from acreft to mm')
 new_gw_dir = output_gw_raster_dir + 'Converted/'

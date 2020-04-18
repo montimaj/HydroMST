@@ -89,9 +89,10 @@ def make_gdal_sys_call_str(gdal_path, gdal_command, args, verbose=True):
     :return: GDAL system call string,
     """
 
+    sys_call = [gdal_path + gdal_command] + args
     if os.name == 'nt':
         gdal_path += 'OSGeo4W.bat'
-    sys_call = [gdal_path] + [gdal_command] + args
+        sys_call = [gdal_path] + [gdal_command] + args
     if verbose:
         print(sys_call)
     return sys_call
