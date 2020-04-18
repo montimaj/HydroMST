@@ -511,17 +511,19 @@ def compute_raster_shp(input_raster_file, input_shp_file, outfile_path, nan_fill
     raster_arr[~np.isnan(raster_arr)] = nan_fill
     count_arr = np.full_like(raster_arr, fill_value=0)
     count_arr[np.isnan(raster_arr)] = np.nan
+    maxy, maxx = raster_arr.shape
     for idx, point in np.ndenumerate(shp_data['geometry']):
         geocoords = point.x, point.y
         px, py = retrieve_pixel_coords(geocoords, input_raster_file, gdal_path=gdal_path, verbose=verbose)
         pval = shp_data[shp_data.columns[value_field_pos]][idx[0]]
-        if np.isnan(raster_arr[py, px]):
-            raster_arr[py, px] = 0
-        if point_arithmetic == 'sum':
-            raster_arr[py, px] += pval
-            count_arr[py, px] += 1
-        elif point_arithmetic == 'None':
-            raster_arr[py, px] = pval
+        if py < maxy and px < maxx:
+            if np.isnan(raster_arr[py, px]):
+                raster_arr[py, px] = 0
+            if point_arithmetic == 'sum':
+                raster_arr[py, px] += pval
+                count_arr[py, px] += 1
+            elif point_arithmetic == 'None':
+                raster_arr[py, px] = pval
     if point_arithmetic == 'mean':
         raster_arr = raster_arr / count_arr
     raster_arr[np.isnan(raster_arr)] = NO_DATA_VALUE
@@ -577,7 +579,7 @@ def parellel_raster_compute(raster_file, shp_file, outdir, nan_fill=0, point_ari
     """
 
     out_raster = outdir + raster_file[raster_file.rfind(os.sep) + 1:]
-    print('Processing for', raster_file, shp_file, '...')
+    print('\nProcessing for', raster_file, shp_file, '...')
     compute_raster_shp(raster_file, input_shp_file=shp_file, outfile_path=out_raster, nan_fill=nan_fill,
                        point_arithmetic=point_arithmetic, value_field_pos=value_field_pos, gdal_path=gdal_path,
                        verbose=verbose)
