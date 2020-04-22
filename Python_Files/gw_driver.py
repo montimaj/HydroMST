@@ -74,24 +74,24 @@ makedirs([output_dir, output_gw_raster_dir, output_all_shp_dir])
 # ref_shp = glob(output_all_shp_dir + '*.shp')[0]
 # vops.reproject_vector(ks_gmd_file, outfile_path=ks_gmd_reproj_file, ref_file=ref_shp, raster=False)
 # print('Clipping GW shapefiles...')
-clipped_gw_shp_dir = output_all_shp_dir + 'Clipped/'
+# clipped_gw_shp_dir = output_all_shp_dir + 'Clipped/'
 # makedirs([clipped_gw_shp_dir])
 # vops.clip_vectors(output_all_shp_dir, clip_file=ks_gmd_reproj_file, outdir=clipped_gw_shp_dir)
 # print('Converting SHP to TIF...')
-# vops.shps2rasters(clipped_gw_shp_dir, output_gw_raster_dir, xres=5000, yres=5000, smoothing=0,
-#                   gdal_path='C:/OSGeo4W64/')
+# vops.shps2rasters(output_all_shp_dir, output_gw_raster_dir, xres=5000, yres=5000, smoothing=0,
+#                   gdal_path='/usr/bin/')
 
 
-# print('Updated GW files...This will take significant time as pixelwise operations are performed!!')
-updated_gw_dir = output_gw_raster_dir + 'Updated/'
-# makedirs([updated_gw_dir])
-# rops.compute_rasters_from_shp(input_raster_dir=output_gw_raster_dir, input_shp_dir=clipped_gw_shp_dir,
-#                               outdir=updated_gw_dir, gdal_path='/usr/bin/', verbose=False)
+print('Updated GW files...This will take significant time as pixelwise operations are performed!!')
+updated_gw_dir = output_gw_raster_dir + 'Updated_New/'
+makedirs([updated_gw_dir])
+rops.compute_rasters_from_shp(input_raster_dir=output_gw_raster_dir, input_shp_dir=output_all_shp_dir,
+                              outdir=updated_gw_dir, gdal_path='/usr/bin/', verbose=False)
 
-# print('Changing GW units from acreft to mm')
-# new_gw_dir = output_gw_raster_dir + 'Converted/'
-# makedirs([new_gw_dir])
-# rops.convert_gw_data(updated_gw_dir, new_gw_dir)
+print('Changing GW units from acreft to mm')
+new_gw_dir = output_gw_raster_dir + 'Converted_New/'
+makedirs([new_gw_dir])
+rops.convert_gw_data(updated_gw_dir, new_gw_dir)
 
 # print('Reclassifying KS CDL 2015 data...')
 # ks_class_dict = {(0, 59.5): 1,
