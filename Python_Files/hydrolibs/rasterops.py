@@ -19,6 +19,7 @@ from shapely.geometry import mapping
 from collections import defaultdict
 from datetime import datetime
 from glob import glob
+from Python_Files.hydrolibs.sysops import make_gdal_sys_call_str
 
 NO_DATA_VALUE = -32767.0
 
@@ -76,26 +77,6 @@ def write_raster(raster_data, raster_file, transform, outfile_path, no_data_valu
             nodata=no_data_value
     ) as dst:
         dst.write(raster_data, raster_file.count)
-
-
-def make_gdal_sys_call_str(gdal_path, gdal_command, args, verbose=True):
-    """
-    Make GDAL system call string
-    :param gdal_path: GDAL directory path, in Windows replace with OSGeo4W directory path, e.g. '/usr/bin/gdal/' on
-    Linux or Mac and 'C:/OSGeo4W64/' on Windows, the '/' at the end is mandatory
-    :param gdal_command: GDAL command to use
-    :param args: GDAL arguments as a list
-    :param verbose: Set True to print system call info
-    :return: GDAL system call string,
-    """
-
-    sys_call = [gdal_path + gdal_command] + args
-    if os.name == 'nt':
-        gdal_path += 'OSGeo4W.bat'
-        sys_call = [gdal_path] + [gdal_command] + args
-    if verbose:
-        print(sys_call)
-    return sys_call
 
 
 def crop_raster(input_raster_file, input_mask_path, outfile_path, plot_fig=False, plot_title="", ext_mask=True,
@@ -333,8 +314,7 @@ def get_raster_extents(gdal_raster):
 
 
 def reproject_raster(input_raster_file, outfile_path, resampling_factor=1, resampling_func=gdal.GRA_NearestNeighbour,
-                     downsampling=True, from_raster=None, gdal_path='/usr/local/Cellar/gdal/2.4.2/bin/', 
-                     verbose=True):
+                     downsampling=True, from_raster=None, gdal_path='/usr/bin/', verbose=True):
     """
     System call for mitigating GDALGetResampleFunction error at runtime
     :param input_raster_file: Input raster file
@@ -432,7 +412,7 @@ def reproject_rasters(input_raster_dir, ref_raster, outdir, pattern='*.tif', gda
     for raster_file in glob(input_raster_dir + pattern):
         out_raster = outdir + raster_file[raster_file.rfind(os.sep) + 1:]
         reproject_raster(raster_file, from_raster=ref_raster, outfile_path=out_raster, gdal_path=gdal_path, 
-                          verbose=verbose)
+                         verbose=verbose)
 
 
 def mask_rasters(input_raster_dir, ref_raster, outdir, pattern='*.tif'):

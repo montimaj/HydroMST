@@ -4,9 +4,9 @@
 
 import gdal
 import numpy as np
-from Python_Files import rasterops as rops
-from Python_Files import vectorops as vops
-from Python_Files import random_forest_regressor as rfr
+from Python_Files.hydrolibs import rasterops as rops
+from Python_Files.hydrolibs import vectorops as vops
+from Python_Files.hydrolibs import random_forest_regressor as rfr
 
 
 input_dir = '/Users/smxnv/Documents/Data/'

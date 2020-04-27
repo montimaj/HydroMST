@@ -1,3 +1,6 @@
+# Author: Sayantan Majumdar
+# Email: smxnv@mst.edu
+
 import wget
 
 

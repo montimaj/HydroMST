@@ -1,7 +1,10 @@
+# Author: Sayantan Majumdar
+# Email: smxnv@mst.edu
+
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-from Python_Files import rasterops as rops
+from Python_Files.hydrolibs import rasterops as rops
 from datetime import datetime
 from sklearn.linear_model import LinearRegression
 

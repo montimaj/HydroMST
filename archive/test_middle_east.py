@@ -1,19 +1,8 @@
-from Python_Files import rasterops as rops
+from Python_Files.hydrolibs import rasterops as rops
+from Python_Files.hydrolibs.sysops import makedirs
 from glob import glob
-from Python_Files import random_forest_regressor as rfr
+from Python_Files.hydrolibs import random_forest_regressor as rfr
 import os
-
-
-def makedirs(directory_list):
-    """
-    Create directory for storing files
-    :param directory_list: List of directories to create
-    :return: None
-    """
-
-    for directory_name in directory_list:
-        if not os.path.exists(directory_name):
-            os.makedirs(directory_name)
 
 
 outdir = '../Middle_East/Output_ME/Data/'

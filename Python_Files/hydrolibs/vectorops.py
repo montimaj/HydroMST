@@ -11,7 +11,7 @@ import os
 import multiprocessing
 from joblib import Parallel, delayed
 from glob import glob
-from Python_Files import rasterops as rops
+from Python_Files.hydrolibs.sysops import make_gdal_sys_call_str
 from shapely.geometry import Point
 
 NO_DATA_VALUE = -32767.0
@@ -64,7 +64,7 @@ def clip_vector(input_shp_file, clip_file, output_shp_file, gdal_path='/usr/loca
         clipped_file.to_file(output_shp_file)
     else:
         args = ['-clipsrc', clip_file, output_shp_file, input_shp_file]
-        sys_call = rops.make_gdal_sys_call_str(gdal_path=gdal_path, gdal_command='ogr2ogr', args=args)
+        sys_call = make_gdal_sys_call_str(gdal_path=gdal_path, gdal_command='ogr2ogr', args=args)
         subprocess.call(sys_call)
 
 
@@ -175,7 +175,7 @@ def shp2raster(input_shp_file, outfile_path, value_field_pos=2, xres=1000., yres
         args = ['-a', 'invdist:smoothing=' + str(smoothing) + ':nodata=' + str(no_data_value),
                 '-zfield', value_field, '-l', layer_name, '-outsize', str(xsize), str(ysize), '-ot', 'Float32',
                 '-of', 'GTiff', input_shp_file, outfile_path]
-    sys_call = rops.make_gdal_sys_call_str(gdal_path=gdal_path, gdal_command=gdal_command, args=args)
+    sys_call = make_gdal_sys_call_str(gdal_path=gdal_path, gdal_command=gdal_command, args=args)
     subprocess.call(sys_call)
 
 

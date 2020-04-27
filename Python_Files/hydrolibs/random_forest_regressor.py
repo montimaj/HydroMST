@@ -1,3 +1,5 @@
+# Author: Sayantan Majumdar
+# Email: smxnv@mst.edu
 
 import sklearn.utils as sk
 import pandas as pd
@@ -14,7 +16,7 @@ from sklearn.inspection import plot_partial_dependence
 from sklearn.inspection import partial_dependence
 from sklearn.inspection import permutation_importance
 from mpl_toolkits.mplot3d import axes3d
-from Python_Files import rasterops as rops
+from Python_Files.hydrolibs import rasterops as rops
 
 
 def create_dataframe(input_file_dir, out_df, pattern='*.tif', exclude_years=(), exclude_vars=(), make_year_col=True):
