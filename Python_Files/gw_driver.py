@@ -47,131 +47,169 @@ class HydroML:
         self.rf_data_dir = None
         makedirs([self.output_dir, self.output_gw_raster_dir, self.output_shp_dir])
 
-    def extract_shp_from_gdb(self, input_gdb_dir, year_list, attr_name='AF_USED'):
+    def extract_shp_from_gdb(self, input_gdb_dir, year_list, attr_name='AF_USED', already_extracted=False):
         """
         Extract shapefiles from geodatabase (GDB)
         :param input_gdb_dir: Input GDB directory
         :param year_list: List of years to extract
         :param attr_name: Attribute name for shapefile
+        :param already_extracted: Set True to disable extraction
         :return: None
         """
 
-        print('Extracting GW data from GDB...')
-        vops.extract_gdb_data(input_gdb_dir, attr_name=attr_name, year_list=year_list, outdir=self.output_shp_dir)
+        if not already_extracted:
+            print('Extracting GW data from GDB...')
+            vops.extract_gdb_data(input_gdb_dir, attr_name=attr_name, year_list=year_list, outdir=self.output_shp_dir)
+        else:
+            print("GW shapefiles already extracted")
 
-    def reproject_gmd(self):
+    def reproject_gmd(self, already_reprojected=False):
         """
         Reproject GMD shapefile
+        :param already_reprojected: Set True to disable reprojection
         :return: None
         """
 
         gmd_reproj_dir = self.file_dir + 'gmds/reproj/'
-        makedirs([gmd_reproj_dir])
         self.input_gmd_reproj_file = gmd_reproj_dir + 'input_gmd_reproj.shp'
-        ref_shp = glob(self.output_shp_dir + '*.shp')[0]
-        vops.reproject_vector(self.input_gmd_file, outfile_path=self.input_gmd_reproj_file, ref_file=ref_shp,
-                              raster=False)
+        if not already_reprojected:
+            makedirs([gmd_reproj_dir])
+            ref_shp = glob(self.output_shp_dir + '*.shp')[0]
+            vops.reproject_vector(self.input_gmd_file, outfile_path=self.input_gmd_reproj_file, ref_file=ref_shp,
+                                  raster=False)
+        else:
+            print('GMD already reprojected')
 
-    def clip_gw_shpfiles(self, clip_file):
+    def clip_gw_shpfiles(self, clip_file, already_clipped=True):
         """
         Clip GW shapefiles
         :param clip_file: Input clip_file for clipping GW shapefiles (e.g, it could be a watershed shapefile)
+        :param already_clipped: Set False to re-clip shapefiles
         :return: None
         """
 
-        print('Clipping GW shapefiles...')
-        clipped_gw_shp_dir = self.output_shp_dir + 'Clipped/'
-        makedirs([clipped_gw_shp_dir])
-        vops.clip_vectors(self.output_shp_dir, clip_file=clip_file, outdir=clipped_gw_shp_dir, gdal_path=self.gdal_path)
+        self.output_shp_dir += 'Clipped/'
+        if not already_clipped:
+            print('Clipping GW shapefiles...')
+            makedirs([self.output_shp_dir])
+            vops.clip_vectors(self.output_shp_dir, clip_file=clip_file, outdir=self.output_shp_dir,
+                              gdal_path=self.gdal_path)
+        else:
+            print('GW Shapefiles already clipped')
 
-    def create_gw_rasters(self, xres=5000, yres=5000, convert_units=True):
+    def create_gw_rasters(self, xres=5000, yres=5000, convert_units=True, already_created=True):
         """
         Create GW rasters from shapefiles
         :param xres: X-Resolution (map unit)
         :param yres: Y-Resolution (map unit)
         :param convert_units: If true, converts GW pumping values in acreft to mm
+        :param already_created: Set False to re-compute GW pumping rasters
         :return: None
         """
 
-        print('Converting SHP to TIF...')
-        vops.shps2rasters(self.output_shp_dir, self.output_gw_raster_dir, xres=xres, yres=yres, smoothing=0,
-                          gdal_path=self.gdal_path)
-        print('Updated GW files...This will take significant time as pixelwise operations are performed!!')
         updated_gw_dir = self.output_gw_raster_dir + 'Updated_New/'
-        makedirs([updated_gw_dir])
-        rops.compute_rasters_from_shp(input_raster_dir=self.output_gw_raster_dir, input_shp_dir=self.output_shp_dir,
-                                      outdir=updated_gw_dir, gdal_path='/usr/bin/', verbose=False)
-        self.final_gw_dir = updated_gw_dir
+        converted_gw_dir = self.output_gw_raster_dir + 'Converted_New/'
+        if not already_created:
+            print('Converting SHP to TIF...')
+            vops.shps2rasters(self.output_shp_dir, self.output_gw_raster_dir, xres=xres, yres=yres, smoothing=0,
+                              gdal_path=self.gdal_path)
+            print('Updated GW files...This will take significant time as pixelwise operations are performed!!')
+            makedirs([updated_gw_dir])
+            rops.compute_rasters_from_shp(input_raster_dir=self.output_gw_raster_dir, input_shp_dir=self.output_shp_dir,
+                                          outdir=updated_gw_dir, gdal_path=self.gdal_path, verbose=False)
+            if convert_units:
+                print('Changing GW units from acreft to mm')
+                makedirs([converted_gw_dir])
+                rops.convert_gw_data(updated_gw_dir, converted_gw_dir)
+        else:
+            print('GW  pumping rasters already created')
         if convert_units:
-            print('Changing GW units from acreft to mm')
-            self.final_gw_dir = self.output_gw_raster_dir + 'Converted_New/'
-            makedirs([self.final_gw_dir])
-            rops.convert_gw_data(updated_gw_dir, self.final_gw_dir)
+            self.final_gw_dir = converted_gw_dir
+        else:
+            self.final_gw_dir = updated_gw_dir
 
-    def reclassify_cdl(self, reclass_dict):
+    def reclassify_cdl(self, reclass_dict, pattern='*.tif', already_reclassified=False):
         """
         Reclassify raster
         :param reclass_dict: Dictionary where key values are tuples representing the interval for reclassification, the
         dictionary values represent the new class
+        :param pattern: File pattern required for reprojection
+        :param already_reclassified: Set True to disable reclassification
         :return: None
         """
 
-        print('Reclassifying CDL 2015 data...')
         reclass_dir = self.file_dir + 'Reclass/'
-        makedirs([reclass_dir])
-        reclass_file = reclass_dir + 'reclass.tif'
-        rops.reclassify_raster(self.input_cdl_file, reclass_dict, reclass_file)
         self.reclass_reproj_file = reclass_dir + 'reclass_reproj.tif'
-        rops.reproject_raster(reclass_file, self.reclass_reproj_file, gdal_path=self.gdal_path)
+        self.ref_raster = glob(self.final_gw_dir + pattern)[0]
+        if not already_reclassified:
+            print('Reclassifying CDL 2015 data...')
+            makedirs([reclass_dir])
+            reclass_file = reclass_dir + 'reclass.tif'
+            rops.reclassify_raster(self.input_cdl_file, reclass_dict, reclass_file)
+            rops.reproject_raster(reclass_file, self.reclass_reproj_file, gdal_path=self.gdal_path)
+        else:
+            print('Already reclassified')
 
-    def reproject_rasters(self, pattern='*.tif'):
+    def reproject_rasters(self, pattern='*.tif', already_reprojected=False):
         """
         Reproject rasters based on GW as reference raster
         :param pattern: File pattern to look for
+        :param already_reprojected: Set True to disable raster reprojection
         :return: None
         """
 
-        print('Reprojecting rasters...')
         self.raster_reproj_dir = self.file_dir + 'Reproj_Rasters/'
-        makedirs([self.raster_reproj_dir])
-        self.ref_raster = glob(self.final_gw_dir + pattern)[0]
-        rops.reproject_rasters(self.input_ts_dir, ref_raster=self.ref_raster, outdir=self.raster_reproj_dir,
-                               pattern=pattern, gdal_path=self.gdal_path)
+        if not already_reprojected:
+            print('Reprojecting rasters...')
+            makedirs([self.raster_reproj_dir])
+            rops.reproject_rasters(self.input_ts_dir, ref_raster=self.ref_raster, outdir=self.raster_reproj_dir,
+                                   pattern=pattern, gdal_path=self.gdal_path)
+        else:
+            print('All rasters already reprojected')
 
-    def mask_rasters(self, pattern='*.tif'):
+    def mask_rasters(self, pattern='*.tif', already_masked=False):
         """
         Mask rasters based on reference GW raster
         :param pattern: File pattern to look for
+        :param already_masked: Set True to disable raster masking
         :return: None
         """
-        print('Masking rasters...')
+
         self.raster_mask_dir = self.file_dir + 'Masked_Rasters/'
-        makedirs([self.raster_mask_dir])
-        rops.mask_rasters(self.raster_reproj_dir, ref_raster=self.ref_raster, outdir=self.raster_mask_dir,
-                          pattern=pattern)
+        if not already_masked:
+            print('Masking rasters...')
+            makedirs([self.raster_mask_dir])
+            rops.mask_rasters(self.raster_reproj_dir, ref_raster=self.ref_raster, outdir=self.raster_mask_dir,
+                              pattern=pattern)
+        else:
+            print('All rasters already masked')
 
     def create_land_use_rasters(self, class_values=(1, 2, 3), class_labels=('AGRI', 'SW', 'URBAN'),
-                                smoothing_factors=(3, 5, 3)):
+                                smoothing_factors=(3, 5, 3), already_created=False):
         """
         Create land use rasters from the reclassified raster
         :param class_values: List of land use class values to consider for creating separate rasters
         :param class_labels: List of class_labels ordered according to land_uses
-        :param smoothing_factors: Smoothing factor (sigma value for Gaussian filter) to use while smoothing.
+        :param smoothing_factors: Smoothing factor (sigma value for Gaussian filter) to use while smoothing
+        :param already_created: Set True to disable land use raster generation
         :return: None
         """
 
         self.land_use_dir_list = [make_proper_dir_name(self.file_dir + class_label) for class_label in class_labels]
-        for idx, (class_value, class_label) in enumerate(zip(class_values, class_labels)):
-            print('Extracting land use raster for', class_label, '...')
-            raster_dir = self.land_use_dir_list[idx]
-            makedirs([raster_dir])
-            raster_file = raster_dir + class_label + '.tif'
-            rops.apply_raster_filter2(self.reclass_reproj_file, outfile_path=raster_file, val=class_value)
-            raster_masked = raster_dir + class_label + '_masked.tif'
-            rops.filter_nans(raster_file, self.ref_raster, outfile_path=raster_masked)
-            raster_flt = raster_dir + class_label + '_flt.tif'
-            rops.apply_gaussian_filter(raster_masked, ref_file=self.ref_raster, outfile_path=raster_flt,
-                                       sigma=smoothing_factors[idx], normalize=True, ignore_nan=False)
+        if not already_created:
+            for idx, (class_value, class_label) in enumerate(zip(class_values, class_labels)):
+                print('Extracting land use raster for', class_label, '...')
+                raster_dir = self.land_use_dir_list[idx]
+                makedirs([raster_dir])
+                raster_file = raster_dir + class_label + '.tif'
+                rops.apply_raster_filter2(self.reclass_reproj_file, outfile_path=raster_file, val=class_value)
+                raster_masked = raster_dir + class_label + '_masked.tif'
+                rops.filter_nans(raster_file, self.ref_raster, outfile_path=raster_masked)
+                raster_flt = raster_dir + class_label + '_flt.tif'
+                rops.apply_gaussian_filter(raster_masked, ref_file=self.ref_raster, outfile_path=raster_flt,
+                                           sigma=smoothing_factors[idx], normalize=True, ignore_nan=False)
+        else:
+            print('Land use rasters already created')
 
     def get_dataframe(self, load_df=False, exclude_years=(2019, )):
         """
@@ -294,9 +332,9 @@ def run_gw():
 
     gw = HydroML(input_dir, file_dir, output_dir, input_ts_dir, output_shp_dir, output_gw_raster_dir,
                  input_gmd_file, input_cdl_file, gdal_path)
-    gw.extract_shp_from_gdb(input_gdb_dir, year_list=range(2002, 2020))
-    gw.reproject_gmd()
-    gw.create_gw_rasters()
+    gw.extract_shp_from_gdb(input_gdb_dir, year_list=range(2002, 2019), already_extracted=True)
+    gw.reproject_gmd(already_reprojected=True)
+    gw.create_gw_rasters(already_created=True)
     gw.reclassify_cdl(ks_class_dict)
     gw.reproject_rasters()
     gw.mask_rasters()
@@ -306,3 +344,5 @@ def run_gw():
     gw.get_predictions(rf_model, pred_years=range(2002, 2020), drop_attrs=drop_attrs, pred_attr=pred_attr,
                        only_pred=True)
 
+
+run_gw()

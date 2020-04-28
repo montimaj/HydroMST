@@ -101,7 +101,7 @@ def crop_raster(input_raster_file, input_mask_path, outfile_path, plot_fig=False
         transform = src_raster_file.GetGeoTransform()
         xres, yres = transform[1], transform[5]
         no_data = src_band.GetNoDataValue()
-        layer_name = input_mask_path[input_mask_path.rfind('/') + 1: input_mask_path.rfind('.')]
+        layer_name = input_mask_path[input_mask_path.rfind(os.sep) + 1: input_mask_path.rfind('.')]
         args = ['-tr', str(xres), str(yres), '-tap', '-cutline', input_mask_path, '-cl', layer_name,
                 '-crop_to_cutline', '-dstnodata', str(no_data), '-overwrite', '-ot', 'Float32', '-of', 'GTiff',
                 input_raster_file, outfile_path]
