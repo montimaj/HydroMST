@@ -244,7 +244,7 @@ def parallel_shp2raster(shp_file, output_dir, value_field_pos=0, xres=1000, yres
 
 
 def extract_gdb_data(input_gdb_dir, attr_name, year_list, outdir, source_crs='epsg:4326', target_crs='epsg:4326',
-                     shpfile=True, shp_file_prefix='GW_KS'):
+                     shpfile=True, shp_file_prefix='GW'):
     """
     Extract yearly data from GDB and store them in separate files
     :param input_gdb_dir: Input GDB directory
@@ -270,7 +270,7 @@ def extract_gdb_data(input_gdb_dir, attr_name, year_list, outdir, source_crs='ep
 
 
 def parallel_gdb_extract(gdb_data, index, attr, year_list, outdir, source_crs='epsg:4326', target_crs='epsg:4326',
-                         shpfile=True, shp_file_prefix='GW_KS'):
+                         shpfile=True, shp_file_prefix='GW'):
     """
     Use this from #extract_gdb_data to parallely extract GDB data
     :param gdb_data: Geodatabase data as GeoDataFrame

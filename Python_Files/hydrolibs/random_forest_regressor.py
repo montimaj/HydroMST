@@ -357,8 +357,8 @@ def create_pred_raster(rf_model, out_raster, actual_raster_dir, pred_year=2015, 
     return mae, rmse, r_squared
 
 
-def predict_rasters(rf_model, actual_raster_dir, out_dir, pred_years, drop_attrs=(), pred_attr='GW_KS',
-                    only_pred=False, exclude_years=(2019, )):
+def predict_rasters(rf_model, actual_raster_dir, out_dir, pred_years, drop_attrs=(), pred_attr='GW', only_pred=False,
+                    exclude_years=(2019, )):
     """
     Create prediction rasters from input data
     :param rf_model: Pre-trained Random Forest Model

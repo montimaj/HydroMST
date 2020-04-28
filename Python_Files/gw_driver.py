@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 from Python_Files.hydrolibs import rasterops as rops
 from Python_Files.hydrolibs import vectorops as vops
-from Python_Files.hydrolibs.sysops import makedirs, make_proper_dir_name
+from Python_Files.hydrolibs.sysops import makedirs, make_proper_dir_name, copy_files
 from Python_Files.hydrolibs import random_forest_regressor as rfr
 from glob import glob
 
@@ -70,7 +70,7 @@ class HydroML:
         :return: None
         """
 
-        gmd_reproj_dir = self.file_dir + 'gmds/reproj/'
+        gmd_reproj_dir = make_proper_dir_name(self.file_dir + 'gmds/reproj')
         self.input_gmd_reproj_file = gmd_reproj_dir + 'input_gmd_reproj.shp'
         if not already_reprojected:
             makedirs([gmd_reproj_dir])
@@ -88,7 +88,7 @@ class HydroML:
         :return: None
         """
 
-        self.output_shp_dir += 'Clipped/'
+        self.output_shp_dir = make_proper_dir_name(self.output_shp_dir + 'Clipped')
         if not already_clipped:
             print('Clipping GW shapefiles...')
             makedirs([self.output_shp_dir])
@@ -107,8 +107,8 @@ class HydroML:
         :return: None
         """
 
-        updated_gw_dir = self.output_gw_raster_dir + 'Updated_New/'
-        converted_gw_dir = self.output_gw_raster_dir + 'Converted_New/'
+        updated_gw_dir = make_proper_dir_name(self.output_gw_raster_dir + 'Updated_New')
+        converted_gw_dir = make_proper_dir_name(self.output_gw_raster_dir + 'Converted_New')
         if not already_created:
             print('Converting SHP to TIF...')
             vops.shps2rasters(self.output_shp_dir, self.output_gw_raster_dir, xres=xres, yres=yres, smoothing=0,
@@ -138,7 +138,7 @@ class HydroML:
         :return: None
         """
 
-        reclass_dir = self.file_dir + 'Reclass/'
+        reclass_dir = make_proper_dir_name(self.file_dir + 'Reclass')
         self.reclass_reproj_file = reclass_dir + 'reclass_reproj.tif'
         self.ref_raster = glob(self.final_gw_dir + pattern)[0]
         if not already_reclassified:
@@ -158,7 +158,7 @@ class HydroML:
         :return: None
         """
 
-        self.raster_reproj_dir = self.file_dir + 'Reproj_Rasters/'
+        self.raster_reproj_dir = make_proper_dir_name(self.file_dir + 'Reproj_Rasters')
         if not already_reprojected:
             print('Reprojecting rasters...')
             makedirs([self.raster_reproj_dir])
@@ -175,7 +175,7 @@ class HydroML:
         :return: None
         """
 
-        self.raster_mask_dir = self.file_dir + 'Masked_Rasters/'
+        self.raster_mask_dir = make_proper_dir_name(self.file_dir + 'Masked_Rasters')
         if not already_masked:
             print('Masking rasters...')
             makedirs([self.raster_mask_dir])
@@ -211,21 +211,34 @@ class HydroML:
         else:
             print('Land use rasters already created')
 
-    def get_dataframe(self, load_df=False, exclude_years=(2019, )):
+    def create_dataframe(self, year_list, load_df=False, exclude_years=(2019, ), verbose=True):
         """
         Create dataframe from preprocessed files
+        :param year_list: List of years for which the dataframe will be created
         :param load_df: Set true to load existing dataframe
         :param exclude_years: List of years to exclude from dataframe
+        :param verbose: Get extra information if set to True
         :return: Pandas dataframe object
         """
 
-        print('Getting dataframe...')
-        df_file = self.output_dir + '/raster_df_all.csv'
+        self.rf_data_dir = make_proper_dir_name(self.file_dir + 'RF_Data')
+        df_file = self.output_dir + 'raster_df.csv'
         if load_df:
+            print('Getting dataframe...')
             return pd.read_csv(df_file)
-        self.rf_data_dir = self.file_dir + 'RF_Data/'
-        df = rfr.create_dataframe(self.rf_data_dir, out_df=df_file, make_year_col=True, exclude_years=exclude_years)
-        return df
+        else:
+            print('Copying files...')
+            makedirs([self.rf_data_dir])
+            input_dir_list = [self.final_gw_dir] + [self.raster_mask_dir]
+            pattern_list = ['*.tif'] * len(input_dir_list)
+            copy_files(input_dir_list, target_dir=self.rf_data_dir, year_list=year_list, pattern_list=pattern_list,
+                       verbose=verbose)
+            pattern_list = ['*_flt.tif'] * len(self.land_use_dir_list)
+            copy_files(self.land_use_dir_list, target_dir=self.rf_data_dir, year_list=year_list,
+                       pattern_list=pattern_list, rep=True, verbose=verbose)
+            print('Creating dataframe...')
+            df = rfr.create_dataframe(self.rf_data_dir, out_df=df_file, make_year_col=True, exclude_years=exclude_years)
+            return df
 
     def tune_parameters(self, df, pred_attr, drop_attrs=()):
         """
@@ -278,7 +291,8 @@ class HydroML:
         :return: Fitted RandomForestRegressor object
         """
 
-        plot_dir = self.output_dir + 'Partial_Plots/PDP_Data/'
+        print('Building RF Model...')
+        plot_dir = make_proper_dir_name(self.output_dir + 'Partial_Plots/PDP_Data')
         makedirs([plot_dir])
         rf_model = rfr.rf_regressor(df, self.output_dir, n_estimators=n_estimators, random_state=random_state,
                                     pred_attr=pred_attr, drop_attrs=drop_attrs, test_year=test_year, shuffle=shuffle,
@@ -300,7 +314,8 @@ class HydroML:
         :return: None
         """
 
-        pred_out_dir = self.output_dir + 'Predicted_Rasters/'
+        print('Predicting...')
+        pred_out_dir = make_proper_dir_name(self.output_dir + 'Predicted_Rasters')
         makedirs([pred_out_dir])
         rfr.predict_rasters(rf_model, pred_years=pred_years, drop_attrs=drop_attrs, out_dir=pred_out_dir,
                             actual_raster_dir=self.rf_data_dir, pred_attr=pred_attr, only_pred=only_pred,
@@ -335,12 +350,12 @@ def run_gw():
     gw.extract_shp_from_gdb(input_gdb_dir, year_list=range(2002, 2019), already_extracted=True)
     gw.reproject_gmd(already_reprojected=True)
     gw.create_gw_rasters(already_created=True)
-    gw.reclassify_cdl(ks_class_dict)
-    gw.reproject_rasters()
-    gw.mask_rasters()
-    gw.create_land_use_rasters()
-    df = gw.get_dataframe()
-    rf_model = gw.build_model(df, drop_attrs=drop_attrs, pred_attr=pred_attr)
+    gw.reclassify_cdl(ks_class_dict, already_reclassified=True)
+    gw.reproject_rasters(already_reprojected=True)
+    gw.mask_rasters(already_masked=True)
+    gw.create_land_use_rasters(already_created=True)
+    df = gw.create_dataframe(year_list=range(2002, 2020), load_df=True)
+    rf_model = gw.build_model(df, drop_attrs=drop_attrs, pred_attr=pred_attr, load_model=True)
     gw.get_predictions(rf_model, pred_years=range(2002, 2020), drop_attrs=drop_attrs, pred_attr=pred_attr,
                        only_pred=True)
 
