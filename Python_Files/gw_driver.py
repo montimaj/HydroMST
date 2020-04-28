@@ -107,8 +107,8 @@ class HydroML:
         :return: None
         """
 
-        updated_gw_dir = make_proper_dir_name(self.output_gw_raster_dir + 'Updated_New')
-        converted_gw_dir = make_proper_dir_name(self.output_gw_raster_dir + 'Converted_New')
+        updated_gw_dir = make_proper_dir_name(self.output_gw_raster_dir + 'Updated')
+        converted_gw_dir = make_proper_dir_name(self.output_gw_raster_dir + 'Converted')
         if not already_created:
             print('Converting SHP to TIF...')
             vops.shps2rasters(self.output_shp_dir, self.output_gw_raster_dir, xres=xres, yres=yres, smoothing=0,
@@ -146,7 +146,8 @@ class HydroML:
             makedirs([reclass_dir])
             reclass_file = reclass_dir + 'reclass.tif'
             rops.reclassify_raster(self.input_cdl_file, reclass_dict, reclass_file)
-            rops.reproject_raster(reclass_file, self.reclass_reproj_file, gdal_path=self.gdal_path)
+            rops.reproject_raster(reclass_file, self.reclass_reproj_file, from_raster=self.ref_raster,
+                                  gdal_path=self.gdal_path)
         else:
             print('Already reclassified')
 
@@ -324,7 +325,7 @@ class HydroML:
 
 def run_gw():
     input_dir = '../Inputs/Data/'
-    file_dir = '../Inputs/Files_New/'
+    file_dir = '../Inputs/Files/'
     output_dir = '../Outputs/'
     input_ts_dir = input_dir + 'Time_Series_New/'
     output_shp_dir = file_dir + 'GW_Shapefiles/'
@@ -347,16 +348,16 @@ def run_gw():
 
     gw = HydroML(input_dir, file_dir, output_dir, input_ts_dir, output_shp_dir, output_gw_raster_dir,
                  input_gmd_file, input_cdl_file, gdal_path)
-    gw.extract_shp_from_gdb(input_gdb_dir, year_list=range(2002, 2019), already_extracted=True)
-    gw.reproject_gmd(already_reprojected=True)
+    gw.extract_shp_from_gdb(input_gdb_dir, year_list=range(2002, 2019), already_extracted=False)
+    gw.reproject_gmd(already_reprojected=False)
     gw.create_gw_rasters(already_created=True)
-    gw.reclassify_cdl(ks_class_dict, already_reclassified=True)
-    gw.reproject_rasters(already_reprojected=True)
-    gw.mask_rasters(already_masked=True)
-    gw.create_land_use_rasters(already_created=True)
-    df = gw.create_dataframe(year_list=range(2002, 2020), load_df=True)
+    gw.reclassify_cdl(ks_class_dict, already_reclassified=False)
+    gw.reproject_rasters(already_reprojected=False)
+    gw.mask_rasters(already_masked=False)
+    gw.create_land_use_rasters(already_created=False)
+    df = gw.create_dataframe(year_list=range(2002, 2020), load_df=False)
     rf_model = gw.build_model(df, test_year=range(2011, 2019), drop_attrs=drop_attrs, pred_attr=pred_attr,
-                              load_model=True)
+                              load_model=False)
     gw.get_predictions(rf_model, pred_years=range(2002, 2020), drop_attrs=drop_attrs, pred_attr=pred_attr,
                        only_pred=True)
 
