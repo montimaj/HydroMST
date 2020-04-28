@@ -323,9 +323,9 @@ class HydroML:
 
 
 def run_gw():
-    input_dir = '../Data/'
-    file_dir = '../Files_New/'
-    output_dir = '../Output/'
+    input_dir = '../Inputs/Data/'
+    file_dir = '../Inputs/Files_New/'
+    output_dir = '../Outputs/'
     input_ts_dir = input_dir + 'Time_Series_New/'
     output_shp_dir = file_dir + 'GW_Shapefiles/'
     output_gw_raster_dir = file_dir + 'GW_Rasters/'
@@ -355,7 +355,8 @@ def run_gw():
     gw.mask_rasters(already_masked=True)
     gw.create_land_use_rasters(already_created=True)
     df = gw.create_dataframe(year_list=range(2002, 2020), load_df=True)
-    rf_model = gw.build_model(df, drop_attrs=drop_attrs, pred_attr=pred_attr, load_model=True)
+    rf_model = gw.build_model(df, test_year=range(2011, 2019), drop_attrs=drop_attrs, pred_attr=pred_attr,
+                              load_model=True)
     gw.get_predictions(rf_model, pred_years=range(2002, 2020), drop_attrs=drop_attrs, pred_attr=pred_attr,
                        only_pred=True)
 
