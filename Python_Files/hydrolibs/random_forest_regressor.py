@@ -19,15 +19,18 @@ from mpl_toolkits.mplot3d import axes3d
 from Python_Files.hydrolibs import rasterops as rops
 
 
-def create_dataframe(input_file_dir, out_df, pattern='*.tif', exclude_years=(), exclude_vars=(), make_year_col=True):
+def create_dataframe(input_file_dir, out_df, column_names, pattern='*.tif', exclude_years=(), exclude_vars=(),
+                     make_year_col=True, ordering=False):
     """
     Create dataframe from file list
     :param input_file_dir: Input directory where the file names begin with <Variable>_<Year>, e.g, ET_2015.tif
     :param out_df: Output Dataframe file
+    :param column_names: Dataframe column names, these must be df headers
     :param pattern: File pattern to look for in the folder
     :param exclude_years: Exclude these years from the dataframe
     :param exclude_vars: Exclude these variables from the dataframe
     :param make_year_col: Make a dataframe column entry for year
+    :param ordering: Set True to order dataframe column names
     :return: Pandas dataframe
     """
 
@@ -57,9 +60,25 @@ def create_dataframe(input_file_dir, out_df, pattern='*.tif', exclude_years=(), 
             df = df.append(pd.DataFrame(data=raster_dict))
 
     df = df.dropna(axis=0)
-    df = df.reindex(sorted(df.columns), axis=1)
+    df = reindex_df(df, column_names=column_names, ordering=ordering)
     df.to_csv(out_df, index=False)
     return df
+
+
+def reindex_df(df, column_names, ordering=False):
+    """
+    Reindex dataframe columns
+    :param df: Input dataframe
+    :param column_names: Dataframe column names, these must be df headers
+    :param ordering: Set True to apply ordering
+    :return: Reindexed dataframe
+    """
+    if not column_names:
+        column_names = df.columns
+        ordering = True
+    if ordering:
+        column_names = sorted(column_names)
+    return df.reindex(column_names, axis=1)
 
 
 def get_rf_model(rf_file):
@@ -95,7 +114,7 @@ def split_data_train_test(input_df, pred_attr='GW', shuffle=True, random_state=0
     flag = False
     if test_year in years:
         flag = True
-    drop_columns = [pred_attr] + [attr for attr in drop_attrs]
+    drop_columns = [pred_attr] + list(drop_attrs)
     for year in years:
         selected_data = input_df.loc[input_df['YEAR'] == year]
         y = selected_data[pred_attr]
@@ -136,7 +155,7 @@ def split_yearly_data(input_df, pred_attr='GW', outdir=None, drop_attrs=(), test
     x_test_df = pd.DataFrame()
     y_train_df = pd.DataFrame()
     y_test_df = pd.DataFrame()
-    drop_columns = [pred_attr] + [attr for attr in drop_attrs]
+    drop_columns = [pred_attr] + list(drop_attrs)
     for year in years:
         selected_data = input_df.loc[input_df['YEAR'] == year]
         y_t = selected_data[pred_attr]
@@ -292,12 +311,13 @@ def rf_regressor(input_df, out_dir, n_estimators=200, random_state=0, bootstrap=
     return regressor
 
 
-def create_pred_raster(rf_model, out_raster, actual_raster_dir, pred_year=2015, pred_attr='GW', drop_attrs=(),
-                       only_pred=False, calculate_errors=True):
+def create_pred_raster(rf_model, out_raster, column_names, actual_raster_dir, pred_year=2015, pred_attr='GW',
+                       drop_attrs=(), only_pred=False, calculate_errors=True, ordering=False):
     """
     Create prediction raster
     :param rf_model: Pre-built Random Forest Model
     :param out_raster: Output raster
+    :param column_names: Dataframe column names, these must be df headers
     :param actual_raster_dir: Ground truth raster files required for prediction
     :param pred_year: Prediction year
     :param pred_attr: Prediction attribute name in the dataframe
@@ -305,6 +325,7 @@ def create_pred_raster(rf_model, out_raster, actual_raster_dir, pred_year=2015, 
     :param only_pred: Set true to disable raster creation and for showing only the error metrics,
     automatically set to False if calculate_errors is False
     :param calculate_errors: Calculate error metrics if actual observations are present
+    :param ordering: Set True to order dataframe column names
     :return: MAE, RMSE, and R^2 statistics (rounded to 2 decimal places)
     """
 
@@ -324,10 +345,13 @@ def create_pred_raster(rf_model, out_raster, actual_raster_dir, pred_year=2015, 
 
     input_df = pd.DataFrame(data=raster_arr_dict)
     input_df = input_df.dropna(axis=0)
-    input_df = input_df.reindex(sorted(input_df.columns), axis=1)
-    drop_attr_list = [attr for attr in drop_attrs]
+    input_df = reindex_df(input_df, column_names=column_names, ordering=ordering)
+    drop_columns = [pred_attr] + list(drop_attrs)
     if not calculate_errors:
-        input_df = input_df.drop(columns=drop_attr_list)
+        drop_cols = drop_columns
+        if not column_names:
+            drop_cols.remove(pred_attr)
+        input_df = input_df.drop(columns=drop_cols)
         pred_arr = rf_model.predict(input_df)
         if not only_pred:
             pred_arr[nan_pos] = actual_file.nodata
@@ -337,7 +361,6 @@ def create_pred_raster(rf_model, out_raster, actual_raster_dir, pred_year=2015, 
             actual_arr = input_df[pred_attr]
         else:
             actual_arr = raster_arr_dict[pred_attr]
-        drop_columns = [pred_attr] + drop_attr_list
         input_df = input_df.drop(columns=drop_columns)
         pred_arr = rf_model.predict(input_df)
         if not only_pred:
@@ -357,18 +380,20 @@ def create_pred_raster(rf_model, out_raster, actual_raster_dir, pred_year=2015, 
     return mae, rmse, r_squared
 
 
-def predict_rasters(rf_model, actual_raster_dir, out_dir, pred_years, drop_attrs=(), pred_attr='GW', only_pred=False,
-                    exclude_years=(2019, )):
+def predict_rasters(rf_model, actual_raster_dir, out_dir, pred_years, column_names, drop_attrs=(), pred_attr='GW',
+                    only_pred=False, exclude_years=(2019, ), ordering=False):
     """
     Create prediction rasters from input data
     :param rf_model: Pre-trained Random Forest Model
     :param actual_raster_dir: Directory containing input rasters
     :param out_dir: Output directory for predicted rasters
     :param pred_years: Tuple containing prediction years
+    :param column_names: Dataframe column names, these must be df headers
     :param drop_attrs: Drop these specified attributes (Must be exactly the same as used in rf_regressor module)
     :param pred_attr: Prediction Attribute
     :param only_pred: Set true to disable raster creation and for showing only the error metrics
     :param exclude_years: Exclude these years from error analysis, only the respective predicted rasters are generated
+    :param ordering: Set True to order dataframe column names
     :return: None
     """
 
@@ -380,5 +405,6 @@ def predict_rasters(rf_model, actual_raster_dir, out_dir, pred_years, drop_attrs
         mae, rmse, r_squared = create_pred_raster(rf_model, out_raster=out_pred_raster,
                                                   actual_raster_dir=actual_raster_dir, pred_year=pred_year,
                                                   drop_attrs=drop_attrs, pred_attr=pred_attr, only_pred=only_pred,
-                                                  calculate_errors=calculate_errors)
+                                                  calculate_errors=calculate_errors, column_names=column_names,
+                                                  ordering=ordering)
         print('YEAR', pred_year, ': MAE =', mae, 'RMSE =', rmse, 'R^2 =', r_squared)

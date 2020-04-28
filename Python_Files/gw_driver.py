@@ -214,10 +214,13 @@ class HydroML:
         else:
             print('Land use rasters already created')
 
-    def create_dataframe(self, year_list, load_df=False, exclude_years=(2019, ), verbose=True):
+    def create_dataframe(self, column_names, year_list, ordering=False, load_df=False, exclude_years=(2019, ),
+                         verbose=True):
         """
         Create dataframe from preprocessed files
+        :param column_names: Dataframe column names, these must be df headers
         :param year_list: List of years for which the dataframe will be created
+        :param ordering: Set True to order dataframe column names
         :param load_df: Set true to load existing dataframe
         :param exclude_years: List of years to exclude from dataframe
         :param verbose: Get extra information if set to True
@@ -240,7 +243,8 @@ class HydroML:
             copy_files(self.land_use_dir_list, target_dir=self.rf_data_dir, year_list=year_list,
                        pattern_list=pattern_list, rep=True, verbose=verbose)
             print('Creating dataframe...')
-            df = rfr.create_dataframe(self.rf_data_dir, out_df=df_file, make_year_col=True, exclude_years=exclude_years)
+            df = rfr.create_dataframe(self.rf_data_dir, out_df=df_file, column_names=column_names, make_year_col=True,
+                                      exclude_years=exclude_years, ordering=ordering)
             return df
 
     def tune_parameters(self, df, pred_attr, drop_attrs=()):
@@ -304,12 +308,14 @@ class HydroML:
                                     load_model=load_model, test_size=test_size)
         return rf_model
 
-    def get_predictions(self, rf_model, pred_years, pred_attr='GW', only_pred=False, exclude_years=(2019,),
-                        drop_attrs=()):
+    def get_predictions(self, rf_model, pred_years, column_names, ordering=False, pred_attr='GW', only_pred=False,
+                        exclude_years=(2019,), drop_attrs=()):
         """
         Get prediction results and/or rasters
         :param rf_model: Fitted RandomForestRegressor model
         :param pred_years: Predict for these years
+        :param column_names: Dataframe column names, these must be df headers
+        :param ordering: Set True to order dataframe column names
         :param pred_attr: Prediction attribute name in the dataframe
         :param only_pred: Set True to disable prediction raster generation
         :param exclude_years: List of years to exclude from dataframe
@@ -322,7 +328,7 @@ class HydroML:
         makedirs([pred_out_dir])
         rfr.predict_rasters(rf_model, pred_years=pred_years, drop_attrs=drop_attrs, out_dir=pred_out_dir,
                             actual_raster_dir=self.rf_data_dir, pred_attr=pred_attr, only_pred=only_pred,
-                            exclude_years=exclude_years)
+                            exclude_years=exclude_years, column_names=column_names, ordering=ordering)
 
 
 def run_gw():
@@ -351,6 +357,7 @@ def run_gw():
                      (130, 195): np.int(rops.NO_DATA_VALUE)
                      }
     drop_attrs = ('YEAR',)
+    column_names = ('YEAR', 'AGRI', 'SW', 'URBAN', 'ET', 'P', 'GW')
     pred_attr = 'GW'
     load_files = True
     gw = HydroML(input_dir, file_dir, output_dir, input_ts_dir, output_shp_dir, output_gw_raster_dir,
@@ -363,11 +370,11 @@ def run_gw():
     gw.reproject_rasters(already_reprojected=load_files)
     gw.mask_rasters(already_masked=load_files)
     gw.create_land_use_rasters(already_created=load_files)
-    df = gw.create_dataframe(year_list=range(2002, 2020), load_df=load_files)
-    rf_model = gw.build_model(df, test_year=range(2011, 2019), drop_attrs=drop_attrs, pred_attr=pred_attr,
-                              load_model=False, max_features=2)
+    df = gw.create_dataframe(year_list=range(2002, 2020), column_names=None, ordering=False, load_df=False)
+    rf_model = gw.build_model(df, test_year=range(2014, 2015), drop_attrs=drop_attrs, pred_attr=pred_attr,
+                              load_model=False, max_features=1)
     gw.get_predictions(rf_model, pred_years=range(2002, 2020), drop_attrs=drop_attrs, pred_attr=pred_attr,
-                       only_pred=False)
+                       only_pred=False, column_names=None, ordering=False)
 
 
 run_gw()
