@@ -166,8 +166,8 @@ def shp2raster(input_shp_file, outfile_path, value_field_pos=2, xres=1000., yres
     gdal_command = 'gdal_rasterize'
     if not gridding:
         args = ['-l', layer_name, '-a', value_field, '-tr', str(xres), str(yres), '-te', str(minx),
-                str(miny), str(maxx), str(maxy), '-ot', 'Float32', '-of', 'GTiff', '-a_nodata', str(no_data_value),
-                input_shp_file, outfile_path]
+                str(miny), str(maxx), str(maxy), '-init', str(0.0), '-add', '-ot', 'Float32', '-of', 'GTiff',
+                '-a_nodata', str(no_data_value), input_shp_file, outfile_path]
     else:
         gdal_command = 'gdal_grid'
         xsize = np.int(np.round((maxx - minx) / xres))

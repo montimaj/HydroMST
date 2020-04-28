@@ -80,22 +80,26 @@ class HydroML:
         else:
             print('GMD already reprojected')
 
-    def clip_gw_shpfiles(self, clip_file, already_clipped=True):
+    def clip_gw_shpfiles(self, new_clip_file=None, already_clipped=False):
         """
-        Clip GW shapefiles
-        :param clip_file: Input clip_file for clipping GW shapefiles (e.g, it could be a watershed shapefile)
+        Clip GW shapefiles based on GMD extent
+        :param new_clip_file: Input clip file for clipping GW shapefiles (e.g, it could be a watershed shapefile),
+        required only if you don't want to clip using GMD extent. Should be in the same projection system
         :param already_clipped: Set False to re-clip shapefiles
         :return: None
         """
 
-        self.output_shp_dir = make_proper_dir_name(self.output_shp_dir + 'Clipped')
+        clip_file = self.input_gmd_reproj_file
+        if new_clip_file:
+            clip_file = new_clip_file
+        clip_shp_dir = make_proper_dir_name(self.output_shp_dir + 'Clipped')
         if not already_clipped:
             print('Clipping GW shapefiles...')
-            makedirs([self.output_shp_dir])
-            vops.clip_vectors(self.output_shp_dir, clip_file=clip_file, outdir=self.output_shp_dir,
-                              gdal_path=self.gdal_path)
+            makedirs([clip_shp_dir])
+            vops.clip_vectors(self.output_shp_dir, clip_file=clip_file, outdir=clip_shp_dir, gdal_path=self.gdal_path)
         else:
             print('GW Shapefiles already clipped')
+        self.output_shp_dir = clip_shp_dir
 
     def create_gw_rasters(self, xres=5000, yres=5000, convert_units=True, already_created=True):
         """
@@ -107,26 +111,19 @@ class HydroML:
         :return: None
         """
 
-        updated_gw_dir = make_proper_dir_name(self.output_gw_raster_dir + 'Updated')
-        converted_gw_dir = make_proper_dir_name(self.output_gw_raster_dir + 'Converted')
+        self.final_gw_dir = self.output_gw_raster_dir
+        if convert_units:
+            self.final_gw_dir = make_proper_dir_name(self.final_gw_dir + 'Converted')
         if not already_created:
             print('Converting SHP to TIF...')
             vops.shps2rasters(self.output_shp_dir, self.output_gw_raster_dir, xres=xres, yres=yres, smoothing=0,
-                              gdal_path=self.gdal_path)
-            print('Updated GW files...This will take significant time as pixelwise operations are performed!!')
-            makedirs([updated_gw_dir])
-            rops.compute_rasters_from_shp(input_raster_dir=self.output_gw_raster_dir, input_shp_dir=self.output_shp_dir,
-                                          outdir=updated_gw_dir, gdal_path=self.gdal_path, verbose=False)
+                              gdal_path=self.gdal_path, gridding=False)
             if convert_units:
                 print('Changing GW units from acreft to mm')
-                makedirs([converted_gw_dir])
-                rops.convert_gw_data(updated_gw_dir, converted_gw_dir)
+                makedirs([self.final_gw_dir])
+                rops.convert_gw_data(self.output_gw_raster_dir, self.final_gw_dir)
         else:
             print('GW  pumping rasters already created')
-        if convert_units:
-            self.final_gw_dir = converted_gw_dir
-        else:
-            self.final_gw_dir = updated_gw_dir
 
     def reclassify_cdl(self, reclass_dict, pattern='*.tif', already_reclassified=False):
         """
@@ -324,6 +321,11 @@ class HydroML:
 
 
 def run_gw():
+    """
+    Main function for running the project
+    :return: None
+    """
+
     input_dir = '../Inputs/Data/'
     file_dir = '../Inputs/Files/'
     output_dir = '../Outputs/'
@@ -343,17 +345,18 @@ def run_gw():
                      (59, 61): np.int(rops.NO_DATA_VALUE),
                      (130, 195): np.int(rops.NO_DATA_VALUE)
                      }
-    drop_attrs = ('YEAR',)
+    drop_attrs = ('YEAR', 'P', 'ET')
     pred_attr = 'GW'
-
+    load_files = True
     gw = HydroML(input_dir, file_dir, output_dir, input_ts_dir, output_shp_dir, output_gw_raster_dir,
                  input_gmd_file, input_cdl_file, gdal_path)
-    gw.extract_shp_from_gdb(input_gdb_dir, year_list=range(2002, 2019), already_extracted=False)
-    gw.reproject_gmd(already_reprojected=False)
-    gw.create_gw_rasters(already_created=True)
-    gw.reclassify_cdl(ks_class_dict, already_reclassified=False)
-    gw.reproject_rasters(already_reprojected=False)
-    gw.mask_rasters(already_masked=False)
+    gw.extract_shp_from_gdb(input_gdb_dir, year_list=range(2002, 2019), already_extracted=load_files)
+    gw.reproject_gmd(already_reprojected=load_files)
+    gw.clip_gw_shpfiles(already_clipped=load_files)
+    gw.create_gw_rasters(already_created=load_files)
+    gw.reclassify_cdl(ks_class_dict, already_reclassified=load_files)
+    gw.reproject_rasters(already_reprojected=load_files)
+    gw.mask_rasters(already_masked=load_files)
     gw.create_land_use_rasters(already_created=False)
     df = gw.create_dataframe(year_list=range(2002, 2020), load_df=False)
     rf_model = gw.build_model(df, test_year=range(2011, 2019), drop_attrs=drop_attrs, pred_attr=pred_attr,

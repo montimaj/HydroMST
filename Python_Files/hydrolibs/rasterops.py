@@ -314,15 +314,17 @@ def get_raster_extents(gdal_raster):
 
 
 def reproject_raster(input_raster_file, outfile_path, resampling_factor=1, resampling_func=gdal.GRA_NearestNeighbour,
-                     downsampling=True, from_raster=None, gdal_path='/usr/bin/', verbose=True):
+                     downsampling=True, from_raster=None, keep_original=False, gdal_path='/usr/bin/', verbose=True):
     """
-    System call for mitigating GDALGetResampleFunction error at runtime
+    Reproject raster using GDAL system call
     :param input_raster_file: Input raster file
     :param outfile_path: Output file path
     :param resampling_factor: Resampling factor (default 3)
     :param resampling_func: Resampling function
     :param downsampling: Downsample raster (default True)
     :param from_raster: Reproject input raster considering another raster
+    :param keep_original: Set True to only use the new projection system from 'from_raster'. The original raster extent
+    is not changed
     :param gdal_path: GDAL directory path, in Windows replace with OSGeo4W directory path, e.g. '/usr/bin/gdal/' on
     Linux or Mac and 'C:/OSGeo4W64/' on Windows, the '/' at the end is mandatory
     :param verbose: Set True to print system call info
@@ -331,7 +333,7 @@ def reproject_raster(input_raster_file, outfile_path, resampling_factor=1, resam
 
     src_raster_file = gdal.Open(input_raster_file)
     rfile = src_raster_file
-    if from_raster:
+    if from_raster and not keep_original:
         rfile = gdal.Open(from_raster)
         resampling_factor = 1
     src_band = rfile.GetRasterBand(1)
