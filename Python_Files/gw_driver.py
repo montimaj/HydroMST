@@ -111,19 +111,24 @@ class HydroML:
         :return: None
         """
 
-        self.final_gw_dir = self.output_gw_raster_dir
-        if convert_units:
-            self.final_gw_dir = make_proper_dir_name(self.final_gw_dir + 'Converted')
+        fixed_dir = make_proper_dir_name(self.output_gw_raster_dir + 'Fixed')
+        converted_dir = make_proper_dir_name(self.output_gw_raster_dir + 'Converted')
         if not already_created:
             print('Converting SHP to TIF...')
+            makedirs([fixed_dir])
             vops.shps2rasters(self.output_shp_dir, self.output_gw_raster_dir, xres=xres, yres=yres, smoothing=0,
                               gdal_path=self.gdal_path, gridding=False)
+            rops.fix_large_values(self.output_gw_raster_dir, outdir=fixed_dir)
             if convert_units:
                 print('Changing GW units from acreft to mm')
-                makedirs([self.final_gw_dir])
-                rops.convert_gw_data(self.output_gw_raster_dir, self.final_gw_dir)
+                makedirs([converted_dir])
+                rops.convert_gw_data(fixed_dir, converted_dir)
         else:
             print('GW  pumping rasters already created')
+        if convert_units:
+            self.final_gw_dir = converted_dir
+        else:
+            self.final_gw_dir = fixed_dir
 
     def reclassify_cdl(self, reclass_dict, pattern='*.tif', already_reclassified=False):
         """
@@ -345,7 +350,7 @@ def run_gw():
                      (59, 61): np.int(rops.NO_DATA_VALUE),
                      (130, 195): np.int(rops.NO_DATA_VALUE)
                      }
-    drop_attrs = ('YEAR', 'P', 'ET')
+    drop_attrs = ('YEAR',)
     pred_attr = 'GW'
     load_files = True
     gw = HydroML(input_dir, file_dir, output_dir, input_ts_dir, output_shp_dir, output_gw_raster_dir,
@@ -357,12 +362,12 @@ def run_gw():
     gw.reclassify_cdl(ks_class_dict, already_reclassified=load_files)
     gw.reproject_rasters(already_reprojected=load_files)
     gw.mask_rasters(already_masked=load_files)
-    gw.create_land_use_rasters(already_created=False)
-    df = gw.create_dataframe(year_list=range(2002, 2020), load_df=False)
+    gw.create_land_use_rasters(already_created=load_files)
+    df = gw.create_dataframe(year_list=range(2002, 2020), load_df=load_files)
     rf_model = gw.build_model(df, test_year=range(2011, 2019), drop_attrs=drop_attrs, pred_attr=pred_attr,
-                              load_model=False)
+                              load_model=False, max_features=2)
     gw.get_predictions(rf_model, pred_years=range(2002, 2020), drop_attrs=drop_attrs, pred_attr=pred_attr,
-                       only_pred=True)
+                       only_pred=False)
 
 
 run_gw()

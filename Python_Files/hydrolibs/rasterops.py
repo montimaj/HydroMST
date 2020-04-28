@@ -695,3 +695,22 @@ def create_monthly_avg_raster_dict(input_raster_dir, pattern='GRACE*.tif'):
         raster_arr = read_raster_as_arr(raster_file, get_file=False)
         raster_dict[dt] = np.nanmean(raster_arr)
     return raster_dict
+
+
+def fix_large_values(input_raster_dir, outdir, max_threshold=1e+5, pattern='GW*.tif'):
+    """
+    Fix unusually large values introduced by gdal_rasterize sometimes
+    :param input_raster_dir: Input raster directory
+    :param outdir: Output directory
+    :param max_threshold: Max value beyond which values will be set to no data value, default unit is acrefit
+    :param pattern: File pattern
+    :return: None
+    """
+
+    for raster_file in glob(input_raster_dir + pattern):
+        out_raster = outdir + raster_file[raster_file.rfind(os.sep) + 1:]
+        raster_arr, raster_file = read_raster_as_arr(raster_file)
+        raster_arr[np.isnan(raster_arr)] = NO_DATA_VALUE
+        raster_arr[raster_arr >= max_threshold] = NO_DATA_VALUE
+        print(np.max(raster_arr))
+        write_raster(raster_arr, raster_file, transform=raster_file.transform, outfile_path=out_raster)

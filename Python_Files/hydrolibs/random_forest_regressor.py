@@ -72,7 +72,7 @@ def get_rf_model(rf_file):
     return pickle.load(open(rf_file, mode='rb'))
 
 
-def split_data_train_test(input_df, pred_attr='GW_KS', shuffle=True, random_state=0, test_size=0.2, outdir=None,
+def split_data_train_test(input_df, pred_attr='GW', shuffle=True, random_state=0, test_size=0.2, outdir=None,
                           drop_attrs=(), test_year=None):
     """
     Split data preserving temporal variations
@@ -117,7 +117,7 @@ def split_data_train_test(input_df, pred_attr='GW_KS', shuffle=True, random_stat
     return x_train_df, x_test_df, y_train_df[0].ravel(), y_test_df[0].ravel()
 
 
-def split_yearly_data(input_df, pred_attr='GW_KS', outdir=None, drop_attrs=(), test_years=(2016, ), shuffle=True,
+def split_yearly_data(input_df, pred_attr='GW', outdir=None, drop_attrs=(), test_years=(2016, ), shuffle=True,
                       random_state=0):
     """
     Split data based on the years
@@ -175,9 +175,9 @@ def create_pdplots(x_train, rf_model, outdir, plot_3d=False):
 
     print('Plotting...')
     feature_names = x_train.columns.values.tolist()
-    plot_labels = {'AGRI_KS': 'Agriculture density', 'URBAN_FLT_KS': 'Urban density', 'SW_KS': 'Surface water density',
-                   'ET_KS': 'Evapotranspiration', 'P_KS': 'Precipitation'}
-    plot_labels = {'AGRI_KS': 'AGRI', 'URBAN_FLT_KS': 'URBAN', 'SW_KS': 'SW', 'ET_KS': 'ET (mm)', 'P_KS': 'P (mm)'}
+    plot_labels = {'AGRI': 'Agriculture density', 'URBAN': 'Urban density', 'SW': 'Surface water density',
+                   'ET': 'Evapotranspiration', 'P': 'Precipitation'}
+    plot_labels = {'AGRI': 'AGRI', 'URBAN': 'URBAN', 'SW': 'SW', 'ET': 'ET (mm)', 'P': 'P (mm)'}
     feature_indices = range(len(feature_names))
     feature_dict = {}
     if plot_3d:
@@ -220,7 +220,7 @@ def create_pdplots(x_train, rf_model, outdir, plot_3d=False):
 
 
 def rf_regressor(input_df, out_dir, n_estimators=200, random_state=0, bootstrap=True, max_features=None, test_size=0.2,
-                 pred_attr='GW_KS', shuffle=True, plot_graphs=False, plot_3d=False, plot_dir=None, drop_attrs=(),
+                 pred_attr='GW', shuffle=True, plot_graphs=False, plot_3d=False, plot_dir=None, drop_attrs=(),
                  test_case='', test_year=None, split_yearly=True, load_model=True):
     """
     Perform random forest regression
@@ -292,7 +292,7 @@ def rf_regressor(input_df, out_dir, n_estimators=200, random_state=0, bootstrap=
     return regressor
 
 
-def create_pred_raster(rf_model, out_raster, actual_raster_dir, pred_year=2015, pred_attr='GW_KS', drop_attrs=(),
+def create_pred_raster(rf_model, out_raster, actual_raster_dir, pred_year=2015, pred_attr='GW', drop_attrs=(),
                        only_pred=False, calculate_errors=True):
     """
     Create prediction raster
