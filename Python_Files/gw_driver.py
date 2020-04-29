@@ -1,7 +1,6 @@
 # Author: Sayantan Majumdar
 # Email: smxnv@mst.edu
 
-import numpy as np
 import pandas as pd
 from Python_Files.hydrolibs import rasterops as rops
 from Python_Files.hydrolibs import vectorops as vops
@@ -402,8 +401,8 @@ def run_gw():
     gw.create_land_use_rasters(already_created=load_files)
     df = gw.create_dataframe(year_list=range(2002, 2020), column_names=None, ordering=False, load_df=load_files)
     rf_model = gw.build_model(df, test_year=range(2011, 2019), drop_attrs=drop_attrs, pred_attr=pred_attr,
-                              load_model=False, max_features=5)
-    gw.get_predictions(rf_model, pred_years=range(2002, 2020), drop_attrs=drop_attrs, pred_attr=pred_attr,
+                              load_model=True, max_features=5)
+    gw.get_predictions(rf_model=rf_model, pred_years=range(2002, 2020), drop_attrs=drop_attrs, pred_attr=pred_attr,
                        only_pred=True, column_names=None, ordering=False)
 
 

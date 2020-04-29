@@ -44,6 +44,8 @@ def create_dataframe(input_file_dir, out_df, column_names, pattern='*.tif', excl
     raster_dict = {}
     flag = False
     years = sorted(list(raster_file_dict.keys()))
+    df = None
+    raster_arr = None
     for year in years:
         file_list = raster_file_dict[year]
         for raster_file in file_list:
@@ -182,21 +184,23 @@ def split_yearly_data(input_df, pred_attr='GW', outdir=None, drop_attrs=(), test
     return x_train_df, x_test_df, y_train_df[0].ravel(), y_test_df[0].ravel()
 
 
-def create_pdplots(x_train, rf_model, outdir, plot_3d=False):
+def create_pdplots(x_train, rf_model, outdir, plot_3d=False, descriptive_labels=False):
     """
     Create partial dependence plots
     :param x_train: Training set
     :param rf_model: Random Forest model
     :param outdir: Output directory for storing partial dependence data
     :param plot_3d: Set True for creating pairwise 3D plots
+    :param descriptive_labels: Set True to get descriptive labels
     :return: None
     """
 
     print('Plotting...')
     feature_names = x_train.columns.values.tolist()
-    plot_labels = {'AGRI': 'Agriculture density', 'URBAN': 'Urban density', 'SW': 'Surface water density',
-                   'ET': 'Evapotranspiration', 'P': 'Precipitation'}
     plot_labels = {'AGRI': 'AGRI', 'URBAN': 'URBAN', 'SW': 'SW', 'ET': 'ET (mm)', 'P': 'P (mm)'}
+    if descriptive_labels:
+        plot_labels = {'AGRI': 'Agriculture density', 'URBAN': 'Urban density', 'SW': 'Surface water density',
+                       'ET': 'Evapotranspiration (mm)', 'P': 'Precipitation (mm)'}
     feature_indices = range(len(feature_names))
     feature_dict = {}
     if plot_3d:
@@ -322,7 +326,7 @@ def create_pred_raster(rf_model, out_raster, column_names, actual_raster_dir, pr
     :param pred_year: Prediction year
     :param pred_attr: Prediction attribute name in the dataframe
     :param drop_attrs: Drop these specified attributes (Must be exactly the same as used in rf_regressor module)
-    :param only_pred: Set true to disable raster creation and for showing only the error metrics,
+    :param only_pred: Set True to disable raster creation and for showing only the error metrics,
     automatically set to False if calculate_errors is False
     :param calculate_errors: Calculate error metrics if actual observations are present
     :param ordering: Set True to order dataframe column names
@@ -330,16 +334,19 @@ def create_pred_raster(rf_model, out_raster, column_names, actual_raster_dir, pr
     """
 
     raster_files = glob(actual_raster_dir + '*_' + str(pred_year) + '*.tif')
-    raster_arr_dict = defaultdict(lambda: [])
+    raster_arr_dict = {}
+    nan_pos_dict = {}
+    actual_file = None
+    raster_shape = None
     for raster_file in raster_files:
         sep = raster_file.rfind('_')
         variable, year = raster_file[raster_file.rfind(os.sep) + 1: sep], raster_file[sep + 1: raster_file.rfind('.')]
         raster_arr, actual_file = rops.read_raster_as_arr(raster_file)
         raster_shape = raster_arr.shape
         raster_arr = raster_arr.reshape(raster_shape[0] * raster_shape[1])
+        nan_pos_dict[variable] = np.isnan(raster_arr)
         if not only_pred:
-            nan_pos = np.isnan(raster_arr)
-            raster_arr[nan_pos] = 0
+            raster_arr[nan_pos_dict[variable]] = 0
         raster_arr_dict[variable] = raster_arr
         raster_arr_dict['YEAR'] = [year] * raster_arr.shape[0]
 
@@ -354,7 +361,8 @@ def create_pred_raster(rf_model, out_raster, column_names, actual_raster_dir, pr
         input_df = input_df.drop(columns=drop_cols)
         pred_arr = rf_model.predict(input_df)
         if not only_pred:
-            pred_arr[nan_pos] = actual_file.nodata
+            for nan_pos in nan_pos_dict.values():
+                pred_arr[nan_pos] = actual_file.nodata
         mae, rmse, r_squared = (np.nan, ) * 3
     else:
         if only_pred:
@@ -364,8 +372,9 @@ def create_pred_raster(rf_model, out_raster, column_names, actual_raster_dir, pr
         input_df = input_df.drop(columns=drop_columns)
         pred_arr = rf_model.predict(input_df)
         if not only_pred:
-            actual_arr[nan_pos] = actual_file.nodata
-            pred_arr[nan_pos] = actual_file.nodata
+            for nan_pos in nan_pos_dict.values():
+                actual_arr[nan_pos] = actual_file.nodata
+                pred_arr[nan_pos] = actual_file.nodata
             actual_values = actual_arr[actual_arr != actual_file.nodata]
             pred_values = pred_arr[pred_arr != actual_file.nodata]
         else:
