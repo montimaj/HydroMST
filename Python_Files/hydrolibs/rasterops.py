@@ -101,7 +101,10 @@ def crop_raster(input_raster_file, input_mask_path, outfile_path, plot_fig=False
         transform = src_raster_file.GetGeoTransform()
         xres, yres = transform[1], transform[5]
         no_data = src_band.GetNoDataValue()
-        layer_name = input_mask_path[input_mask_path.rfind(os.sep) + 1: input_mask_path.rfind('.')]
+        os_sep = input_mask_path.rfind(os.sep)
+        if os_sep == -1:
+            os_sep = input_mask_path.rfind('/')
+        layer_name = input_mask_path[os_sep + 1: input_mask_path.rfind('.')]
         args = ['-tr', str(xres), str(yres), '-tap', '-cutline', input_mask_path, '-cl', layer_name,
                 '-crop_to_cutline', '-dstnodata', str(no_data), '-overwrite', '-ot', 'Float32', '-of', 'GTiff',
                 input_raster_file, outfile_path]
@@ -712,5 +715,4 @@ def fix_large_values(input_raster_dir, outdir, max_threshold=1e+5, pattern='GW*.
         raster_arr, raster_file = read_raster_as_arr(raster_file)
         raster_arr[np.isnan(raster_arr)] = NO_DATA_VALUE
         raster_arr[raster_arr >= max_threshold] = NO_DATA_VALUE
-        print(np.max(raster_arr))
         write_raster(raster_arr, raster_file, transform=raster_file.transform, outfile_path=out_raster)

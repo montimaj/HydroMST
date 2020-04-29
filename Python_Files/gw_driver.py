@@ -80,12 +80,14 @@ class HydroML:
         else:
             print('GMD already reprojected')
 
-    def clip_gw_shpfiles(self, new_clip_file=None, already_clipped=False):
+    def clip_gw_shpfiles(self, new_clip_file=None, already_clipped=False, extent_clip=True):
         """
         Clip GW shapefiles based on GMD extent
         :param new_clip_file: Input clip file for clipping GW shapefiles (e.g, it could be a watershed shapefile),
         required only if you don't want to clip using GMD extent. Should be in the same projection system
         :param already_clipped: Set False to re-clip shapefiles
+        :param extent_clip: Set False to clip by cutline, if shapefile consists of multiple polygons, then this won't
+        work
         :return: None
         """
 
@@ -96,22 +98,29 @@ class HydroML:
         if not already_clipped:
             print('Clipping GW shapefiles...')
             makedirs([clip_shp_dir])
-            vops.clip_vectors(self.output_shp_dir, clip_file=clip_file, outdir=clip_shp_dir, gdal_path=self.gdal_path)
+            vops.clip_vectors(self.output_shp_dir, clip_file=clip_file, outdir=clip_shp_dir, gdal_path=self.gdal_path,
+                              extent_clip=extent_clip)
         else:
             print('GW Shapefiles already clipped')
         self.output_shp_dir = clip_shp_dir
 
-    def create_gw_rasters(self, xres=5000, yres=5000, convert_units=True, already_created=True):
+    def create_gw_rasters(self, xres=5000, yres=5000, raster_mask=None, crop_rasters=False, ext_mask=True,
+                          convert_units=True, already_created=True):
         """
         Create GW rasters from shapefiles
         :param xres: X-Resolution (map unit)
         :param yres: Y-Resolution (map unit)
+        :param raster_mask: Raster mask (shapefile) for cropping raster, required only if crop_rasters=True
+        :param crop_rasters: Set False to disable raster cropping
+        :param ext_mask: Set True to crop by cutline, if shapefile consists of multiple polygons, then this won't
+        work
         :param convert_units: If true, converts GW pumping values in acreft to mm
         :param already_created: Set False to re-compute GW pumping rasters
         :return: None
         """
 
         fixed_dir = make_proper_dir_name(self.output_gw_raster_dir + 'Fixed')
+        cropped_dir = make_proper_dir_name(self.output_gw_raster_dir + 'Cropped')
         converted_dir = make_proper_dir_name(self.output_gw_raster_dir + 'Converted')
         if not already_created:
             print('Converting SHP to TIF...')
@@ -119,14 +128,23 @@ class HydroML:
             vops.shps2rasters(self.output_shp_dir, self.output_gw_raster_dir, xres=xres, yres=yres, smoothing=0,
                               gdal_path=self.gdal_path, gridding=False)
             rops.fix_large_values(self.output_gw_raster_dir, outdir=fixed_dir)
+            if crop_rasters:
+                makedirs([cropped_dir])
+                rops.crop_rasters(fixed_dir, outdir=cropped_dir, input_mask_file=raster_mask, ext_mask=ext_mask,
+                                  gdal_path=self.gdal_path)
             if convert_units:
                 print('Changing GW units from acreft to mm')
                 makedirs([converted_dir])
-                rops.convert_gw_data(fixed_dir, converted_dir)
+                input_dir = fixed_dir
+                if crop_rasters:
+                    input_dir = cropped_dir
+                rops.convert_gw_data(input_dir, converted_dir)
         else:
             print('GW  pumping rasters already created')
         if convert_units:
             self.final_gw_dir = converted_dir
+        elif crop_rasters:
+            self.final_gw_dir = cropped_dir
         else:
             self.final_gw_dir = fixed_dir
 
@@ -150,6 +168,7 @@ class HydroML:
             rops.reclassify_raster(self.input_cdl_file, reclass_dict, reclass_file)
             rops.reproject_raster(reclass_file, self.reclass_reproj_file, from_raster=self.ref_raster,
                                   gdal_path=self.gdal_path)
+            rops.filter_nans(self.reclass_reproj_file, ref_file=self.ref_raster, outfile_path=self.reclass_reproj_file)
         else:
             print('Already reclassified')
 
@@ -308,18 +327,21 @@ class HydroML:
                                     load_model=load_model, test_size=test_size)
         return rf_model
 
-    def get_predictions(self, rf_model, pred_years, column_names, ordering=False, pred_attr='GW', only_pred=False,
-                        exclude_years=(2019,), drop_attrs=()):
+    def get_predictions(self, rf_model, pred_years, column_names, final_mask=None, ordering=False, pred_attr='GW',
+                        only_pred=False, exclude_years=(2019,), drop_attrs=(), crop_rasters=False):
         """
         Get prediction results and/or rasters
         :param rf_model: Fitted RandomForestRegressor model
         :param pred_years: Predict for these years
         :param column_names: Dataframe column names, these must be df headers
+        :param final_mask: Raster mask required to properly clip the actual and predicted rasters, required only if
+        crop_rasters=True
         :param ordering: Set True to order dataframe column names
         :param pred_attr: Prediction attribute name in the dataframe
         :param only_pred: Set True to disable prediction raster generation
         :param exclude_years: List of years to exclude from dataframe
         :param drop_attrs: Drop these specified attributes
+        :param crop_rasters: Set True to crop actual and predicted rasters
         :return: None
         """
 
@@ -329,6 +351,12 @@ class HydroML:
         rfr.predict_rasters(rf_model, pred_years=pred_years, drop_attrs=drop_attrs, out_dir=pred_out_dir,
                             actual_raster_dir=self.rf_data_dir, pred_attr=pred_attr, only_pred=only_pred,
                             exclude_years=exclude_years, column_names=column_names, ordering=ordering)
+        if crop_rasters:
+            crop_dir = make_proper_dir_name(pred_out_dir + 'Cropped_Rasters')
+            makedirs([crop_dir])
+            pattern = pred_attr + '*.tif'
+            rops.crop_multiple_rasters(self.rf_data_dir, outdir=crop_dir, input_shp_file=final_mask, pattern=pattern)
+            rops.crop_multiple_rasters(pred_out_dir, outdir=crop_dir, input_shp_file=final_mask, pattern=pattern)
 
 
 def run_gw():
@@ -340,41 +368,43 @@ def run_gw():
     input_dir = '../Inputs/Data/'
     file_dir = '../Inputs/Files/'
     output_dir = '../Outputs/'
-    input_ts_dir = input_dir + 'Time_Series_New/'
+    input_ts_dir = input_dir + 'GEE_Data_Annual/'
     output_shp_dir = file_dir + 'GW_Shapefiles/'
     output_gw_raster_dir = file_dir + 'GW_Rasters/'
     input_gmd_file = input_dir + 'gmds/ks_gmds.shp'
     input_cdl_file = input_dir + 'CDL/CDL_KS_2015.tif'
     input_gdb_dir = input_dir + 'ks_pd_data_updated2018.gdb'
+    ks_watershed_file = '../Archive/Data/Files/Watersheds/ks_reproj/ks_watershed_reproj.shp'
+    final_mask = '../Archive/Data/Files/Final_Mask/crop.shp'
     gdal_path = 'C:/OSGeo4W64/'
-    ks_class_dict = {(0, 59): 1,
-                     (66, 77): 1,
-                     (203, 255): 1,
-                     (110, 111): 2,
-                     (111, 112): np.int(rops.NO_DATA_VALUE),
-                     (120, 124): 3,
-                     (59, 61): np.int(rops.NO_DATA_VALUE),
-                     (130, 195): np.int(rops.NO_DATA_VALUE)
+    ks_class_dict = {(0, 59.5): 1,
+                     (66.5, 77.5): 1,
+                     (203.5, 255): 1,
+                     (110.5, 111.5): 2,
+                     (111.5, 112.5): 0,
+                     (120.5, 124.5): 3,
+                     (59.5, 61.5): 0,
+                     (130.5, 195.5): 0
                      }
     drop_attrs = ('YEAR',)
     column_names = ('YEAR', 'AGRI', 'SW', 'URBAN', 'ET', 'P', 'GW')
     pred_attr = 'GW'
-    load_files = True
+    load_files = False
     gw = HydroML(input_dir, file_dir, output_dir, input_ts_dir, output_shp_dir, output_gw_raster_dir,
                  input_gmd_file, input_cdl_file, gdal_path)
     gw.extract_shp_from_gdb(input_gdb_dir, year_list=range(2002, 2019), already_extracted=load_files)
     gw.reproject_gmd(already_reprojected=load_files)
-    gw.clip_gw_shpfiles(already_clipped=load_files)
+    # gw.clip_gw_shpfiles(already_clipped=load_files)
     gw.create_gw_rasters(already_created=load_files)
     gw.reclassify_cdl(ks_class_dict, already_reclassified=load_files)
     gw.reproject_rasters(already_reprojected=load_files)
     gw.mask_rasters(already_masked=load_files)
     gw.create_land_use_rasters(already_created=load_files)
-    df = gw.create_dataframe(year_list=range(2002, 2020), column_names=None, ordering=False, load_df=False)
-    rf_model = gw.build_model(df, test_year=range(2014, 2015), drop_attrs=drop_attrs, pred_attr=pred_attr,
-                              load_model=False, max_features=1)
+    df = gw.create_dataframe(year_list=range(2002, 2020), column_names=None, ordering=False, load_df=load_files)
+    rf_model = gw.build_model(df, test_year=range(2011, 2019), drop_attrs=drop_attrs, pred_attr=pred_attr,
+                              load_model=False, max_features=5)
     gw.get_predictions(rf_model, pred_years=range(2002, 2020), drop_attrs=drop_attrs, pred_attr=pred_attr,
-                       only_pred=False, column_names=None, ordering=False)
+                       only_pred=True, column_names=None, ordering=False)
 
 
 run_gw()
