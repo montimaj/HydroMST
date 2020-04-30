@@ -359,20 +359,21 @@ class HydroML:
             rops.crop_multiple_rasters(pred_out_dir, outdir=crop_dir, input_shp_file=final_mask, pattern=pattern)
 
 
-def run_gw(analyze_only=False, load_files=True, load_rf_model=False):
+def run_gw(analyze_only=False, load_files=True, load_rf_model=False, use_gmds=True):
     """
     Main function for running the project, some variables require to be hardcoded
     :param analyze_only: Set True to just produce analysis results, all required files must be present
     :param load_files: Set True to load existing files, needed only if analyze_only=False
     :param load_rf_model: Set True to load existing Random Forest model, needed only if analyze_only=False
+    :param use_gmds: Set False to use entire GW raster for analysis
     :return: None
     """
 
     gee_data = ['Apr_Sept/', 'Apr_Aug/', 'Annual/']
     input_dir = '../Inputs/Data/'
-    file_dir = '../Inputs/Files_' + gee_data[2]
-    output_dir = '../Outputs/Output_' + gee_data[2]
-    input_ts_dir = input_dir + 'GEE_Data_' + gee_data[2]
+    file_dir = '../Inputs/Files_' + gee_data[0]
+    output_dir = '../Outputs/Output_' + gee_data[0]
+    input_ts_dir = input_dir + 'GEE_Data_' + gee_data[0]
     output_shp_dir = file_dir + 'GW_Shapefiles/'
     output_gw_raster_dir = file_dir + 'GW_Rasters/'
     input_gmd_file = input_dir + 'gmds/ks_gmds.shp'
@@ -408,7 +409,8 @@ def run_gw(analyze_only=False, load_files=True, load_rf_model=False):
                                   load_model=load_rf_model, max_features=5)
         gw.get_predictions(rf_model=rf_model, pred_years=range(2002, 2020), drop_attrs=drop_attrs, pred_attr=pred_attr,
                            only_pred=False)
-    ma.run_analysis(gw_dir, pred_gw_dir, grace_csv, use_gmds=True, input_gmd_file=input_gmd_file, out_dir=output_dir)
+    ma.run_analysis(gw_dir, pred_gw_dir, grace_csv, use_gmds=use_gmds, input_gmd_file=input_gmd_file,
+                    out_dir=output_dir)
 
 
-run_gw(analyze_only=False, load_files=False, load_rf_model=False)
+run_gw(analyze_only=True, load_files=False, load_rf_model=False, use_gmds=True)

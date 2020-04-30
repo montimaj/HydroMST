@@ -233,8 +233,9 @@ def run_analysis(actual_gw_dir, pred_gw_dir, grace_csv, out_dir, input_gmd_file=
     out_dir = make_proper_dir_name(out_dir)
     makedirs([out_dir])
     if not use_gmds:
-        ts_df = create_gw_forecast_time_series(actual_gw_dir, pred_gw_dir, grace_csv=grace_csv, out_dir=out_dir,
-                                               actual_gw_pattern=actual_gw_pattern, pred_gw_pattern=pred_gw_pattern)
+        ts_df = create_gw_forecast_time_series([actual_gw_dir], [pred_gw_dir], grace_csv=grace_csv, out_dir=out_dir,
+                                               actual_gw_pattern=actual_gw_pattern, pred_gw_pattern=pred_gw_pattern,
+                                               use_gmds=use_gmds)
         create_time_series_forecast_plot(ts_df)
     else:
         actual_gw_dir_list, pred_gw_dir_list, gmd_name_list = preprocess_gmds(actual_gw_dir, pred_gw_dir,
