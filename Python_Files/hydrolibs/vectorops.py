@@ -11,7 +11,7 @@ import os
 import multiprocessing
 from joblib import Parallel, delayed
 from glob import glob
-from Python_Files.hydrolibs.sysops import make_gdal_sys_call_str
+from Python_Files.hydrolibs.sysops import make_gdal_sys_call_str, make_proper_dir_name
 from shapely.geometry import Point
 
 NO_DATA_VALUE = -32767.0
@@ -295,3 +295,20 @@ def parallel_gdb_extract(gdb_data, index, attr, year_list, outdir, source_crs='e
         outfile += '.csv'
         df = gdb_data[[attr, 'geometry']]
         df.to_csv(outfile, mode='w', index=False)
+
+
+def extract_polygons(input_shp_file, out_dir, label_attr='GMD_label'):
+    """
+    Extract and write individual polygons present in a shape file to output directory
+    :param input_shp_file: Input shapefile
+    :param out_dir: Output directory, the files are named based on the polygon labels
+    :param label_attr: Label attribute present in the shapefile
+    :return: None
+    """
+
+    out_dir = make_proper_dir_name(out_dir)
+    input_shp_file = gpd.read_file(input_shp_file)
+    for label in input_shp_file[label_attr]:
+        outfile = out_dir + label + '.shp'
+        feature = input_shp_file[input_shp_file[label_attr] == label]
+        feature.to_file(outfile)

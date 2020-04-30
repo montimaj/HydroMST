@@ -3,8 +3,12 @@
 
 import numpy as np
 import pandas as pd
+import os
 import matplotlib.pyplot as plt
+from glob import glob
 from Python_Files.hydrolibs import rasterops as rops
+from Python_Files.hydrolibs import vectorops as vops
+from Python_Files.hydrolibs.sysops import makedirs, make_proper_dir_name
 from datetime import datetime
 from sklearn.linear_model import LinearRegression
 
@@ -57,36 +61,43 @@ def create_gw_time_series(actual_gw_file_dir, pred_gw_file_dir, grace_dir, actua
     return df1, df2
 
 
-def create_gw_forecast_time_series(actual_gw_file_dir, pred_gw_file_dir, grace_csv, actual_gw_pattern='GW*.tif',
-                                   pred_gw_pattern='pred*.tif', out_dir='../Outputs/'):
+def create_gw_forecast_time_series(actual_gw_file_dir_list, pred_gw_file_dir_list, grace_csv, gmd_name_list=None,
+                                   use_gmds=True, actual_gw_pattern='GW*.tif', pred_gw_pattern='pred*.tif',
+                                   out_dir='../Outputs/'):
     """
     Create GW and GRACE dataframes
-    :param actual_gw_file_dir: Actual GW pumping raster directory
-    :param pred_gw_file_dir: Predicted GW pumping raster directory
+    :param actual_gw_file_dir_list: Actual GW pumping raster directory list
+    :param pred_gw_file_dir_list: Predicted GW pumping raster directory list
     :param grace_csv: GRACE TWS CSV file
+    :param gmd_name_list: List of GMD names
+    :param use_gmds: Set False to use entire GW raster for analysis
     :param actual_gw_pattern: Actual GW pumping raster file pattern
     :param pred_gw_pattern: Predicted GW pumping raster file pattern
     :param out_dir: Output directory for storing the CSV files
     :return: Two dataframes, one with the GW pumping values and the other containing the monthly GRACE values
     """
 
-    actual_gw_raster_dict = rops.create_raster_dict(actual_gw_file_dir, pattern=actual_gw_pattern)
-    pred_gw_raster_dict = rops.create_raster_dict(pred_gw_file_dir, pattern=pred_gw_pattern)
     grace_df = pd.read_csv(grace_csv)
     grace_df = grace_df.dropna(axis=0)
     grace_df['GRACE'] = grace_df['GRACE'] * 10
     grace_df['DT'] = pd.to_datetime(grace_df['DT']).dt.date
-    years = sorted(list(pred_gw_raster_dict.keys()))
-    mean_actual_gw = {}
-    mean_pred_gw = {}
-    for year in years:
-        mean_pred_gw[year] = np.nanmean(pred_gw_raster_dict[year])
-        if year in actual_gw_raster_dict.keys():
-            mean_actual_gw[year] = np.nanmean(actual_gw_raster_dict[year])
-        else:
-            mean_actual_gw[year] = mean_pred_gw[year]
-    gw_df = {'YEAR': years, 'Actual_GW': list(mean_actual_gw.values()), 'Pred_GW': list(mean_pred_gw.values())}
-    gw_df = pd.DataFrame(data=gw_df)
+    gw_df = pd.DataFrame()
+    for index, (actual_gw_file_dir, pred_gw_file_dir) in enumerate(zip(actual_gw_file_dir_list, pred_gw_file_dir_list)):
+        actual_gw_raster_dict = rops.create_raster_dict(actual_gw_file_dir, pattern=actual_gw_pattern)
+        pred_gw_raster_dict = rops.create_raster_dict(pred_gw_file_dir, pattern=pred_gw_pattern)
+        years = sorted(list(pred_gw_raster_dict.keys()))
+        mean_actual_gw = {}
+        mean_pred_gw = {}
+        for year in years:
+            mean_pred_gw[year] = np.nanmean(pred_gw_raster_dict[year])
+            if year in actual_gw_raster_dict.keys():
+                mean_actual_gw[year] = np.nanmean(actual_gw_raster_dict[year])
+            else:
+                mean_actual_gw[year] = mean_pred_gw[year]
+        gw_dict = {'YEAR': years, 'Actual_GW': list(mean_actual_gw.values()), 'Pred_GW': list(mean_pred_gw.values())}
+        if use_gmds:
+            gw_dict['GMD'] = [gmd_name_list[index]] * len(years)
+        gw_df = gw_df.append(pd.DataFrame(data=gw_dict))
     gw_df.to_csv(out_dir + 'gw_yearly_new.csv', index=False)
     return gw_df, grace_df
 
@@ -137,18 +148,19 @@ def create_time_series_plot(input_df_list):
     plt.show()
 
 
-def create_time_series_forecast_plot(input_df_list, forecast_years=(2019, )):
+def create_time_series_forecast_plot(input_df_list, forecast_years=(2019, ), plot_title=''):
     """
     Create time series plot
     :param input_df_list: Input data frames as constructed from #create_gw_time_series
     :param forecast_years: The line color changes for these years
+    :param plot_title: Plot title
     :return: None
     """
 
     df1, df2 = input_df_list
     fig, (ax1, ax2) = plt.subplots(2, 1)
+    fig.suptitle(plot_title)
     year = df1['YEAR']
-    plt.tight_layout()
     df1.set_index('YEAR').plot(ax=ax1)
     df2.set_index('DT').plot(ax=ax2)
 
@@ -168,19 +180,72 @@ def create_time_series_forecast_plot(input_df_list, forecast_years=(2019, )):
     plt.show()
 
 
-def run_analysis(actual_gw_dir, pred_gw_dir, grace_csv, out_dir, actual_gw_pattern='GW*.tif',
-                 pred_gw_pattern='pred*.tif'):
+def preprocess_gmds(actual_gw_dir, pred_gw_dir, input_gmd_file, out_dir, actual_gw_pattern='GW*.tif',
+                    pred_gw_pattern='pred*.tif'):
+    """
+    Preprocess GMD shapefiles and rasters
+    :param actual_gw_dir: Directory containing the actual data
+    :param pred_gw_dir: Directory containing the predicted data
+    :param input_gmd_file: Input GMD shapefile for creating GMD specific plots
+    :param out_dir: Output directory for storing intermediate files
+    :param actual_gw_pattern: Actual GW pumping raster file pattern
+    :param pred_gw_pattern: Predicted GW pumping raster file pattern
+    :return: Directory paths (as tuple) of the actual and predicted GMD specific GW rasters along with the GMD names
+    """
+
+    out_shp_dir = make_proper_dir_name(out_dir + 'GMD_SHP')
+    out_actual_gmd_dir = make_proper_dir_name(out_dir + 'Actual_GMD_Rasters')
+    out_pred_gmd_dir = make_proper_dir_name(out_dir + 'Pred_GMD_Rasters')
+    makedirs([out_shp_dir, out_actual_gmd_dir, out_pred_gmd_dir])
+    vops.extract_polygons(input_gmd_file, out_shp_dir)
+    actual_gw_dir_list, pred_gw_dir_list, gmd_name_list = [], [], []
+    print('Preprocessing started...')
+    for gmd_shp in glob(out_shp_dir + '*.shp'):
+        gmd_name = gmd_shp[gmd_shp.rfind(os.sep) + 1: gmd_shp.rfind('.')]
+        gmd_name_list.append(gmd_name)
+        actual_outdir = make_proper_dir_name(out_actual_gmd_dir + gmd_name)
+        pred_outdir = make_proper_dir_name(out_pred_gmd_dir + gmd_name)
+        makedirs([actual_outdir, pred_outdir])
+        actual_gw_dir_list.append(actual_outdir)
+        pred_gw_dir_list.append(pred_outdir)
+        rops.crop_multiple_rasters(input_raster_dir=actual_gw_dir, input_shp_file=gmd_shp,
+                                   pattern=actual_gw_pattern, outdir=actual_outdir)
+        rops.crop_multiple_rasters(input_raster_dir=pred_gw_dir, input_shp_file=gmd_shp, pattern=pred_gw_pattern,
+                                   outdir=pred_outdir)
+    return actual_gw_dir_list, pred_gw_dir_list, gmd_name_list
+
+
+def run_analysis(actual_gw_dir, pred_gw_dir, grace_csv, out_dir, input_gmd_file=None, use_gmds=True,
+                 actual_gw_pattern='GW*.tif', pred_gw_pattern='pred*.tif'):
     """
     Run model analysis to get actual vs predicted graph along with GRACE TWSA variations
     :param actual_gw_dir: Directory containing the actual data
     :param pred_gw_dir: Directory containing the predicted data
     :param grace_csv: GRACE TWSA CSV file
     :param out_dir: Output directory for storing intermediate files
+    :param input_gmd_file: Input GMD shapefile for creating GMD specific plots, required only if use_gmds=True
+    :param use_gmds: Set False to use entire GW raster for analysis
     :param actual_gw_pattern: Actual GW pumping raster file pattern
     :param pred_gw_pattern: Predicted GW pumping raster file pattern
     :return: None
     """
 
-    ts_df = create_gw_forecast_time_series(actual_gw_dir, pred_gw_dir, grace_csv=grace_csv, out_dir=out_dir,
-                                           actual_gw_pattern=actual_gw_pattern, pred_gw_pattern=pred_gw_pattern)
-    create_time_series_forecast_plot(ts_df)
+    out_dir = make_proper_dir_name(out_dir)
+    makedirs([out_dir])
+    if not use_gmds:
+        ts_df = create_gw_forecast_time_series(actual_gw_dir, pred_gw_dir, grace_csv=grace_csv, out_dir=out_dir,
+                                               actual_gw_pattern=actual_gw_pattern, pred_gw_pattern=pred_gw_pattern)
+        create_time_series_forecast_plot(ts_df)
+    else:
+        actual_gw_dir_list, pred_gw_dir_list, gmd_name_list = preprocess_gmds(actual_gw_dir, pred_gw_dir,
+                                                                              input_gmd_file, out_dir,
+                                                                              actual_gw_pattern, pred_gw_pattern)
+
+        gw_df, grace_df = create_gw_forecast_time_series(actual_gw_dir_list, pred_gw_dir_list,
+                                                         gmd_name_list=gmd_name_list, grace_csv=grace_csv,
+                                                         use_gmds=use_gmds, out_dir=out_dir,
+                                                         actual_gw_pattern=actual_gw_pattern,
+                                                         pred_gw_pattern=pred_gw_pattern)
+        for gmd in gmd_name_list:
+            ts_df = gw_df[gw_df.GMD == gmd], grace_df
+            create_time_series_forecast_plot(ts_df, plot_title='Analysis for ' + gmd)

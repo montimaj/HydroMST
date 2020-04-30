@@ -378,8 +378,6 @@ def run_gw(analyze_only=False, load_files=True, load_rf_model=False):
     input_gmd_file = input_dir + 'gmds/ks_gmds.shp'
     input_cdl_file = input_dir + 'CDL/CDL_KS_2015.tif'
     input_gdb_dir = input_dir + 'ks_pd_data_updated2018.gdb'
-    ks_watershed_file = '../Archive/Data/Files/Watersheds/ks_reproj/ks_watershed_reproj.shp'
-    final_mask = '../Archive/Data/Files/Final_Mask/crop.shp'
     gdal_path = 'C:/OSGeo4W64/'
     gw_dir = file_dir + 'RF_Data/'
     pred_gw_dir = output_dir + 'Predicted_Rasters/'
@@ -400,7 +398,6 @@ def run_gw(analyze_only=False, load_files=True, load_rf_model=False):
                      input_gmd_file, input_cdl_file, gdal_path)
         gw.extract_shp_from_gdb(input_gdb_dir, year_list=range(2002, 2019), already_extracted=load_files)
         gw.reproject_gmd(already_reprojected=load_files)
-        # gw.clip_gw_shpfiles(already_clipped=load_files)
         gw.create_gw_rasters(already_created=load_files)
         gw.reclassify_cdl(ks_class_dict, already_reclassified=load_files)
         gw.reproject_rasters(already_reprojected=load_files)
@@ -411,7 +408,7 @@ def run_gw(analyze_only=False, load_files=True, load_rf_model=False):
                                   load_model=load_rf_model, max_features=5)
         gw.get_predictions(rf_model=rf_model, pred_years=range(2002, 2020), drop_attrs=drop_attrs, pred_attr=pred_attr,
                            only_pred=False)
-    ma.run_analysis(gw_dir, pred_gw_dir, grace_csv, out_dir=output_dir)
+    ma.run_analysis(gw_dir, pred_gw_dir, grace_csv, use_gmds=True, input_gmd_file=input_gmd_file, out_dir=output_dir)
 
 
 run_gw(analyze_only=False, load_files=False, load_rf_model=False)
