@@ -11,7 +11,7 @@ from sklearn.linear_model import LinearRegression
 
 def create_gw_time_series(actual_gw_file_dir, pred_gw_file_dir, grace_dir, actual_gw_pattern='GW*.tif',
                           pred_gw_pattern='pred*.tif', grace_pattern='GRACE*.tif', make_trend=False,
-                          out_dir='../Output/'):
+                          out_dir='../Outputs/'):
     """
     Create time series data for actual and predicted GW values (annual mean) along with GRACE
     :param actual_gw_file_dir: Actual GW pumping raster directory
@@ -58,7 +58,7 @@ def create_gw_time_series(actual_gw_file_dir, pred_gw_file_dir, grace_dir, actua
 
 
 def create_gw_forecast_time_series(actual_gw_file_dir, pred_gw_file_dir, grace_csv, actual_gw_pattern='GW*.tif',
-                                   pred_gw_pattern='pred*.tif', out_dir='../Output/', forecast_years=(2019, )):
+                                   pred_gw_pattern='pred*.tif', out_dir='../Outputs/'):
     """
     Create GW and GRACE dataframes
     :param actual_gw_file_dir: Actual GW pumping raster directory
@@ -67,7 +67,6 @@ def create_gw_forecast_time_series(actual_gw_file_dir, pred_gw_file_dir, grace_c
     :param actual_gw_pattern: Actual GW pumping raster file pattern
     :param pred_gw_pattern: Predicted GW pumping raster file pattern
     :param out_dir: Output directory for storing the CSV files
-    :param forecast_years: Years used as forecast data (these don't have actual observations)
     :return: Two dataframes, one with the GW pumping values and the other containing the monthly GRACE values
     """
 
@@ -149,6 +148,7 @@ def create_time_series_forecast_plot(input_df_list, forecast_years=(2019, )):
     df1, df2 = input_df_list
     fig, (ax1, ax2) = plt.subplots(2, 1)
     year = df1['YEAR']
+    plt.tight_layout()
     df1.set_index('YEAR').plot(ax=ax1)
     df2.set_index('DT').plot(ax=ax2)
 
@@ -168,10 +168,19 @@ def create_time_series_forecast_plot(input_df_list, forecast_years=(2019, )):
     plt.show()
 
 
-gw_dir = '../Files_New/RF_Data_All/'
-pred_gw_dir = '../Output/Predicted_Rasters_All/'
-grace_csv = '../Data/GRACE/TWS_GRACE.csv'
-# grace_dir = '../Files/Masked_Rasters_All/GRACE_Scaled/'
-# ts_df = create_gw_time_series(gw_dir, pred_gw_dir, grace_dir)
-ts_df = create_gw_forecast_time_series(gw_dir, pred_gw_dir, grace_csv)
-create_time_series_forecast_plot(ts_df)
+def run_analysis(actual_gw_dir, pred_gw_dir, grace_csv, out_dir, actual_gw_pattern='GW*.tif',
+                 pred_gw_pattern='pred*.tif'):
+    """
+    Run model analysis to get actual vs predicted graph along with GRACE TWSA variations
+    :param actual_gw_dir: Directory containing the actual data
+    :param pred_gw_dir: Directory containing the predicted data
+    :param grace_csv: GRACE TWSA CSV file
+    :param out_dir: Output directory for storing intermediate files
+    :param actual_gw_pattern: Actual GW pumping raster file pattern
+    :param pred_gw_pattern: Predicted GW pumping raster file pattern
+    :return: None
+    """
+
+    ts_df = create_gw_forecast_time_series(actual_gw_dir, pred_gw_dir, grace_csv=grace_csv, out_dir=out_dir,
+                                           actual_gw_pattern=actual_gw_pattern, pred_gw_pattern=pred_gw_pattern)
+    create_time_series_forecast_plot(ts_df)

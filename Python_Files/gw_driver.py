@@ -6,6 +6,7 @@ from Python_Files.hydrolibs import rasterops as rops
 from Python_Files.hydrolibs import vectorops as vops
 from Python_Files.hydrolibs.sysops import makedirs, make_proper_dir_name, copy_files
 from Python_Files.hydrolibs import random_forest_regressor as rfr
+from Python_Files.hydrolibs import model_analysis as ma
 from glob import glob
 
 
@@ -232,12 +233,12 @@ class HydroML:
         else:
             print('Land use rasters already created')
 
-    def create_dataframe(self, column_names, year_list, ordering=False, load_df=False, exclude_years=(2019, ),
+    def create_dataframe(self, year_list, column_names=None, ordering=False, load_df=False, exclude_years=(2019, ),
                          verbose=True):
         """
         Create dataframe from preprocessed files
-        :param column_names: Dataframe column names, these must be df headers
         :param year_list: List of years for which the dataframe will be created
+        :param column_names: Dataframe column names, these must be df headers
         :param ordering: Set True to order dataframe column names
         :param load_df: Set true to load existing dataframe
         :param exclude_years: List of years to exclude from dataframe
@@ -292,7 +293,7 @@ class HydroML:
                                      drop_attrs=drop_attrs, test_year=ty, shuffle=False, plot_graphs=False,
                                      split_yearly=True, bootstrap=True, max_features=nf, test_case=t)
 
-    def build_model(self, df, n_estimators=500, random_state=0, bootstrap=True, max_features=3, test_size=None,
+    def build_model(self, df, n_estimators=100, random_state=0, bootstrap=True, max_features=3, test_size=None,
                     pred_attr='GW', shuffle=False, plot_graphs=False, plot_3d=False, drop_attrs=(), test_year=(2012,),
                     split_yearly=True, load_model=False):
         """
@@ -326,7 +327,7 @@ class HydroML:
                                     load_model=load_model, test_size=test_size)
         return rf_model
 
-    def get_predictions(self, rf_model, pred_years, column_names, final_mask=None, ordering=False, pred_attr='GW',
+    def get_predictions(self, rf_model, pred_years, column_names=None, final_mask=None, ordering=False, pred_attr='GW',
                         only_pred=False, exclude_years=(2019,), drop_attrs=(), crop_rasters=False):
         """
         Get prediction results and/or rasters
@@ -358,16 +359,20 @@ class HydroML:
             rops.crop_multiple_rasters(pred_out_dir, outdir=crop_dir, input_shp_file=final_mask, pattern=pattern)
 
 
-def run_gw():
+def run_gw(analyze_only=False, load_files=True, load_rf_model=False):
     """
-    Main function for running the project
+    Main function for running the project, some variables require to be hardcoded
+    :param analyze_only: Set True to just produce analysis results, all required files must be present
+    :param load_files: Set True to load existing files, needed only if analyze_only=False
+    :param load_rf_model: Set True to load existing Random Forest model, needed only if analyze_only=False
     :return: None
     """
 
+    gee_data = ['Apr_Sept/', 'Apr_Aug/', 'Annual/']
     input_dir = '../Inputs/Data/'
-    file_dir = '../Inputs/Files/'
-    output_dir = '../Outputs/'
-    input_ts_dir = input_dir + 'GEE_Data_Annual/'
+    file_dir = '../Inputs/Files_' + gee_data[2]
+    output_dir = '../Outputs/Output_' + gee_data[2]
+    input_ts_dir = input_dir + 'GEE_Data_' + gee_data[2]
     output_shp_dir = file_dir + 'GW_Shapefiles/'
     output_gw_raster_dir = file_dir + 'GW_Rasters/'
     input_gmd_file = input_dir + 'gmds/ks_gmds.shp'
@@ -376,6 +381,9 @@ def run_gw():
     ks_watershed_file = '../Archive/Data/Files/Watersheds/ks_reproj/ks_watershed_reproj.shp'
     final_mask = '../Archive/Data/Files/Final_Mask/crop.shp'
     gdal_path = 'C:/OSGeo4W64/'
+    gw_dir = file_dir + 'RF_Data/'
+    pred_gw_dir = output_dir + 'Predicted_Rasters/'
+    grace_csv = input_dir + 'GRACE/TWS_GRACE.csv'
     ks_class_dict = {(0, 59.5): 1,
                      (66.5, 77.5): 1,
                      (203.5, 255): 1,
@@ -386,24 +394,24 @@ def run_gw():
                      (130.5, 195.5): 0
                      }
     drop_attrs = ('YEAR',)
-    column_names = ('YEAR', 'AGRI', 'SW', 'URBAN', 'ET', 'P', 'GW')
     pred_attr = 'GW'
-    load_files = False
-    gw = HydroML(input_dir, file_dir, output_dir, input_ts_dir, output_shp_dir, output_gw_raster_dir,
-                 input_gmd_file, input_cdl_file, gdal_path)
-    gw.extract_shp_from_gdb(input_gdb_dir, year_list=range(2002, 2019), already_extracted=load_files)
-    gw.reproject_gmd(already_reprojected=load_files)
-    # gw.clip_gw_shpfiles(already_clipped=load_files)
-    gw.create_gw_rasters(already_created=load_files)
-    gw.reclassify_cdl(ks_class_dict, already_reclassified=load_files)
-    gw.reproject_rasters(already_reprojected=load_files)
-    gw.mask_rasters(already_masked=load_files)
-    gw.create_land_use_rasters(already_created=load_files)
-    df = gw.create_dataframe(year_list=range(2002, 2020), column_names=None, ordering=False, load_df=load_files)
-    rf_model = gw.build_model(df, test_year=range(2011, 2019), drop_attrs=drop_attrs, pred_attr=pred_attr,
-                              load_model=True, max_features=5)
-    gw.get_predictions(rf_model=rf_model, pred_years=range(2002, 2020), drop_attrs=drop_attrs, pred_attr=pred_attr,
-                       only_pred=True, column_names=None, ordering=False)
+    if not analyze_only:
+        gw = HydroML(input_dir, file_dir, output_dir, input_ts_dir, output_shp_dir, output_gw_raster_dir,
+                     input_gmd_file, input_cdl_file, gdal_path)
+        gw.extract_shp_from_gdb(input_gdb_dir, year_list=range(2002, 2019), already_extracted=load_files)
+        gw.reproject_gmd(already_reprojected=load_files)
+        # gw.clip_gw_shpfiles(already_clipped=load_files)
+        gw.create_gw_rasters(already_created=load_files)
+        gw.reclassify_cdl(ks_class_dict, already_reclassified=load_files)
+        gw.reproject_rasters(already_reprojected=load_files)
+        gw.mask_rasters(already_masked=load_files)
+        gw.create_land_use_rasters(already_created=load_files)
+        df = gw.create_dataframe(year_list=range(2002, 2020), load_df=load_files)
+        rf_model = gw.build_model(df, test_year=range(2011, 2019), drop_attrs=drop_attrs, pred_attr=pred_attr,
+                                  load_model=load_rf_model, max_features=5)
+        gw.get_predictions(rf_model=rf_model, pred_years=range(2002, 2020), drop_attrs=drop_attrs, pred_attr=pred_attr,
+                           only_pred=False)
+    ma.run_analysis(gw_dir, pred_gw_dir, grace_csv, out_dir=output_dir)
 
 
-run_gw()
+run_gw(analyze_only=False, load_files=False, load_rf_model=False)

@@ -19,7 +19,7 @@ from mpl_toolkits.mplot3d import axes3d
 from Python_Files.hydrolibs import rasterops as rops
 
 
-def create_dataframe(input_file_dir, out_df, column_names, pattern='*.tif', exclude_years=(), exclude_vars=(),
+def create_dataframe(input_file_dir, out_df, column_names=None, pattern='*.tif', exclude_years=(), exclude_vars=(),
                      make_year_col=True, ordering=False):
     """
     Create dataframe from file list
@@ -309,20 +309,21 @@ def rf_regressor(input_df, out_dir, n_estimators=200, random_state=0, bootstrap=
           'Test_Score': [test_score], 'OOB_Score': [oob_score], 'MAE': [mae], 'RMSE': [rmse]}
     print('Model statistics:', df)
     df = pd.DataFrame(data=df)
-    df.to_csv(out_dir + 'RF_Results.csv', mode='a', index=False, header=False)
+    with open(out_dir + 'RF_Results.csv', 'a') as f:
+        df.to_csv(f, mode='a', index=False, header=f.tell() == 0)
     if plot_graphs:
         create_pdplots(x_train=x_train, rf_model=regressor, outdir=plot_dir, plot_3d=plot_3d)
     return regressor
 
 
-def create_pred_raster(rf_model, out_raster, column_names, actual_raster_dir, pred_year=2015, pred_attr='GW',
+def create_pred_raster(rf_model, out_raster, actual_raster_dir, column_names=None, pred_year=2015, pred_attr='GW',
                        drop_attrs=(), only_pred=False, calculate_errors=True, ordering=False):
     """
     Create prediction raster
     :param rf_model: Pre-built Random Forest Model
     :param out_raster: Output raster
-    :param column_names: Dataframe column names, these must be df headers
     :param actual_raster_dir: Ground truth raster files required for prediction
+    :param column_names: Dataframe column names, these must be df headers
     :param pred_year: Prediction year
     :param pred_attr: Prediction attribute name in the dataframe
     :param drop_attrs: Drop these specified attributes (Must be exactly the same as used in rf_regressor module)
@@ -389,7 +390,7 @@ def create_pred_raster(rf_model, out_raster, column_names, actual_raster_dir, pr
     return mae, rmse, r_squared
 
 
-def predict_rasters(rf_model, actual_raster_dir, out_dir, pred_years, column_names, drop_attrs=(), pred_attr='GW',
+def predict_rasters(rf_model, actual_raster_dir, out_dir, pred_years, column_names=None, drop_attrs=(), pred_attr='GW',
                     only_pred=False, exclude_years=(2019, ), ordering=False):
     """
     Create prediction rasters from input data
