@@ -93,7 +93,7 @@ def create_gw_forecast_time_series(actual_gw_file_dir_list, pred_gw_file_dir_lis
             if year in actual_gw_raster_dict.keys():
                 mean_actual_gw[year] = np.nanmean(actual_gw_raster_dict[year])
             else:
-                mean_actual_gw[year] = mean_pred_gw[year]
+                mean_actual_gw[year] = np.nan
         gw_dict = {'YEAR': years, 'Actual_GW': list(mean_actual_gw.values()), 'Pred_GW': list(mean_pred_gw.values())}
         if use_gmds:
             gw_dict['GMD'] = [gmd_name_list[index]] * len(years)
@@ -160,7 +160,6 @@ def create_time_series_forecast_plot(input_df_list, forecast_years=(2019, ), plo
     df1, df2 = input_df_list
     fig, (ax1, ax2) = plt.subplots(2, 1)
     fig.suptitle(plot_title)
-    year = df1['YEAR']
     df1.set_index('YEAR').plot(ax=ax1)
     df2.set_index('DT').plot(ax=ax2)
 
@@ -170,8 +169,8 @@ def create_time_series_forecast_plot(input_df_list, forecast_years=(2019, ), plo
     ax1.legend(loc=2, ncol=2, frameon=False, fancybox=False, bbox_to_anchor=(0.1, 1),
                labels=['Actual GW', 'Pred GW', 'Test Data (2011-2018)', 'Forecast'])
     ax1.set_ylabel('Mean GW Pumping (mm)')
-    ax1.set_xticks(year)
-    ax1.set_xticklabels(year)
+    ax1.set_xticks(df1.YEAR)
+    ax1.set_xticklabels(df1.YEAR)
     ax1.set_xlabel('')
     ax2.invert_yaxis()
     ax2.set_ylabel('Monthly TWS (mm)')
