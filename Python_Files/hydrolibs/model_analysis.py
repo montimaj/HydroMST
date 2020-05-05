@@ -162,7 +162,6 @@ def create_time_series_forecast_plot(input_df_list, forecast_years=(2019, ), plo
     fig.suptitle(plot_title)
     df1.set_index('YEAR').plot(ax=ax1)
     df2.set_index('DT').plot(ax=ax2)
-
     ax1.axvline(x=2011, color='k', linestyle='--')
     min_forecast_yr = min(forecast_years)
     ax1.axvline(x=min_forecast_yr - 1, color='r', linestyle='--')
@@ -172,11 +171,47 @@ def create_time_series_forecast_plot(input_df_list, forecast_years=(2019, ), plo
     ax1.set_xticks(df1.YEAR)
     ax1.set_xticklabels(df1.YEAR)
     ax1.set_xlabel('')
+    ax2.set_ylim(bottom=-150, top=150)
     ax2.invert_yaxis()
     ax2.set_ylabel('Monthly TWS (mm)')
     ax2.set_xlabel('Year')
     ax2.legend(loc=2, bbox_to_anchor=(0.1, 1), frameon=False, fancybox=False, labels=['GRACE TWS'])
     plt.show()
+
+
+def create_gmd_time_series_forecast_plot(input_df_list, gmd_name_list, forecast_years=(2019, ), plot_title=''):
+    """
+    Create time series plot considering all GMDs
+    :param input_df_list: Input data frames as constructed from #create_gw_time_series
+    :param gmd_name_list: GMD labels
+    :param forecast_years: The line color changes for these years
+    :param plot_title: Plot title
+    :return: None
+    """
+
+    gw_df, grace_df = input_df_list
+    for gmd in gmd_name_list:
+        fig, (ax1, ax2) = plt.subplots(2, 1)
+        fig.suptitle(plot_title)
+        df = gw_df[gw_df.GMD == gmd]
+        df.set_index('YEAR').plot(ax=ax1)
+        ax1.axvline(x=2011, color='k', linestyle='--')
+        min_forecast_yr = min(forecast_years)
+        ax1.axvline(x=min_forecast_yr - 1, color='r', linestyle='--')
+        ax1.legend(loc=2, ncol=2, frameon=False, fancybox=False, bbox_to_anchor=(0.1, 1),
+                   labels=['Actual GW: ' + gmd, 'Pred GW: ' + gmd, 'Test Data (2011-2018)', 'Forecast'])
+        ax1.set_ylabel('Mean GW Pumping (mm)')
+        ax1.set_xticks(df.YEAR)
+        ax1.set_xticklabels(df.YEAR)
+        ax1.set_xlabel('')
+        ax1.set_ylim(bottom=0, top=150)
+        grace_df.set_index('DT').plot(ax=ax2)
+        ax2.set_ylim(bottom=-150, top=150)
+        ax2.invert_yaxis()
+        ax2.set_ylabel('Monthly TWS (mm)')
+        ax2.set_xlabel('Year')
+        ax2.legend(loc=2, bbox_to_anchor=(0.1, 1), frameon=False, fancybox=False, labels=['GRACE TWS'])
+        plt.show()
 
 
 def preprocess_gmds(actual_gw_dir, pred_gw_dir, input_gmd_file, out_dir, actual_gw_pattern='GW*.tif',
@@ -241,11 +276,8 @@ def run_analysis(actual_gw_dir, pred_gw_dir, grace_csv, out_dir, input_gmd_file=
                                                                               input_gmd_file, out_dir,
                                                                               actual_gw_pattern, pred_gw_pattern)
 
-        gw_df, grace_df = create_gw_forecast_time_series(actual_gw_dir_list, pred_gw_dir_list,
-                                                         gmd_name_list=gmd_name_list, grace_csv=grace_csv,
-                                                         use_gmds=use_gmds, out_dir=out_dir,
-                                                         actual_gw_pattern=actual_gw_pattern,
-                                                         pred_gw_pattern=pred_gw_pattern)
-        for gmd in gmd_name_list:
-            ts_df = gw_df[gw_df.GMD == gmd], grace_df
-            create_time_series_forecast_plot(ts_df, plot_title='Analysis for ' + gmd)
+        ts_df = create_gw_forecast_time_series(actual_gw_dir_list, pred_gw_dir_list, gmd_name_list=gmd_name_list,
+                                               grace_csv=grace_csv, use_gmds=use_gmds, out_dir=out_dir,
+                                               actual_gw_pattern=actual_gw_pattern, pred_gw_pattern=pred_gw_pattern)
+
+        create_gmd_time_series_forecast_plot(ts_df, gmd_name_list=gmd_name_list)
