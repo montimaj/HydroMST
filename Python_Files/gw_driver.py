@@ -13,7 +13,7 @@ from glob import glob
 class HydroML:
 
     def __init__(self, input_dir, file_dir, output_dir, input_ts_dir, output_shp_dir, output_gw_raster_dir,
-                 input_gmd_file, input_cdl_file, gdal_path):
+                 input_gmd_file, input_state_file, input_cdl_file, gdal_path):
         """
         Constructor for initializing class variables
         :param input_dir: Input data directory
@@ -23,6 +23,7 @@ class HydroML:
         :param output_shp_dir: Output shapefile directory
         :param output_gw_raster_dir: Output GW raster directory
         :param input_gmd_file: Input GMD file
+        :param input_state_file: Input state shapefile
         :param input_cdl_file: Input NASS CDL file path
         :param gdal_path: GDAL directory path, in Windows replace with OSGeo4W directory path, e.g. '/usr/bin/gdal/' on
         Linux or Mac and 'C:/OSGeo4W64/' on Windows
@@ -36,8 +37,10 @@ class HydroML:
         self.output_gw_raster_dir = make_proper_dir_name(output_gw_raster_dir)
         self.gdal_path = make_proper_dir_name(gdal_path)
         self.input_gmd_file = input_gmd_file
+        self.input_state_file = input_state_file
         self.input_cdl_file = input_cdl_file
         self.input_gmd_reproj_file = None
+        self.input_state_reproj_file = None
         self.final_gw_dir = None
         self.ref_raster = None
         self.raster_reproj_dir = None
@@ -63,22 +66,26 @@ class HydroML:
         else:
             print("GW shapefiles already extracted")
 
-    def reproject_gmd(self, already_reprojected=False):
+    def reproject_shapefiles(self, already_reprojected=False):
         """
-        Reproject GMD shapefile
+        Reproject GMD and state shapefiles
         :param already_reprojected: Set True to disable reprojection
         :return: None
         """
 
         gmd_reproj_dir = make_proper_dir_name(self.file_dir + 'gmds/reproj')
+        state_reproj_dir = make_proper_dir_name(self.file_dir + 'state/reproj')
         self.input_gmd_reproj_file = gmd_reproj_dir + 'input_gmd_reproj.shp'
+        self.input_state_reproj_file = state_reproj_dir + 'input_state_reproj.shp'
         if not already_reprojected:
-            makedirs([gmd_reproj_dir])
+            makedirs([gmd_reproj_dir, state_reproj_dir])
             ref_shp = glob(self.output_shp_dir + '*.shp')[0]
             vops.reproject_vector(self.input_gmd_file, outfile_path=self.input_gmd_reproj_file, ref_file=ref_shp,
                                   raster=False)
+            vops.reproject_vector(self.input_state_file, outfile_path=self.input_state_reproj_file, ref_file=ref_shp,
+                                  raster=False)
         else:
-            print('GMD already reprojected')
+            print('GMD and State shapefiles are already reprojected')
 
     def clip_gw_shpfiles(self, new_clip_file=None, already_clipped=False, extent_clip=True):
         """
@@ -130,6 +137,8 @@ class HydroML:
             rops.fix_large_values(self.output_gw_raster_dir, outdir=fixed_dir)
             if crop_rasters:
                 makedirs([cropped_dir])
+                if not raster_mask:
+                    raster_mask = self.input_state_reproj_file
                 rops.crop_rasters(fixed_dir, outdir=cropped_dir, input_mask_file=raster_mask, ext_mask=ext_mask,
                                   gdal_path=self.gdal_path)
             if convert_units:
@@ -342,7 +351,7 @@ class HydroML:
         :param exclude_years: List of years to exclude from dataframe
         :param drop_attrs: Drop these specified attributes
         :param crop_rasters: Set True to crop actual and predicted rasters
-        :return: None
+        :return: Predicted raster directory path
         """
 
         print('Predicting...')
@@ -355,8 +364,13 @@ class HydroML:
             crop_dir = make_proper_dir_name(pred_out_dir + 'Cropped_Rasters')
             makedirs([crop_dir])
             pattern = pred_attr + '*.tif'
+            if not final_mask:
+                final_mask = self.input_state_reproj_file
             rops.crop_multiple_rasters(self.rf_data_dir, outdir=crop_dir, input_shp_file=final_mask, pattern=pattern)
+            pattern = 'pred*.tif'
             rops.crop_multiple_rasters(pred_out_dir, outdir=crop_dir, input_shp_file=final_mask, pattern=pattern)
+            pred_out_dir = crop_dir
+        return pred_out_dir
 
 
 def run_gw(analyze_only=False, load_files=True, load_rf_model=False, use_gmds=True):
@@ -379,6 +393,7 @@ def run_gw(analyze_only=False, load_files=True, load_rf_model=False, use_gmds=Tr
     input_gmd_file = input_dir + 'gmds/ks_gmds.shp'
     input_cdl_file = input_dir + 'CDL/CDL_KS_2015.tif'
     input_gdb_dir = input_dir + 'ks_pd_data_updated2018.gdb'
+    input_state_file = input_dir + 'Kansas/kansas.shp'
     gdal_path = 'C:/OSGeo4W64/'
     gw_dir = file_dir + 'RF_Data/'
     pred_gw_dir = output_dir + 'Predicted_Rasters/'
@@ -396,9 +411,9 @@ def run_gw(analyze_only=False, load_files=True, load_rf_model=False, use_gmds=Tr
     pred_attr = 'GW'
     if not analyze_only:
         gw = HydroML(input_dir, file_dir, output_dir, input_ts_dir, output_shp_dir, output_gw_raster_dir,
-                     input_gmd_file, input_cdl_file, gdal_path)
+                     input_gmd_file, input_state_file, input_cdl_file, gdal_path)
         gw.extract_shp_from_gdb(input_gdb_dir, year_list=range(2002, 2019), already_extracted=load_files)
-        gw.reproject_gmd(already_reprojected=load_files)
+        gw.reproject_shapefiles(already_reprojected=load_files)
         gw.create_gw_rasters(already_created=load_files)
         gw.reclassify_cdl(ks_class_dict, already_reclassified=load_files)
         gw.reproject_rasters(already_reprojected=load_files)
@@ -407,10 +422,10 @@ def run_gw(analyze_only=False, load_files=True, load_rf_model=False, use_gmds=Tr
         df = gw.create_dataframe(year_list=range(2002, 2020), load_df=load_files)
         rf_model = gw.build_model(df, test_year=range(2011, 2019), drop_attrs=drop_attrs, pred_attr=pred_attr,
                                   load_model=load_rf_model, max_features=5)
-        gw.get_predictions(rf_model=rf_model, pred_years=range(2002, 2020), drop_attrs=drop_attrs, pred_attr=pred_attr,
-                           only_pred=False)
+        pred_gw_dir = gw.get_predictions(rf_model=rf_model, pred_years=range(2002, 2020), drop_attrs=drop_attrs,
+                                         pred_attr=pred_attr, only_pred=False)
     ma.run_analysis(gw_dir, pred_gw_dir, grace_csv, use_gmds=use_gmds, input_gmd_file=input_gmd_file,
                     out_dir=output_dir)
 
 
-run_gw(analyze_only=True, load_files=False, load_rf_model=False, use_gmds=True)
+run_gw(analyze_only=True, load_files=False, load_rf_model=False, use_gmds=False)
