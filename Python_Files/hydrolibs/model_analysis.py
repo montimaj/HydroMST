@@ -5,6 +5,7 @@ import numpy as np
 import pandas as pd
 import os
 import matplotlib.pyplot as plt
+import sklearn.metrics as metrics
 from glob import glob
 from Python_Files.hydrolibs import rasterops as rops
 from Python_Files.hydrolibs import vectorops as vops
@@ -249,6 +250,35 @@ def preprocess_gmds(actual_gw_dir, pred_gw_dir, input_gmd_file, out_dir, actual_
     return actual_gw_dir_list, pred_gw_dir_list, gmd_name_list
 
 
+def calculate_gmd_stats(gw_df, gmd_name_list, out_dir, train_end=2010, test_start=2011):
+    """
+    Calculate error metrics for each GMD
+    :param gw_df: Input GW Dataframe containing actual and predicted GW
+    :param gmd_name_list: GMD labels
+    :param out_dir: Output directory to write results to
+    :param train_end: Training year end
+    :param test_start: Test year start
+    :return: GMD metrics dataframe
+    """
+
+    gmd_metrics_df = pd.DataFrame()
+    gw_df = gw_df.dropna(axis=0)
+    gw_df_list = gw_df[gw_df.YEAR <= train_end], gw_df[gw_df.YEAR >= test_start], gw_df
+    gw_df_labels = ['TRAIN', 'TEST', 'ALL']
+    for gw_df, gw_df_label in zip(gw_df_list, gw_df_labels):
+        for gmd in gmd_name_list:
+            actual_values = gw_df[gw_df.GMD == gmd].Actual_GW
+            pred_values = gw_df[gw_df.GMD == gmd].Pred_GW
+            rmse = np.round(metrics.mean_squared_error(actual_values, pred_values, squared=False), 2)
+            r2 = np.round(metrics.r2_score(actual_values, pred_values), 2)
+            mae = np.round(metrics.mean_absolute_error(actual_values, pred_values), 2)
+            gmd_metrics_dict = {'GW_TYPE': [gw_df_label], 'GMD': [gmd], 'RMSE': [rmse], 'R2': [r2], 'MAE': [mae]}
+            gmd_metrics_df = gmd_metrics_df.append(pd.DataFrame(data=gmd_metrics_dict))
+    out_csv = out_dir + 'GMD_Metrics.csv'
+    gmd_metrics_df.to_csv(out_csv, index=False)
+    return gmd_metrics_df
+
+
 def run_analysis(actual_gw_dir, pred_gw_dir, grace_csv, out_dir, input_gmd_file=None, use_gmds=True,
                  actual_gw_pattern='GW*.tif', pred_gw_pattern='pred*.tif'):
     """
@@ -280,4 +310,5 @@ def run_analysis(actual_gw_dir, pred_gw_dir, grace_csv, out_dir, input_gmd_file=
                                                grace_csv=grace_csv, use_gmds=use_gmds, out_dir=out_dir,
                                                actual_gw_pattern=actual_gw_pattern, pred_gw_pattern=pred_gw_pattern)
 
+        print(calculate_gmd_stats(ts_df[0], gmd_name_list, out_dir))
         create_gmd_time_series_forecast_plot(ts_df, gmd_name_list=gmd_name_list)

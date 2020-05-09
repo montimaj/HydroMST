@@ -302,7 +302,7 @@ def rf_regressor(input_df, out_dir, n_estimators=200, random_state=0, bootstrap=
     train_score = np.round(regressor.score(x_train, y_train), 2)
     test_score = np.round(regressor.score(x_test, y_test), 2)
     mae = np.round(metrics.mean_absolute_error(y_test, y_pred), 2)
-    rmse = np.round(np.sqrt(metrics.mean_squared_error(y_test, y_pred)), 2)
+    rmse = np.round(metrics.mean_squared_error(y_test, y_pred, squared=False), 2)
     oob_score = np.round(regressor.oob_score_, 2)
     df = {'Test': [test_case], 'N_Estimator': [n_estimators], 'MF': [max_features], 'F_IMP': [feature_imp],
           'P_IMP_TRAIN': [permutation_imp_train], 'P_IMP_TEST': [permutation_imp_test], 'Train_Score': [train_score],
