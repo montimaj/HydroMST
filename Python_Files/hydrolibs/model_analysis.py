@@ -83,6 +83,7 @@ def create_gw_forecast_time_series(actual_gw_file_dir_list, pred_gw_file_dir_lis
     grace_df['GRACE'] = grace_df['GRACE'] * 10
     grace_df['DT'] = pd.to_datetime(grace_df['DT']).dt.date
     gw_df = pd.DataFrame()
+    gw_raster_df = pd.DataFrame()
     for index, (actual_gw_file_dir, pred_gw_file_dir) in enumerate(zip(actual_gw_file_dir_list, pred_gw_file_dir_list)):
         actual_gw_raster_dict = rops.create_raster_dict(actual_gw_file_dir, pattern=actual_gw_pattern)
         pred_gw_raster_dict = rops.create_raster_dict(pred_gw_file_dir, pattern=pred_gw_pattern)
@@ -90,9 +91,16 @@ def create_gw_forecast_time_series(actual_gw_file_dir_list, pred_gw_file_dir_lis
         mean_actual_gw = {}
         mean_pred_gw = {}
         for year in years:
-            mean_pred_gw[year] = np.nanmean(pred_gw_raster_dict[year])
+            pred_raster = pred_gw_raster_dict[year]
+            pred_raster = pred_raster.reshape(pred_raster.shape[0] * pred_raster.shape[1])
+            mean_pred_gw[year] = np.nanmean(pred_raster)
             if year in actual_gw_raster_dict.keys():
-                mean_actual_gw[year] = np.nanmean(actual_gw_raster_dict[year])
+                actual_raster = actual_gw_raster_dict[year]
+                actual_raster = actual_raster.reshape(actual_raster.shape[0] * actual_raster.shape[1])
+                mean_actual_gw[year] = np.nanmean(actual_raster)
+                raster_dict = {'YEAR': [year] * actual_raster.shape[0], 'Actual_GW': actual_raster,
+                               'Pred_GW': pred_raster, 'GMD': [gmd_name_list[index]] * actual_raster.shape[0]}
+                gw_raster_df = gw_raster_df.append(pd.DataFrame(data=raster_dict))
             else:
                 mean_actual_gw[year] = np.nan
         gw_dict = {'YEAR': years, 'Actual_GW': list(mean_actual_gw.values()), 'Pred_GW': list(mean_pred_gw.values())}
@@ -100,7 +108,9 @@ def create_gw_forecast_time_series(actual_gw_file_dir_list, pred_gw_file_dir_lis
             gw_dict['GMD'] = [gmd_name_list[index]] * len(years)
         gw_df = gw_df.append(pd.DataFrame(data=gw_dict))
     gw_df.to_csv(out_dir + 'gw_yearly_new.csv', index=False)
-    return gw_df, grace_df
+    gw_raster_df = gw_raster_df.dropna(axis=0)
+    gw_raster_df.to_csv(out_dir + 'GW_Raster.csv', index=False)
+    return gw_df, gw_raster_df, grace_df
 
 
 def get_trend(dt_list, value_list):
@@ -300,6 +310,7 @@ def run_analysis(actual_gw_dir, pred_gw_dir, grace_csv, out_dir, input_gmd_file=
         ts_df = create_gw_forecast_time_series([actual_gw_dir], [pred_gw_dir], grace_csv=grace_csv, out_dir=out_dir,
                                                actual_gw_pattern=actual_gw_pattern, pred_gw_pattern=pred_gw_pattern,
                                                use_gmds=use_gmds)
+        ts_df = ts_df[0], ts_df[2]
         create_time_series_forecast_plot(ts_df)
     else:
         actual_gw_dir_list, pred_gw_dir_list, gmd_name_list = preprocess_gmds(actual_gw_dir, pred_gw_dir,
@@ -310,5 +321,6 @@ def run_analysis(actual_gw_dir, pred_gw_dir, grace_csv, out_dir, input_gmd_file=
                                                grace_csv=grace_csv, use_gmds=use_gmds, out_dir=out_dir,
                                                actual_gw_pattern=actual_gw_pattern, pred_gw_pattern=pred_gw_pattern)
 
-        print(calculate_gmd_stats(ts_df[0], gmd_name_list, out_dir))
+        print(calculate_gmd_stats(ts_df[1], gmd_name_list, out_dir))
+        ts_df = ts_df[0], ts_df[2]
         create_gmd_time_series_forecast_plot(ts_df, gmd_name_list=gmd_name_list)
