@@ -99,7 +99,9 @@ def create_gw_forecast_time_series(actual_gw_file_dir_list, pred_gw_file_dir_lis
                 actual_raster = actual_raster.reshape(actual_raster.shape[0] * actual_raster.shape[1])
                 mean_actual_gw[year] = np.nanmean(actual_raster)
                 raster_dict = {'YEAR': [year] * actual_raster.shape[0], 'Actual_GW': actual_raster,
-                               'Pred_GW': pred_raster, 'GMD': [gmd_name_list[index]] * actual_raster.shape[0]}
+                               'Pred_GW': pred_raster}
+                if use_gmds:
+                    raster_dict['GMD'] = [gmd_name_list[index]] * actual_raster.shape[0]
                 gw_raster_df = gw_raster_df.append(pd.DataFrame(data=raster_dict))
             else:
                 mean_actual_gw[year] = np.nan
@@ -181,12 +183,13 @@ def create_time_series_forecast_plot(input_df_list, forecast_years=(2019, ), plo
     ax1.set_ylabel('Mean GW Pumping (mm)')
     ax1.set_xticks(df1.YEAR)
     ax1.set_xticklabels(df1.YEAR)
-    ax1.set_xlabel('')
+    ax1.set_xlabel('Year')
     ax2.set_ylim(bottom=-150, top=150)
     ax2.invert_yaxis()
     ax2.set_ylabel('Monthly TWS (mm)')
     ax2.set_xlabel('Year')
     ax2.legend(loc=2, bbox_to_anchor=(0.1, 1), frameon=False, fancybox=False, labels=['GRACE TWS'])
+    plt.tight_layout(pad=0.4, w_pad=0.5, h_pad=1.0)
     plt.show()
 
 
@@ -214,7 +217,7 @@ def create_gmd_time_series_forecast_plot(input_df_list, gmd_name_list, forecast_
         ax1.set_ylabel('Mean GW Pumping (mm)')
         ax1.set_xticks(df.YEAR)
         ax1.set_xticklabels(df.YEAR)
-        ax1.set_xlabel('')
+        ax1.set_xlabel('Year')
         ax1.set_ylim(bottom=0, top=150)
         grace_df.set_index('DT').plot(ax=ax2)
         ax2.set_ylim(bottom=-150, top=150)
@@ -222,6 +225,7 @@ def create_gmd_time_series_forecast_plot(input_df_list, gmd_name_list, forecast_
         ax2.set_ylabel('Monthly TWS (mm)')
         ax2.set_xlabel('Year')
         ax2.legend(loc=2, bbox_to_anchor=(0.1, 1), frameon=False, fancybox=False, labels=['GRACE TWS'])
+        plt.tight_layout(pad=0.4, w_pad=0.5, h_pad=1.0)
         plt.show()
 
 

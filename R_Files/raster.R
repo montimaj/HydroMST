@@ -1,13 +1,17 @@
 library(raster)
 library(colorRamps)
 
-pred.raster <- raster('C:\\Users\\sayan\\PycharmProjects\\HydroMST\\Output\\Cropped_Rasters_All\\pred_2012.tif')
-actual.raster <- raster('C:\\Users\\sayan\\PycharmProjects\\HydroMST\\Output\\Cropped_Rasters_All\\GW_KS_2012.tif')
+pred.raster <- raster('../Outputs/Output_Apr_Sept_T2/Predicted_Rasters/pred_2011.tif')
+actual.raster <- raster('../Inputs/Files_Apr_Sept/RF_Data/GW_2011.tif')
+
+wgs84 = "+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs"
+actual.raster = projectRaster(actual.raster, crs = wgs84, method = "ngb")
+pred.raster = projectRaster(pred.raster, crs = wgs84, method = "ngb")
 
 par(mfrow = c(1, 2))
-plot(actual.raster, ylab='Latitude (m)', xlab='Longitude (m)', 
+plot(actual.raster, col = matlab.like2(255), ylab='Latitude (Degree)', xlab='Longitude (Degree)', 
      legend.args=list(text='GW Pumping (mm)', side = 2, font = 0.5, cex = 0.8))
-plot(pred.raster, ylab='Latitude (m)', xlab='Longitude (m)', 
+plot(pred.raster, col = matlab.like2(255), ylab='Latitude (Degree)', xlab='Longitude (Degree)', 
      legend.args=list(text='GW Pumping (mm)', side = 2, font = 0.5, cex = 0.8))
 
 
@@ -19,14 +23,14 @@ names(s.df) <- c('actual', 'pred')
 gw.fit <- lm(actual ~ pred, data = s.df)
 abline(gw.fit, col = 'red')
 abline(a = 0, b = 1, col = 'blue')
-legend(0, 450, bty = 'n', legend = c("True relationship", "Fitted regression line"),
+legend(0, 1600, bty = 'n', legend = c("True relationship", "Fitted regression line"),
        col = c("blue", "red"), lty = 1, cex = 0.8)
 summary(gw.fit)
 confint(gw.fit)
 
-par(mfrow = c(3, 2))
+par(mfrow = c(2, 2))
 err.raster <- actual.raster - pred.raster
-plot(err.raster, col = matlab.like(255), ylab='Latitude (m)', xlab='Longitude (m)', 
+plot(err.raster, col = matlab.like2(255), ylab='Latitude (Degree)', xlab='Longitude (Degree)', 
      legend.args=list(text='Error (mm)', side = 2, font = 0.5, cex = 0.55))
 err.df <- as.data.frame(err.raster, na.rm = T)
 err <- err.df$layer

@@ -239,6 +239,7 @@ def create_pdplots(x_train, rf_model, outdir, plot_3d=False, descriptive_labels=
         for name in feature_names:
             fnames.append(plot_labels[name])
         plot_partial_dependence(rf_model, features=feature_indices, X=x_train, feature_names=fnames, n_jobs=-1)
+        plt.tight_layout(pad=0.4, w_pad=0.5, h_pad=1.0)
         plt.show()
 
 
