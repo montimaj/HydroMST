@@ -9,9 +9,9 @@ actual.raster = projectRaster(actual.raster, crs = wgs84, method = "ngb")
 pred.raster = projectRaster(pred.raster, crs = wgs84, method = "ngb")
 
 par(mfrow = c(1, 2))
-plot(actual.raster, col = matlab.like2(255), ylab='Latitude (Degree)', xlab='Longitude (Degree)', 
+plot(actual.raster, ylab='Latitude (Degree)', xlab='Longitude (Degree)', 
      legend.args=list(text='GW Pumping (mm)', side = 2, font = 0.5, cex = 0.8))
-plot(pred.raster, col = matlab.like2(255), ylab='Latitude (Degree)', xlab='Longitude (Degree)', 
+plot(pred.raster, ylab='Latitude (Degree)', xlab='Longitude (Degree)', 
      legend.args=list(text='GW Pumping (mm)', side = 2, font = 0.5, cex = 0.8))
 
 
@@ -23,7 +23,7 @@ names(s.df) <- c('actual', 'pred')
 gw.fit <- lm(actual ~ pred, data = s.df)
 abline(gw.fit, col = 'red')
 abline(a = 0, b = 1, col = 'blue')
-legend(0, 1600, bty = 'n', legend = c("True relationship", "Fitted regression line"),
+legend(0, 600, bty = 'n', legend = c("True relationship", "Fitted regression line"),
        col = c("blue", "red"), lty = 1, cex = 0.8)
 summary(gw.fit)
 confint(gw.fit)

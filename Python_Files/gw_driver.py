@@ -111,12 +111,13 @@ class HydroML:
             print('GW Shapefiles already clipped')
         self.output_shp_dir = clip_shp_dir
 
-    def create_gw_rasters(self, xres=5000, yres=5000, raster_mask=None, crop_rasters=False, ext_mask=True,
+    def create_gw_rasters(self, xres=5000, yres=5000, max_gw=1000, raster_mask=None, crop_rasters=False, ext_mask=True,
                           convert_units=True, already_created=True):
         """
         Create GW rasters from shapefiles
         :param xres: X-Resolution (map unit)
         :param yres: Y-Resolution (map unit)
+        :param max_gw: Maximum GW pumping in mm. Any value higher than this will be set to no data
         :param raster_mask: Raster mask (shapefile) for cropping raster, required only if crop_rasters=True
         :param crop_rasters: Set False to disable raster cropping
         :param ext_mask: Set True to crop by cutline, if shapefile consists of multiple polygons, then this won't
@@ -134,7 +135,9 @@ class HydroML:
             makedirs([fixed_dir])
             vops.shps2rasters(self.output_shp_dir, self.output_gw_raster_dir, xres=xres, yres=yres, smoothing=0,
                               gdal_path=self.gdal_path, gridding=False)
-            rops.fix_large_values(self.output_gw_raster_dir, outdir=fixed_dir)
+            if convert_units:
+                max_gw *= xres * yres / (1.233 * 1e+6)
+            rops.fix_large_values(self.output_gw_raster_dir, max_threshold=max_gw, outdir=fixed_dir)
             if crop_rasters:
                 makedirs([cropped_dir])
                 if not raster_mask:

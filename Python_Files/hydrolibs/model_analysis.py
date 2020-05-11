@@ -179,7 +179,7 @@ def create_time_series_forecast_plot(input_df_list, forecast_years=(2019, ), plo
     min_forecast_yr = min(forecast_years)
     ax1.axvline(x=min_forecast_yr - 1, color='r', linestyle='--')
     ax1.legend(loc=2, ncol=2, frameon=False, fancybox=False, bbox_to_anchor=(0.1, 1),
-               labels=['Actual GW', 'Pred GW', 'Test Data (2011-2018)', 'Forecast'])
+               labels=['Actual GW', 'Predicted GW', 'Test Data (2011-2018)', 'Forecast'])
     ax1.set_ylabel('Mean GW Pumping (mm)')
     ax1.set_xticks(df1.YEAR)
     ax1.set_xticklabels(df1.YEAR)
@@ -213,7 +213,7 @@ def create_gmd_time_series_forecast_plot(input_df_list, gmd_name_list, forecast_
         min_forecast_yr = min(forecast_years)
         ax1.axvline(x=min_forecast_yr - 1, color='r', linestyle='--')
         ax1.legend(loc=2, ncol=2, frameon=False, fancybox=False, bbox_to_anchor=(0.1, 1),
-                   labels=['Actual GW: ' + gmd, 'Pred GW: ' + gmd, 'Test Data (2011-2018)', 'Forecast'])
+                   labels=['Actual GW: ' + gmd, 'Predicted GW: ' + gmd, 'Test Data (2011-2018)', 'Forecast'])
         ax1.set_ylabel('Mean GW Pumping (mm)')
         ax1.set_xticks(df.YEAR)
         ax1.set_xticklabels(df.YEAR)
