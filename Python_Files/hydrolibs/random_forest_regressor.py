@@ -365,7 +365,7 @@ def create_pred_raster(rf_model, out_raster, actual_raster_dir, column_names=Non
         if not only_pred:
             for nan_pos in nan_pos_dict.values():
                 pred_arr[nan_pos] = actual_file.nodata
-        mae, rmse, r_squared = (np.nan, ) * 3
+        mae, rmse, r_squared, normalized_rmse = (np.nan, ) * 4
     else:
         if only_pred:
             actual_arr = input_df[pred_attr]
@@ -384,11 +384,13 @@ def create_pred_raster(rf_model, out_raster, actual_raster_dir, column_names=Non
             pred_values = pred_arr
         mae = np.round(metrics.mean_absolute_error(actual_values, pred_values), 2)
         r_squared = np.round(metrics.r2_score(actual_values, pred_values), 2)
-        rmse = np.round(metrics.mean_squared_error(actual_values, pred_values, squared=False), 2)
+        rmse = metrics.mean_squared_error(actual_values, pred_values, squared=False)
+        normalized_rmse = np.round(rmse / np.mean(actual_values), 2)
+        rmse = np.round(rmse, 2)
     if not only_pred:
         pred_arr = pred_arr.reshape(raster_shape)
         rops.write_raster(pred_arr, actual_file, transform=actual_file.transform, outfile_path=out_raster)
-    return mae, rmse, r_squared
+    return mae, rmse, r_squared, normalized_rmse
 
 
 def predict_rasters(rf_model, actual_raster_dir, out_dir, pred_years, column_names=None, drop_attrs=(), pred_attr='GW',
@@ -413,9 +415,11 @@ def predict_rasters(rf_model, actual_raster_dir, out_dir, pred_years, column_nam
         calculate_errors = True
         if pred_year in exclude_years:
             calculate_errors = False
-        mae, rmse, r_squared = create_pred_raster(rf_model, out_raster=out_pred_raster,
-                                                  actual_raster_dir=actual_raster_dir, pred_year=pred_year,
-                                                  drop_attrs=drop_attrs, pred_attr=pred_attr, only_pred=only_pred,
-                                                  calculate_errors=calculate_errors, column_names=column_names,
-                                                  ordering=ordering)
-        print('YEAR', pred_year, ': MAE =', mae, 'RMSE =', rmse, 'R^2 =', r_squared)
+        mae, rmse, r_squared, normalized_rmse = create_pred_raster(rf_model, out_raster=out_pred_raster,
+                                                                   actual_raster_dir=actual_raster_dir,
+                                                                   pred_year=pred_year, drop_attrs=drop_attrs,
+                                                                   pred_attr=pred_attr, only_pred=only_pred,
+                                                                   calculate_errors=calculate_errors,
+                                                                   column_names=column_names, ordering=ordering)
+        print('YEAR', pred_year, ': MAE =', mae, 'RMSE =', rmse, 'R^2 =', r_squared,
+              'Normalized RMSE =', normalized_rmse)

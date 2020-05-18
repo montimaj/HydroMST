@@ -1,8 +1,8 @@
 library(raster)
 library(colorRamps)
 
-pred.raster <- raster('../Outputs/Output_Apr_Sept_T2/Predicted_Rasters/pred_2011.tif')
-actual.raster <- raster('../Inputs/Files_Apr_Sept/RF_Data/GW_2011.tif')
+pred.raster <- raster('../Outputs/Output_Apr_Sept/Predicted_Rasters/pred_2014.tif')
+actual.raster <- raster('../Inputs/Files_Apr_Sept/RF_Data/GW_2014.tif')
 
 wgs84 = "+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs"
 actual.raster = projectRaster(actual.raster, crs = wgs84, method = "ngb")
@@ -16,14 +16,14 @@ plot(pred.raster, ylab='Latitude (Degree)', xlab='Longitude (Degree)',
 
 
 par(mfrow = c(1, 1))
-plot(actual.raster, pred.raster, xlab="Predicted GW Pumping (mm)", ylab="Actual GW Pumping (mm)")
 s <- stack(actual.raster, pred.raster)
 s.df <- as.data.frame(s, na.rm=T)
 names(s.df) <- c('actual', 'pred')
+plot(pred.raster, actual.raster, log='xy', xlab="Predicted GW Pumping", ylab="Actual GW Pumping")
 gw.fit <- lm(actual ~ pred, data = s.df)
-abline(gw.fit, col = 'red')
+abline(gw.fit, col='red')
 abline(a = 0, b = 1, col = 'blue')
-legend(0, 600, bty = 'n', legend = c("True relationship", "Fitted regression line"),
+legend(1e-10, 1e+2, bty = 'n', legend = c("1:1 relationship", "Fitted regression line"),
        col = c("blue", "red"), lty = 1, cex = 0.8)
 summary(gw.fit)
 confint(gw.fit)

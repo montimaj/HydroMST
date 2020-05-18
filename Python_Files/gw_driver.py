@@ -423,7 +423,7 @@ def run_gw(analyze_only=False, load_files=True, load_rf_model=False, use_gmds=Tr
         gw.mask_rasters(already_masked=load_files)
         gw.create_land_use_rasters(already_created=load_files)
         df = gw.create_dataframe(year_list=range(2002, 2020), load_df=load_files)
-        rf_model = gw.build_model(df, test_year=range(2011, 2019), drop_attrs=drop_attrs, pred_attr=pred_attr,
+        rf_model = gw.build_model(df, test_year=range(2014, 2015), drop_attrs=drop_attrs, pred_attr=pred_attr,
                                   load_model=load_rf_model, max_features=5, plot_graphs=False)
         pred_gw_dir = gw.get_predictions(rf_model=rf_model, pred_years=range(2002, 2020), drop_attrs=drop_attrs,
                                          pred_attr=pred_attr, only_pred=False)
@@ -431,4 +431,4 @@ def run_gw(analyze_only=False, load_files=True, load_rf_model=False, use_gmds=Tr
                     out_dir=output_dir)
 
 
-run_gw(analyze_only=False, load_files=True, load_rf_model=False, use_gmds=False)
+run_gw(analyze_only=True, load_files=True, load_rf_model=False, use_gmds=False)

@@ -5,6 +5,7 @@ import numpy as np
 import pandas as pd
 import os
 import matplotlib.pyplot as plt
+import matplotlib.dates as mdates
 import sklearn.metrics as metrics
 from glob import glob
 from Python_Files.hydrolibs import rasterops as rops
@@ -175,6 +176,7 @@ def create_time_series_forecast_plot(input_df_list, forecast_years=(2019, ), plo
     fig.suptitle(plot_title)
     df1.set_index('YEAR').plot(ax=ax1)
     df2.set_index('DT').plot(ax=ax2)
+    df2_years = list(df2.DT)
     ax1.axvline(x=2011, color='k', linestyle='--')
     min_forecast_yr = min(forecast_years)
     ax1.axvline(x=min_forecast_yr - 1, color='r', linestyle='--')
@@ -189,6 +191,12 @@ def create_time_series_forecast_plot(input_df_list, forecast_years=(2019, ), plo
     ax2.set_ylabel('Monthly TWS (mm)')
     ax2.set_xlabel('Year')
     ax2.legend(loc=2, bbox_to_anchor=(0.1, 1), frameon=False, fancybox=False, labels=['GRACE TWS'])
+    ax2.xaxis.set_major_locator(mdates.YearLocator())
+    ax2.xaxis.set_major_formatter(mdates.DateFormatter('%Y'))
+    datemin = np.datetime64(df2_years[0], 'Y')
+    datemax = np.datetime64(df2_years[-1], 'Y') + np.timedelta64(1, 'Y')
+    ax2.set_xlim(datemin, datemax)
+    ax2.format_xdata = mdates.DateFormatter('%Y')
     plt.tight_layout(pad=0.4, w_pad=0.5, h_pad=1.0)
     plt.show()
 
