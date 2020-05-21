@@ -302,12 +302,17 @@ def rf_regressor(input_df, out_dir, n_estimators=200, random_state=0, bootstrap=
     permutation_imp_test = " ".join(str(np.round(i, 2)) for i in permutation_imp_test.importances_mean)
     train_score = np.round(regressor.score(x_train, y_train), 2)
     test_score = np.round(regressor.score(x_test, y_test), 2)
-    mae = np.round(metrics.mean_absolute_error(y_test, y_pred), 2)
-    rmse = np.round(metrics.mean_squared_error(y_test, y_pred, squared=False), 2)
+    mae = metrics.mean_absolute_error(y_test, y_pred)
+    rmse = metrics.mean_squared_error(y_test, y_pred, squared=False)
+    normalized_mae = np.round(mae / np.mean(y_test), 2)
+    normalized_rmse = np.round(rmse / np.mean(y_test), 2)
+    mae = np.round(mae, 2)
+    rmse = np.round(rmse, 2)
     oob_score = np.round(regressor.oob_score_, 2)
     df = {'Test': [test_case], 'N_Estimator': [n_estimators], 'MF': [max_features], 'F_IMP': [feature_imp],
           'P_IMP_TRAIN': [permutation_imp_train], 'P_IMP_TEST': [permutation_imp_test], 'Train_Score': [train_score],
-          'Test_Score': [test_score], 'OOB_Score': [oob_score], 'MAE': [mae], 'RMSE': [rmse]}
+          'Test_Score': [test_score], 'OOB_Score': [oob_score], 'MAE': [mae], 'RMSE': [rmse], 'NMAE': [normalized_mae],
+          'NRMSE': [normalized_rmse]}
     print('Model statistics:', df)
     df = pd.DataFrame(data=df)
     with open(out_dir + 'RF_Results.csv', 'a') as f:
@@ -365,7 +370,7 @@ def create_pred_raster(rf_model, out_raster, actual_raster_dir, column_names=Non
         if not only_pred:
             for nan_pos in nan_pos_dict.values():
                 pred_arr[nan_pos] = actual_file.nodata
-        mae, rmse, r_squared, normalized_rmse = (np.nan, ) * 4
+        mae, rmse, r_squared, normalized_rmse, normalized_mae = (np.nan, ) * 5
     else:
         if only_pred:
             actual_arr = input_df[pred_attr]
@@ -382,15 +387,17 @@ def create_pred_raster(rf_model, out_raster, actual_raster_dir, column_names=Non
         else:
             actual_values = actual_arr
             pred_values = pred_arr
-        mae = np.round(metrics.mean_absolute_error(actual_values, pred_values), 2)
+        mae = metrics.mean_absolute_error(actual_values, pred_values)
         r_squared = np.round(metrics.r2_score(actual_values, pred_values), 2)
         rmse = metrics.mean_squared_error(actual_values, pred_values, squared=False)
         normalized_rmse = np.round(rmse / np.mean(actual_values), 2)
+        normalized_mae = np.round(mae / np.mean(actual_values), 2)
         rmse = np.round(rmse, 2)
+        mae = np.round(mae, 2)
     if not only_pred:
         pred_arr = pred_arr.reshape(raster_shape)
         rops.write_raster(pred_arr, actual_file, transform=actual_file.transform, outfile_path=out_raster)
-    return mae, rmse, r_squared, normalized_rmse
+    return mae, rmse, r_squared, normalized_rmse, normalized_mae
 
 
 def predict_rasters(rf_model, actual_raster_dir, out_dir, pred_years, column_names=None, drop_attrs=(), pred_attr='GW',
@@ -415,11 +422,14 @@ def predict_rasters(rf_model, actual_raster_dir, out_dir, pred_years, column_nam
         calculate_errors = True
         if pred_year in exclude_years:
             calculate_errors = False
-        mae, rmse, r_squared, normalized_rmse = create_pred_raster(rf_model, out_raster=out_pred_raster,
-                                                                   actual_raster_dir=actual_raster_dir,
-                                                                   pred_year=pred_year, drop_attrs=drop_attrs,
-                                                                   pred_attr=pred_attr, only_pred=only_pred,
-                                                                   calculate_errors=calculate_errors,
-                                                                   column_names=column_names, ordering=ordering)
+        mae, rmse, r_squared, normalized_rmse, normalized_mae = create_pred_raster(rf_model, out_raster=out_pred_raster,
+                                                                                   actual_raster_dir=actual_raster_dir,
+                                                                                   pred_year=pred_year,
+                                                                                   drop_attrs=drop_attrs,
+                                                                                   pred_attr=pred_attr,
+                                                                                   only_pred=only_pred,
+                                                                                   calculate_errors=calculate_errors,
+                                                                                   column_names=column_names,
+                                                                                   ordering=ordering)
         print('YEAR', pred_year, ': MAE =', mae, 'RMSE =', rmse, 'R^2 =', r_squared,
-              'Normalized RMSE =', normalized_rmse)
+              'Normalized RMSE =', normalized_rmse, 'Normalized MAE =', normalized_mae)

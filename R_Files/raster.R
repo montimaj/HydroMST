@@ -1,8 +1,8 @@
 library(raster)
 library(colorRamps)
 
-pred.raster <- raster('../Outputs/Output_Apr_Sept/Predicted_Rasters/pred_2014.tif')
-actual.raster <- raster('../Inputs/Files_Apr_Sept/RF_Data/GW_2014.tif')
+pred.raster <- raster('../Outputs/Output_Apr_Sept_T2/Predicted_Rasters/pred_2012.tif')
+actual.raster <- raster('../Inputs/Files_Apr_Sept/RF_Data/GW_2012.tif')
 
 wgs84 = "+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs"
 actual.raster = projectRaster(actual.raster, crs = wgs84, method = "ngb")
@@ -16,15 +16,25 @@ plot(pred.raster, ylab='Latitude (Degree)', xlab='Longitude (Degree)',
 
 
 par(mfrow = c(1, 1))
+plot(pred.raster, actual.raster, xlab="Predicted GW Pumping (mm)", ylab="Actual GW Pumping (mm)")
 s <- stack(actual.raster, pred.raster)
 s.df <- as.data.frame(s, na.rm=T)
 names(s.df) <- c('actual', 'pred')
-plot(pred.raster, actual.raster, log='xy', xlab="Predicted GW Pumping", ylab="Actual GW Pumping")
+plot(s.df$pred, s.df$actual, xlab="Predicted GW Pumping (mm)", ylab="Actual GW Pumping (mm)")
 gw.fit <- lm(actual ~ pred, data = s.df)
-abline(gw.fit, col='red')
+abline(gw.fit, col = 'red')
+abline(a = 0, b = 1, col = 'red')
+s.log.df <- s.df[s.df$actual != 0,]
+s.log.df <- s.log.df[s.log.df$pred !=0, ]
+s.log.df$actual <- log(s.log.df$actual)
+s.log.df$pred <- log(s.log.df$pred)
+plot(s.log.df$pred, s.log.df$actual, xlab="Predicted GW Pumping", ylab="Actual GW Pumping")
+gw.fit.log <- lm(actual ~ pred, data=s.log.df)
+abline(gw.fit.log, col = 'red')
+abline(gw.fit, col = 'red')
 abline(a = 0, b = 1, col = 'blue')
-legend(1e-10, 1e+2, bty = 'n', legend = c("1:1 relationship", "Fitted regression line"),
-       col = c("blue", "red"), lty = 1, cex = 0.8)
+legend(0, 800, bty = 'n', legend = c("1:1 relationship"),
+       col = c("red"), lty = 1, cex = 0.8)
 summary(gw.fit)
 confint(gw.fit)
 
