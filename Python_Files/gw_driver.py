@@ -387,7 +387,7 @@ def run_gw(analyze_only=False, load_files=True, load_rf_model=False, use_gmds=Tr
     """
 
     gee_data = ['Apr_Sept/', 'Apr_Aug/', 'Annual/']
-    input_dir = '../Inputs/Data/'
+    input_dir = '../Inputs/Data/Kansas_GW/'
     file_dir = '../Inputs/Files_' + gee_data[0]
     output_dir = '../Outputs/Output_' + gee_data[0]
     input_ts_dir = input_dir + 'GEE_Data_' + gee_data[0]
@@ -431,4 +431,4 @@ def run_gw(analyze_only=False, load_files=True, load_rf_model=False, use_gmds=Tr
                     out_dir=output_dir)
 
 
-run_gw(analyze_only=False, load_files=True, load_rf_model=False, use_gmds=False)
+run_gw(analyze_only=True, load_files=True, load_rf_model=False, use_gmds=True)

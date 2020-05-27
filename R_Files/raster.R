@@ -1,8 +1,8 @@
 library(raster)
 library(colorRamps)
 
-pred.raster <- raster('../Outputs/Output_Apr_Sept_T2/Predicted_Rasters/pred_2012.tif')
-actual.raster <- raster('../Inputs/Files_Apr_Sept/RF_Data/GW_2012.tif')
+pred.raster <- raster('../Outputs/Output_Apr_Sept_T1/Predicted_Rasters/pred_2014.tif')
+actual.raster <- raster('../Inputs/Files_Apr_Sept/RF_Data/GW_2014.tif')
 
 wgs84 = "+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs"
 actual.raster = projectRaster(actual.raster, crs = wgs84, method = "ngb")
@@ -44,15 +44,13 @@ plot(err.raster, col = matlab.like2(255), ylab='Latitude (Degree)', xlab='Longit
      legend.args=list(text='Error (mm)', side = 2, font = 0.5, cex = 0.55))
 err.df <- as.data.frame(err.raster, na.rm = T)
 err <- err.df$layer
-hist(err, freq = F, main="", xlab='Residuals (mm)')
-lines(density(err), col = 'red')
 err.mean <- mean(err)
 err.sd <- sd(err)
 std.err <- err / err.sd
 hist(std.err, freq = F, main="", xlab='Standardized Residuals')
-lines(density(std.err), col = 'red')
-plot(s.df$pred, err, xlab = 'Predicted GW Pumping (mm)', ylab = 'Residuals (mm)')
-abline(h = 0, col = "red")
+x <- seq(min(std.err), max(std.err), length.out=length(std.err))
+dist <- dnorm(x, mean(std.err), sd(std.err))
+lines(x, dist, col = 'red')
 plot(s.df$pred, std.err, xlab = 'Predicted GW Pumping (mm)', ylab = 'Standardized Residuals')
 abline(h = 0, col = "red")
 qqnorm(std.err, main = "")
