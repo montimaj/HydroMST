@@ -47,9 +47,14 @@ err <- err.df$layer
 err.mean <- mean(err)
 err.sd <- sd(err)
 std.err <- err / err.sd
-hist(std.err, freq = F, main="", xlab='Standardized Residuals')
-x <- seq(min(std.err), max(std.err), length.out=length(std.err))
-dist <- dnorm(x, mean(std.err), sd(std.err))
+std.err.df <- as.data.frame(std.err)
+names(std.err.df) <- c('STD.ERR')
+std.err.df$STD.ERR[std.err.df$STD.ERR < -5] <- NA
+std.err.df$STD.ERR[std.err.df$STD.ERR > 5] <- NA
+std.err.df <- na.omit(std.err.df)
+hist(std.err.df$STD.ERR, breaks=50, freq = F, main="", xlab='Standardized Residuals')
+x <- seq(min(std.err.df$STD.ERR), max(std.err.df$STD.ERR), length.out=length(std.err.df$STD.ERR))
+dist <- dnorm(x, mean(std.err.df$STD.ERR), sd(std.err.df$STD.ERR))
 lines(x, dist, col = 'red')
 plot(s.df$pred, std.err, xlab = 'Predicted GW Pumping (mm)', ylab = 'Standardized Residuals')
 abline(h = 0, col = "red")
