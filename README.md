@@ -1,5 +1,5 @@
 # HydroMST
-Source codes used in the Hydrology Remote Sensing Group at GGPE, Missouri S&amp;T
+Source codes for groundwater pumping prediction using integrated remote sensing datasets and machine learning
 
 The required datasets are in the Inputs folder.
 
