@@ -369,9 +369,11 @@ class HydroML:
             pattern = pred_attr + '*.tif'
             if not final_mask:
                 final_mask = self.input_state_reproj_file
-            rops.crop_multiple_rasters(self.rf_data_dir, outdir=crop_dir, input_shp_file=final_mask, pattern=pattern)
+            rops.crop_rasters(self.rf_data_dir, outdir=crop_dir, input_mask_file=final_mask, pattern=pattern,
+                              ext_mask=False)
             pattern = 'pred*.tif'
-            rops.crop_multiple_rasters(pred_out_dir, outdir=crop_dir, input_shp_file=final_mask, pattern=pattern)
+            rops.crop_rasters(pred_out_dir, outdir=crop_dir, input_mask_file=final_mask, pattern=pattern,
+                              ext_mask=False)
             pred_out_dir = crop_dir
         return pred_out_dir
 

@@ -608,23 +608,6 @@ def scale_raster_data(input_raster_dir, outdir, scaling_factor=10, pattern='*.ti
         write_raster(raster_arr, raster_ref, transform=raster_ref.transform, outfile_path=out_raster)
 
 
-def crop_multiple_rasters(input_raster_dir, outdir, input_shp_file, pattern='*.tif', verbose=True):
-    """
-    Crop multiple rasters using shape file extent
-    :param input_raster_dir: Input raster directory
-    :param outdir: Output directory
-    :param input_shp_file: Input shape file
-    :param pattern: Raster file name pattern
-    :param verbose: Set True to print system call info
-    :return: None
-    """
-
-    for raster_file in glob(input_raster_dir + pattern):
-        out_raster = outdir + raster_file[raster_file.rfind(os.sep) + 1:]
-        crop_raster(raster_file, input_mask_path=input_shp_file, ext_mask=False, outfile_path=out_raster, 
-                    verbose=verbose)
-
-
 def fill_mean_value(input_raster_dir, outdir, pattern='GRACE*.tif'):
     """
     Replace all values with the mean value of the raster

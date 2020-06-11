@@ -267,10 +267,10 @@ def preprocess_gmds(actual_gw_dir, pred_gw_dir, input_gmd_file, out_dir, actual_
         makedirs([actual_outdir, pred_outdir])
         actual_gw_dir_list.append(actual_outdir)
         pred_gw_dir_list.append(pred_outdir)
-        rops.crop_multiple_rasters(input_raster_dir=actual_gw_dir, input_shp_file=gmd_shp,
-                                   pattern=actual_gw_pattern, outdir=actual_outdir)
-        rops.crop_multiple_rasters(input_raster_dir=pred_gw_dir, input_shp_file=gmd_shp, pattern=pred_gw_pattern,
-                                   outdir=pred_outdir)
+        rops.crop_rasters(input_raster_dir=actual_gw_dir, input_mask_file=gmd_shp, pattern=actual_gw_pattern,
+                          outdir=actual_outdir, ext_mask=False)
+        rops.crop_rasters(input_raster_dir=pred_gw_dir, input_mask_file=gmd_shp, pattern=pred_gw_pattern,
+                          outdir=pred_outdir, ext_mask=False)
     return actual_gw_dir_list, pred_gw_dir_list, gmd_name_list
 
 
