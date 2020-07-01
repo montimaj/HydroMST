@@ -433,4 +433,4 @@ def run_gw(analyze_only=False, load_files=True, load_rf_model=False, use_gmds=Tr
                     out_dir=output_dir)
 
 
-run_gw(analyze_only=True, load_files=True, load_rf_model=False, use_gmds=True)
+run_gw(analyze_only=True, load_files=True, load_rf_model=False, use_gmds=False)
