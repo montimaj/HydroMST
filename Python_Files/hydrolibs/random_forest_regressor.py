@@ -356,7 +356,6 @@ def create_pred_raster(rf_model, out_raster, actual_raster_dir, column_names=Non
             raster_arr[nan_pos_dict[variable]] = 0
         raster_arr_dict[variable] = raster_arr
         raster_arr_dict['YEAR'] = [year] * raster_arr.shape[0]
-
     input_df = pd.DataFrame(data=raster_arr_dict)
     input_df = input_df.dropna(axis=0)
     input_df = reindex_df(input_df, column_names=column_names, ordering=ordering)

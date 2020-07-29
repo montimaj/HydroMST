@@ -45,6 +45,8 @@ def make_proper_dir_name(dir_str):
     :return: Corrected directory path
     """
 
+    if dir_str is None:
+        return None
     sep = [os.sep, '/']
     if dir_str[-1] not in sep:
         return dir_str + os.sep
@@ -85,7 +87,7 @@ def copy_files(input_dir_list, target_dir, pattern_list, year_list, rep=False, v
         file_list = glob(input_dir + pattern)
         for f in file_list:
             file_name = f[f.rfind(os.sep) + 1:]
-            outfile = target_dir + file_name[: file_name.find('_') + 1]
+            outfile = target_dir + file_name[: file_name.rfind('_') + 1]
             ext_sep = file_name.rfind('.')
             ext = file_name[ext_sep:]
             if not rep:

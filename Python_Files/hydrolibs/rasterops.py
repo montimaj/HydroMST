@@ -699,3 +699,116 @@ def fix_large_values(input_raster_dir, outdir, max_threshold=1e+5, pattern='GW*.
         raster_arr[np.isnan(raster_arr)] = NO_DATA_VALUE
         raster_arr[raster_arr >= max_threshold] = NO_DATA_VALUE
         write_raster(raster_arr, raster_file, transform=raster_file.transform, outfile_path=out_raster)
+
+
+def generate_ssebop_raster_list(ssebop_dir, year, month_list):
+    """
+    Generate SSEBop raster list based on a list of months
+    :param ssebop_dir: Input SSEBOp directory
+    :param year: SSEBop year in %Y format
+    :param month_list: List of months in %m format
+    :return: Raster array list and raster reference list as a tuple
+    """
+
+    ssebop_raster_arr_list = []
+    ssebop_raster_file_list = []
+    for month in month_list:
+        month_str = str(month)
+        if 1 <= month <= 9:
+            month_str = '0' + month_str
+        pattern = '*' + str(year) + month_str + '*.tif'
+        ssebop_file = glob(ssebop_dir + pattern)[0]
+        ssebop_raster_arr, ssebop_raster_file = read_raster_as_arr(ssebop_file)
+        ssebop_raster_arr_list.append(ssebop_raster_arr)
+        ssebop_raster_file_list.append(ssebop_raster_file)
+    return ssebop_raster_arr_list, ssebop_raster_file_list
+
+
+def generate_cummulative_ssebop(ssebop_dir, year_list, start_month, end_month, out_dir):
+    """
+    Generate cummulative SSEBop data
+    :param ssebop_dir: SSEBop directory
+    :param year_list: List of years
+    :param start_month: Start month in %m format
+    :param end_month: End month in %m format
+    :param out_dir: Output directory
+    :return: None
+    """
+
+    month_flag = False
+    month_list = []
+    actual_start_year = year_list[0]
+    if end_month <= start_month:
+        year_list = [actual_start_year - 1] + list(year_list)
+        month_flag = True
+    else:
+        month_list = range(start_month, end_month + 1)
+    for year in year_list:
+        actual_year = year
+        if month_flag:
+            actual_year += 1
+        print('Generating cummulative SSEBop for', actual_year, '...')
+        if month_flag:
+            month_list_y1 = range(start_month, 13)
+            month_list_y2 = range(1, end_month + 1)
+            ssebop_raster_arr_list1, ssebop_raster_file_list1 = generate_ssebop_raster_list(ssebop_dir, year,
+                                                                                            month_list_y1)
+            ssebop_raster_arr_list2, ssebop_raster_file_list2 = generate_ssebop_raster_list(ssebop_dir, year + 1,
+                                                                                            month_list_y2)
+            ssebop_raster_arr_list = ssebop_raster_arr_list1 + ssebop_raster_arr_list2
+            ssebop_raster_file_list = ssebop_raster_file_list1 + ssebop_raster_file_list2
+        else:
+            ssebop_raster_arr_list, ssebop_raster_file_list = generate_ssebop_raster_list(ssebop_dir, year, month_list)
+        sum_arr_ssebop = ssebop_raster_arr_list[0]
+        for ssebop_raster_arr in ssebop_raster_arr_list[1:]:
+            sum_arr_ssebop += ssebop_raster_arr
+        sum_arr_ssebop[np.isnan(sum_arr_ssebop)] = NO_DATA_VALUE
+        ssebop_raster_file = ssebop_raster_file_list[0]
+        out_ssebop = out_dir + 'SSEBop_' + str(year) + '.tif'
+        if month_flag:
+            out_ssebop = out_dir + 'SSEBop_' + str(actual_year) + '.tif'
+        write_raster(sum_arr_ssebop, ssebop_raster_file, transform=ssebop_raster_file.transform,
+                     outfile_path=out_ssebop)
+        if month_flag and year == year_list[-1] - 1:
+            return
+
+
+def create_crop_coeff_raster(input_cdl_file, output_file):
+    """
+    Create crop coefficient raster based on NASS CDL file
+    :param input_cdl_file: Input CDL file path
+    :param output_file: Output file path
+    :return: None
+    """
+
+    cdl_arr, cdl_file = read_raster_as_arr(input_cdl_file)
+    crop_coeff_arr = np.full_like(cdl_arr, fill_value=1.0)
+    crop_coeff_dict = {1: 1.2, 2: 1.2, 3: 1.2, 4: 1.15, 5: 1.15, 6: 1.15, 10: 1.15, 12: 1.15, 13: 1.2, 14: 1.15,
+                       21: 1.15, 22: 1.15, 23: 1.15, 24: 1.15, 25: 1.2, 26: 1.15, 27: 1.05, 28: 1.15, 29: 1.0, 30: 1.15,
+                       31: 1.15, 32: 1.10, 33: 1.15, 34: 1.15, 36: 1.2, 37: 1.0, 39: 1.15, 41: 1.20, 42: 1.15, 43: 1.15,
+                       45: 1.25, 46: 1.15, 48: 1.0, 49: 1.05, 50: 1.0, 51: 1.0, 52: 1.10, 53: 1.15, 54: 1.15, 55: 1.05,
+                       56: 1.05, 58: 1.15, 66: 1.20, 67: 1.15, 68: 1.15, 69: 0.85, 72: 0.70, 74: 1.15, 75: 0.90,
+                       76: 1.10, 77: 1.20, 204: 1.10, 206: 1.05, 207: 0.95, 208: 1.0, 209: 0.85, 211: 0.70, 212: 0.70,
+                       214: 1.05, 215: 0.85, 216: 1.05, 220: 1.15, 221: 0.85, 222: 0.95, 223: 1.15, 225: 1.15,
+                       226: 1.15, 227: 1.0, 228: 1.0, 230: 2.15, 231: 1.85, 232: 2.20, 233: 2.15, 234: 2.35, 235: 2.35,
+                       236: 2.35, 237: 2.35, 238: 2.35, 239: 2.35, 240: 2.30, 241: 2.35, 242: 1.05, 243: 1.05,
+                       244: 1.05, 245: 1.05, 246: 0.90, 247: 1.10, 248: 1.05, 250: 1.05, 254: 2.30}
+    for crop_code in crop_coeff_dict.keys():
+        crop_coeff_arr[cdl_arr == crop_code] = crop_coeff_dict[crop_code]
+    crop_coeff_arr[cdl_arr == 0] = NO_DATA_VALUE
+    write_raster(crop_coeff_arr, cdl_file, transform=cdl_file.transform, outfile_path=output_file)
+
+
+def update_crop_coeff_raster(input_crop_coeff_raster, agri_raster):
+    """
+    Update crop coefficient raster based on AGRI raster
+    :param input_crop_coeff_raster: Input crop coefficient raster file path
+    :param agri_raster: Input AGRI raster file path
+    :return: None
+    """
+
+    crop_coeff_arr, crop_coeff_file = read_raster_as_arr(input_crop_coeff_raster)
+    agri_arr = read_raster_as_arr(agri_raster, get_file=False)
+    crop_coeff_arr[np.logical_and(crop_coeff_arr == 1., agri_arr < 0.1)] = 0.
+    write_raster(crop_coeff_arr, crop_coeff_file, transform=crop_coeff_file.transform,
+                 outfile_path=input_crop_coeff_raster)

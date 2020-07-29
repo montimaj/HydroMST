@@ -2,6 +2,7 @@
 # Email: smxnv@mst.edu
 
 import pandas as pd
+from Python_Files.hydrolibs import download as dd
 from Python_Files.hydrolibs import rasterops as rops
 from Python_Files.hydrolibs import vectorops as vops
 from Python_Files.hydrolibs.sysops import makedirs, make_proper_dir_name, copy_files
@@ -12,14 +13,13 @@ from glob import glob
 
 class HydroML:
 
-    def __init__(self, input_dir, file_dir, output_dir, input_ts_dir, output_shp_dir, output_gw_raster_dir,
-                 input_gmd_file, input_state_file, input_cdl_file, gdal_path):
+    def __init__(self, input_dir, file_dir, output_dir, output_shp_dir, output_gw_raster_dir,
+                 input_gmd_file, input_state_file, gdal_path, input_ts_dir=None, input_cdl_file=None, ssebop_link=None):
         """
         Constructor for initializing class variables
         :param input_dir: Input data directory
         :param file_dir: Directory for storing intermediate files
         :param output_dir: Output directory
-        :param input_ts_dir: Input directory containing the time series data
         :param output_shp_dir: Output shapefile directory
         :param output_gw_raster_dir: Output GW raster directory
         :param input_gmd_file: Input GMD file
@@ -27,6 +27,9 @@ class HydroML:
         :param input_cdl_file: Input NASS CDL file path
         :param gdal_path: GDAL directory path, in Windows replace with OSGeo4W directory path, e.g. '/usr/bin/gdal/' on
         Linux or Mac and 'C:/OSGeo4W64/' on Windows
+        :param input_ts_dir: Input directory containing the time series data
+        :param input_cdl_file: Input NASS CDL file path
+        :param ssebop_link: SSEBop data download link. SSEBop data are not downloaded if its set to None.
         """
 
         self.input_dir = make_proper_dir_name(input_dir)
@@ -44,11 +47,68 @@ class HydroML:
         self.final_gw_dir = None
         self.ref_raster = None
         self.raster_reproj_dir = None
+        self.ssebop_reproj_dir = None
+        self.ssebop_link = ssebop_link
+        self.ssebop_file_dir = None
         self.reclass_reproj_file = None
         self.raster_mask_dir = None
         self.land_use_dir_list = None
         self.rf_data_dir = None
+        self.crop_coeff_dir = None
+        self.crop_coeff_reproj_dir = None
+        self.crop_coeff_mask_dir = None
+        self.data_year_list = None
+        self.data_start_month = None
+        self.data_end_month = None
         makedirs([self.output_dir, self.output_gw_raster_dir, self.output_shp_dir])
+
+    def download_data(self, year_list, start_month, end_month, cdl_year=2015, already_downloaded=False,
+                      already_extracted=False):
+        """
+        Download, extract, and preprocess SSEBop data
+        :param year_list: List of years %yyyy format
+        :param start_month: Start month in %m format
+        :param end_month: End month in %m format
+        :param cdl_year: CDL year
+        :param already_downloaded: Set True to disable downloading
+        :param already_extracted: Set True to disable extraction
+        :return: None
+        """
+
+        self.data_year_list = year_list
+        self.data_start_month = start_month
+        self.data_end_month = end_month
+        gee_data_flag = False
+        if self.input_ts_dir is None:
+            self.input_ts_dir = self.input_dir + 'Downloaded_Data/'
+            gee_data_flag = True
+        gee_zip_dir = self.input_ts_dir + 'GEE_Data/'
+        cdl_flag = False
+        cdl_dir = self.input_ts_dir + 'CDL/'
+        if self.input_cdl_file is None:
+            self.input_cdl_file = cdl_dir + 'CDL_' + str(cdl_year) + '.tif'
+            cdl_flag = True
+        ssebop_zip_dir = self.input_ts_dir + 'SSEBop_Data/'
+        self.ssebop_file_dir = ssebop_zip_dir + 'SSEBop_Files/'
+        if not already_downloaded:
+            if cdl_flag:
+                makedirs([cdl_dir])
+                dd.download_cropland_data(self.input_state_file, year=cdl_year, outfile=self.input_cdl_file)
+            if gee_data_flag:
+                makedirs([gee_zip_dir])
+                dd.download_gee_data(year_list, start_month=start_month, end_month=end_month,
+                                     aoi_shp_file=self.input_state_file, outdir=gee_zip_dir)
+            makedirs([ssebop_zip_dir])
+            dd.download_ssebop_data(self.ssebop_link, year_list, start_month, end_month, ssebop_zip_dir)
+        if gee_data_flag:
+            self.input_ts_dir = gee_zip_dir + 'GEE_Files/'
+        if not already_extracted:
+            if gee_data_flag:
+                makedirs([self.input_ts_dir])
+                dd.extract_data(gee_zip_dir, out_dir=self.input_ts_dir, rename_extracted_files=True)
+            makedirs([self.ssebop_file_dir])
+            dd.extract_data(ssebop_zip_dir, self.ssebop_file_dir)
+        print('CDL, GEE, and SSEBop data downloaded and extracted...')
 
     def extract_shp_from_gdb(self, input_gdb_dir, year_list, attr_name='AF_USED', already_extracted=False):
         """
@@ -160,6 +220,20 @@ class HydroML:
         else:
             self.final_gw_dir = fixed_dir
 
+    def create_crop_coeff_raster(self, already_created=False):
+        """
+        Create crop coefficient raster based on the NASS CDL file
+        :param already_created: Set True to disable raster creation
+        :return: None
+        """
+
+        self.crop_coeff_dir = make_proper_dir_name(self.file_dir + 'Crop_Coeff')
+        crop_coeff_file = self.crop_coeff_dir + 'Crop_Coeff.tif'
+        if not already_created:
+            print('Creating crop coefficient raster...')
+            makedirs([self.crop_coeff_dir])
+            rops.create_crop_coeff_raster(self.input_cdl_file, output_file=crop_coeff_file)
+
     def reclassify_cdl(self, reclass_dict, pattern='*.tif', already_reclassified=False):
         """
         Reclassify raster
@@ -193,11 +267,23 @@ class HydroML:
         """
 
         self.raster_reproj_dir = make_proper_dir_name(self.file_dir + 'Reproj_Rasters')
+        self.crop_coeff_reproj_dir = self.crop_coeff_dir + 'Crop_Coeff_Reproj/'
+        if self.ssebop_file_dir:
+            self.ssebop_reproj_dir = self.ssebop_file_dir + 'SSEBop_Reproj/'
         if not already_reprojected:
             print('Reprojecting rasters...')
-            makedirs([self.raster_reproj_dir])
+            makedirs([self.raster_reproj_dir, self.crop_coeff_reproj_dir])
             rops.reproject_rasters(self.input_ts_dir, ref_raster=self.ref_raster, outdir=self.raster_reproj_dir,
                                    pattern=pattern, gdal_path=self.gdal_path)
+            rops.reproject_rasters(self.crop_coeff_dir, ref_raster=self.ref_raster, outdir=self.crop_coeff_reproj_dir,
+                                   pattern=pattern, gdal_path=self.gdal_path)
+            if self.ssebop_reproj_dir:
+                makedirs([self.ssebop_reproj_dir])
+                rops.reproject_rasters(self.ssebop_file_dir, ref_raster=self.ref_raster, outdir=self.ssebop_reproj_dir,
+                                       pattern=pattern, gdal_path=self.gdal_path)
+                rops.generate_cummulative_ssebop(self.ssebop_reproj_dir, year_list=self.data_year_list,
+                                                 start_month=self.data_start_month, end_month=self.data_end_month,
+                                                 out_dir=self.raster_reproj_dir)
         else:
             print('All rasters already reprojected')
 
@@ -210,10 +296,13 @@ class HydroML:
         """
 
         self.raster_mask_dir = make_proper_dir_name(self.file_dir + 'Masked_Rasters')
+        self.crop_coeff_mask_dir = make_proper_dir_name(self.raster_mask_dir + 'Masked_Crop_Coeff')
         if not already_masked:
             print('Masking rasters...')
-            makedirs([self.raster_mask_dir])
+            makedirs([self.raster_mask_dir, self.crop_coeff_mask_dir])
             rops.mask_rasters(self.raster_reproj_dir, ref_raster=self.ref_raster, outdir=self.raster_mask_dir,
+                              pattern=pattern)
+            rops.mask_rasters(self.crop_coeff_reproj_dir, ref_raster=self.ref_raster, outdir=self.crop_coeff_mask_dir,
                               pattern=pattern)
         else:
             print('All rasters already masked')
@@ -245,6 +334,21 @@ class HydroML:
         else:
             print('Land use rasters already created')
 
+    def update_crop_coeff_raster(self, pattern='*.tif', already_updated=False):
+        """
+        Update crop coefficient raster according to AGRI
+        :param pattern: AGRI raster file pattern
+        :param already_updated: Set True to disable updation
+        :return: None
+        """
+
+        if not already_updated:
+            print('Updating crop coefficient raster based on AGRI...')
+            agri_file = glob(self.land_use_dir_list[0] + '*_flt.tif')[0]
+            crop_coeff_file = glob(self.crop_coeff_reproj_dir + pattern)[0]
+            rops.update_crop_coeff_raster(crop_coeff_file, agri_file)
+        print('Crop coefficients updated!')
+
     def create_dataframe(self, year_list, column_names=None, ordering=False, load_df=False, exclude_years=(2019, ),
                          verbose=True):
         """
@@ -273,6 +377,8 @@ class HydroML:
             pattern_list = ['*_flt.tif'] * len(self.land_use_dir_list)
             copy_files(self.land_use_dir_list, target_dir=self.rf_data_dir, year_list=year_list,
                        pattern_list=pattern_list, rep=True, verbose=verbose)
+            copy_files([self.crop_coeff_mask_dir], target_dir=self.rf_data_dir, year_list=year_list,
+                       pattern_list=['*.tif'], rep=True, verbose=verbose)
             print('Creating dataframe...')
             df = rfr.create_dataframe(self.rf_data_dir, out_df=df_file, column_names=column_names, make_year_col=True,
                                       exclude_years=exclude_years, ordering=ordering)
@@ -392,11 +498,9 @@ def run_gw(analyze_only=False, load_files=True, load_rf_model=False, use_gmds=Tr
     input_dir = '../Inputs/Data/Kansas_GW/'
     file_dir = '../Inputs/Files_' + gee_data[0]
     output_dir = '../Outputs/Output_' + gee_data[0]
-    input_ts_dir = input_dir + 'GEE_Data_' + gee_data[0]
     output_shp_dir = file_dir + 'GW_Shapefiles/'
     output_gw_raster_dir = file_dir + 'GW_Rasters/'
     input_gmd_file = input_dir + 'gmds/ks_gmds.shp'
-    input_cdl_file = input_dir + 'CDL/CDL_KS_2015.tif'
     input_gdb_dir = input_dir + 'ks_pd_data_updated2018.gdb'
     input_state_file = input_dir + 'Kansas/kansas.shp'
     gdal_path = 'C:/OSGeo4W64/'
@@ -412,25 +516,36 @@ def run_gw(analyze_only=False, load_files=True, load_rf_model=False, use_gmds=Tr
                      (59.5, 61.5): 0,
                      (130.5, 195.5): 0
                      }
-    drop_attrs = ('YEAR',)
+    drop_attrs = ('YEAR', 'SSEBop', 'Crop')
     pred_attr = 'GW'
+    ssebop_link = 'https://edcintl.cr.usgs.gov/downloads/sciweb1/shared/uswem/web/conus/eta/modis_eta/monthly/' \
+                  'downloads/'
+    data_year_list = range(2002, 2020)
+    data_start_month = 4
+    data_end_month = 9
     if not analyze_only:
-        gw = HydroML(input_dir, file_dir, output_dir, input_ts_dir, output_shp_dir, output_gw_raster_dir,
-                     input_gmd_file, input_state_file, input_cdl_file, gdal_path)
+        gw = HydroML(input_dir, file_dir, output_dir, output_shp_dir, output_gw_raster_dir, input_gmd_file,
+                     input_state_file, gdal_path, ssebop_link=ssebop_link)
+        gw.download_data(year_list=data_year_list, start_month=data_start_month, end_month=data_end_month,
+                         already_downloaded=load_files, already_extracted=load_files)
         gw.extract_shp_from_gdb(input_gdb_dir, year_list=range(2002, 2019), already_extracted=load_files)
         gw.reproject_shapefiles(already_reprojected=load_files)
         gw.create_gw_rasters(already_created=load_files)
         gw.reclassify_cdl(ks_class_dict, already_reclassified=load_files)
+        gw.create_crop_coeff_raster(already_created=load_files)
         gw.reproject_rasters(already_reprojected=load_files)
         gw.mask_rasters(already_masked=load_files)
         gw.create_land_use_rasters(already_created=load_files)
+        gw.update_crop_coeff_raster(already_updated=load_files)
         df = gw.create_dataframe(year_list=range(2002, 2020), load_df=load_files)
-        rf_model = gw.build_model(df, test_year=range(2011, 2019), drop_attrs=drop_attrs, pred_attr=pred_attr,
-                                  load_model=load_rf_model, max_features=5, plot_graphs=False)
+        max_features = len(df.columns.values.tolist()) - len(drop_attrs) - 1
+        rf_model = gw.build_model(df, n_estimators=500, test_year=range(2012, 2013), drop_attrs=drop_attrs,
+                                  pred_attr=pred_attr, load_model=load_rf_model, max_features=max_features,
+                                  plot_graphs=False)
         pred_gw_dir = gw.get_predictions(rf_model=rf_model, pred_years=range(2002, 2020), drop_attrs=drop_attrs,
                                          pred_attr=pred_attr, only_pred=False)
     ma.run_analysis(gw_dir, pred_gw_dir, grace_csv, use_gmds=use_gmds, input_gmd_file=input_gmd_file,
                     out_dir=output_dir)
 
 
-run_gw(analyze_only=True, load_files=True, load_rf_model=False, use_gmds=False)
+run_gw(analyze_only=False, load_files=True, load_rf_model=False, use_gmds=False)
