@@ -371,7 +371,3 @@ def generate_feature_qq_plots(input_csv_file, year_col='YEAR', temporal_features
     sub_df = sub_df.rename(columns={'variable': 'Crop Coefficient', 'value': 'Value'})
     seaborn.boxplot(x='Crop Coefficient', y='Value', data=sub_df)
     plt.show()
-
-
-
-

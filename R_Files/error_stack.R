@@ -27,7 +27,7 @@ err.sd <- sd(err)
 std.err <- err / err.sd
 std.err.df <- as.data.frame(std.err)
 names(std.err.df) <- c('STD.ERR')
-hist(std.err.df$STD.ERR, breaks=50, freq = F, main="", xlab='Standardized Residuals')
+hist(std.err.df$STD.ERR, freq = F, main="", xlab='Standardized Residuals')
 x <- seq(min(std.err.df$STD.ERR), max(std.err.df$STD.ERR), length.out=length(std.err.df$STD.ERR))
 dist <- dnorm(x, mean(std.err.df$STD.ERR), sd(std.err.df$STD.ERR))
 lines(x, dist, col = 'red')

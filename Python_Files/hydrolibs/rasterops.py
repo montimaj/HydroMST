@@ -15,7 +15,7 @@ import multiprocessing
 from joblib import Parallel, delayed
 from rasterio.plot import plotting_extent
 from rasterio.mask import mask
-from shapely.geometry import mapping
+from shapely.geometry import mapping, Point
 from collections import defaultdict
 from datetime import datetime
 from glob import glob
@@ -812,3 +812,38 @@ def update_crop_coeff_raster(input_crop_coeff_raster, agri_raster):
     crop_coeff_arr[np.logical_and(crop_coeff_arr == 1., agri_arr < 0.1)] = 0.
     write_raster(crop_coeff_arr, crop_coeff_file, transform=crop_coeff_file.transform,
                  outfile_path=input_crop_coeff_raster)
+
+
+def get_gmd_info_arr(input_raster_file, input_gmd_shp_file, output_dir, label_attr='GMD_label'):
+    """
+    Get GMD array wherein each pixel correspond to the GMD name. If there's no GMD,
+    :param input_raster_file: Input raster file path
+    :param input_gmd_shp_file:Input GMD shape file path, should have same projection as input_raster_file
+    :param output_dir: Output directory to store the GMD array
+    :param label_attr: Label attribute present in the shapefile
+    :return: GMD Numpy array
+    """
+
+    gmd_out = output_dir + 'GMD_Info.npy'
+    if os.path.isfile(gmd_out):
+        print('GMD Info Array already present..loading...')
+        return np.load(gmd_out)
+    raster_arr, raster_file = read_raster_as_arr(input_raster_file)
+    gmd_shp = gpd.read_file(input_gmd_shp_file)
+    gmd_arr = np.full_like(raster_arr, fill_value=-1)
+    print('Creating GMD info array...This will take some time...')
+    for idx, value in np.ndenumerate(raster_arr):
+        gx, gy = raster_file.xy(idx[0], idx[1])
+        gp = Point(gx, gy)
+        for label in gmd_shp[label_attr]:
+            feature = gmd_shp[gmd_shp[label_attr] == label]
+            poly = feature['geometry'].iloc[0]
+            if poly.contains(gp):
+                gmd_arr[idx] = int(label[-1])
+                break
+    gmd_arr[np.isnan(raster_arr)] = np.nan
+    np.save(gmd_out, gmd_arr)
+    gmd_arr[np.isnan(gmd_arr)] = NO_DATA_VALUE
+    gmd_out = output_dir + 'GMD_Info_Raster.tif'
+    write_raster(gmd_arr, raster_file, transform=raster_file.transform, outfile_path=gmd_out)
+    return gmd_arr

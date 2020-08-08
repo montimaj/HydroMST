@@ -33,7 +33,7 @@ gw.fit.log <- lm(actual ~ pred, data=s.log.df)
 abline(gw.fit.log, col = 'red')
 abline(gw.fit, col = 'red')
 abline(a = 0, b = 1, col = 'blue')
-legend(0, 800, bty = 'n', legend = c("1:1 relationship"),
+legend(0, 600, bty = 'n', legend = c("1:1 relationship"),
        col = c("red"), lty = 1, cex = 0.8)
 summary(gw.fit)
 confint(gw.fit)
@@ -54,7 +54,7 @@ names(std.err.df) <- c('STD.ERR')
 std.err.df$STD.ERR[std.err.df$STD.ERR < -2] <- NA
 std.err.df$STD.ERR[std.err.df$STD.ERR > 2] <- NA
 std.err.df <- na.omit(std.err.df)
-hist(std.err.df$STD.ERR, breaks=50, freq = F, main="", xlab='Standardized Residuals')
+hist(std.err.df$STD.ERR, freq = F, main="", xlab='Standardized Residuals')
 x <- seq(min(std.err.df$STD.ERR), max(std.err.df$STD.ERR), length.out=length(std.err.df$STD.ERR))
 dist <- dnorm(x, mean(std.err.df$STD.ERR), sd(std.err.df$STD.ERR))
 lines(x, dist, col = 'red')

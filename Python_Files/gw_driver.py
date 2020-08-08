@@ -364,9 +364,9 @@ class HydroML:
         """
 
         self.rf_data_dir = make_proper_dir_name(self.file_dir + 'RF_Data')
-        df_file = self.output_dir + 'raster_df.csv'
         if load_df:
             print('Getting dataframe...')
+            df_file = self.output_dir + 'raster_df.csv'
             return pd.read_csv(df_file)
         else:
             print('Copying files...')
@@ -381,7 +381,8 @@ class HydroML:
             copy_files([self.crop_coeff_mask_dir], target_dir=self.rf_data_dir, year_list=year_list,
                        pattern_list=['*.tif'], rep=True, verbose=verbose)
             print('Creating dataframe...')
-            df = rfr.create_dataframe(self.rf_data_dir, out_df=df_file, column_names=column_names, make_year_col=True,
+            df = rfr.create_dataframe(self.rf_data_dir, input_gmd_file=self.input_gmd_reproj_file,
+                                      output_dir=self.output_dir, column_names=column_names, make_year_col=True,
                                       exclude_vars=exclude_vars, exclude_years=exclude_years, ordering=ordering)
             return df
 
@@ -410,11 +411,11 @@ class HydroML:
                         ty = y
                     rfr.rf_regressor(df, self.output_dir, n_estimators=ne, random_state=0, pred_attr=pred_attr,
                                      drop_attrs=drop_attrs, test_year=ty, shuffle=False, plot_graphs=False,
-                                     split_yearly=True, bootstrap=True, max_features=nf, test_case=t)
+                                     split_attribute=True, bootstrap=True, max_features=nf, test_case=t)
 
     def build_model(self, df, n_estimators=100, random_state=0, bootstrap=True, max_features=3, test_size=None,
                     pred_attr='GW', shuffle=False, plot_graphs=False, plot_3d=False, drop_attrs=(), test_year=(2012,),
-                    split_yearly=True, load_model=False):
+                    test_gmd=(1, 2, 3), use_gmd=False, split_attribute=True, load_model=False):
         """
         Build random forest model
         :param df: Input pandas dataframe object
@@ -431,7 +432,9 @@ class HydroML:
         :param plot_3d: Plot pairwise 3D partial dependence plots
         :param drop_attrs: Drop these specified attributes
         :param test_year: Build test data from only this year(s).
-        :param split_yearly: Split train test data based on years
+        :param test_gmd: Build test data from only this GMD, use_gmd must be set to True.
+        :param use_gmd: Set True to build test data from only test_gmd
+        :param split_attribute: Split train test data based on years
         :param load_model: Load an earlier pre-trained RF model
         :return: Fitted RandomForestRegressor object
         """
@@ -440,10 +443,10 @@ class HydroML:
         plot_dir = make_proper_dir_name(self.output_dir + 'Partial_Plots/PDP_Data')
         makedirs([plot_dir])
         rf_model = rfr.rf_regressor(df, self.output_dir, n_estimators=n_estimators, random_state=random_state,
-                                    pred_attr=pred_attr, drop_attrs=drop_attrs, test_year=test_year, shuffle=shuffle,
-                                    plot_graphs=plot_graphs, plot_3d=plot_3d, split_yearly=split_yearly,
-                                    bootstrap=bootstrap, plot_dir=plot_dir, max_features=max_features,
-                                    load_model=load_model, test_size=test_size)
+                                    pred_attr=pred_attr, drop_attrs=drop_attrs, test_year=test_year, test_gmd=test_gmd,
+                                    use_gmd=use_gmd, shuffle=shuffle, plot_graphs=plot_graphs, plot_3d=plot_3d,
+                                    split_attribute=split_attribute, bootstrap=bootstrap, plot_dir=plot_dir,
+                                    max_features=max_features, load_model=load_model, test_size=test_size)
         return rf_model
 
     def get_predictions(self, rf_model, pred_years, column_names=None, final_mask=None, ordering=False, pred_attr='GW',
@@ -517,8 +520,8 @@ def run_gw(analyze_only=False, load_files=True, load_rf_model=False, use_gmds=Tr
                      (59.5, 61.5): 0,
                      (130.5, 195.5): 0
                      }
-    exclude_vars = ('SSEBop',)
-    drop_attrs = ('YEAR', )
+    exclude_vars = ('SSEBop', 'URBAN', 'AGRI', 'SW', 'Crop')
+    drop_attrs = ('YEAR', 'GMD')
     pred_attr = 'GW'
     ssebop_link = 'https://edcintl.cr.usgs.gov/downloads/sciweb1/shared/uswem/web/conus/eta/modis_eta/monthly/' \
                   'downloads/'
@@ -539,16 +542,16 @@ def run_gw(analyze_only=False, load_files=True, load_rf_model=False, use_gmds=Tr
         gw.mask_rasters(already_masked=load_files)
         gw.create_land_use_rasters(already_created=load_files)
         gw.update_crop_coeff_raster(already_updated=load_files)
-        df = gw.create_dataframe(year_list=range(2002, 2020), exclude_vars=exclude_vars, load_df=load_files)
+        df = gw.create_dataframe(year_list=range(2002, 2020), exclude_vars=exclude_vars, load_df=False)
         max_features = len(df.columns.values.tolist()) - len(drop_attrs) - 1
-        rf_model = gw.build_model(df, n_estimators=500, test_year=range(2011, 2020), drop_attrs=drop_attrs,
-                                  pred_attr=pred_attr, load_model=load_rf_model, max_features=max_features,
-                                  plot_graphs=False)
+        rf_model = gw.build_model(df, n_estimators=500, test_year=range(2011, 2020), test_gmd=(2,), use_gmd=True,
+                                  drop_attrs=drop_attrs, pred_attr=pred_attr, load_model=load_rf_model,
+                                  max_features=max_features, plot_graphs=False, split_attribute=True)
         pred_gw_dir = gw.get_predictions(rf_model=rf_model, pred_years=range(2002, 2020),
-                                         drop_attrs=drop_attrs + exclude_vars, pred_attr=pred_attr, only_pred=False)
-    # ma.run_analysis(gw_dir, pred_gw_dir, grace_csv, use_gmds=use_gmds, input_gmd_file=input_gmd_file,
-    #                 out_dir=output_dir)
+                                         drop_attrs=drop_attrs[:1] + exclude_vars, pred_attr=pred_attr, only_pred=False)
+    ma.run_analysis(gw_dir, pred_gw_dir, grace_csv, use_gmds=use_gmds, out_dir=output_dir,
+                    input_gmd_file=file_dir + 'gmds/reproj/input_gmd_reproj.shp')
     ma.generate_feature_qq_plots(output_dir + '/raster_df.csv')
 
 
-run_gw(analyze_only=True, load_files=True, load_rf_model=False, use_gmds=False)
+run_gw(analyze_only=False, load_files=True, load_rf_model=False, use_gmds=True)
