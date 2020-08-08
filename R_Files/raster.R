@@ -1,8 +1,8 @@
 library(raster)
 library(colorRamps)
 
-pred.raster <- raster('../Outputs/Output_Apr_Sept_T1/Predicted_Rasters/pred_2014.tif')
-actual.raster <- raster('../Inputs/Files_Apr_Sept/RF_Data/GW_2014.tif')
+pred.raster <- raster('../Outputs/Output_Apr_Sept/Predicted_Rasters/pred_2012.tif')
+actual.raster <- raster('../Inputs/Files_Apr_Sept/RF_Data/GW_2012.tif')
 
 wgs84 = "+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs"
 actual.raster = projectRaster(actual.raster, crs = wgs84, method = "ngb")
@@ -42,6 +42,8 @@ par(mfrow = c(2, 2))
 err.raster <- actual.raster - pred.raster
 plot(err.raster, col = matlab.like2(255), ylab='Latitude (Degree)', xlab='Longitude (Degree)', 
      legend.args=list(text='Error (mm)', side = 2, font = 0.5, cex = 0.55))
+plot(err.raster, col = matlab.like2(255), ylab='Latitude (Degree)', xlab='Longitude (Degree)', 
+     legend.args=list(text='Error (mm)', side = 2))
 err.df <- as.data.frame(err.raster, na.rm = T)
 err <- err.df$layer
 err.mean <- mean(err)
@@ -49,8 +51,8 @@ err.sd <- sd(err)
 std.err <- err / err.sd
 std.err.df <- as.data.frame(std.err)
 names(std.err.df) <- c('STD.ERR')
-std.err.df$STD.ERR[std.err.df$STD.ERR < -5] <- NA
-std.err.df$STD.ERR[std.err.df$STD.ERR > 5] <- NA
+std.err.df$STD.ERR[std.err.df$STD.ERR < -2] <- NA
+std.err.df$STD.ERR[std.err.df$STD.ERR > 2] <- NA
 std.err.df <- na.omit(std.err.df)
 hist(std.err.df$STD.ERR, breaks=50, freq = F, main="", xlab='Standardized Residuals')
 x <- seq(min(std.err.df$STD.ERR), max(std.err.df$STD.ERR), length.out=length(std.err.df$STD.ERR))

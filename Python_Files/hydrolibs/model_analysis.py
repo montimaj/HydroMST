@@ -4,6 +4,7 @@
 import numpy as np
 import pandas as pd
 import os
+import seaborn
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 import sklearn.metrics as metrics
@@ -338,3 +339,39 @@ def run_analysis(actual_gw_dir, pred_gw_dir, grace_csv, out_dir, input_gmd_file=
         print(calculate_gmd_stats(ts_df[1], gmd_name_list, out_dir))
         ts_df = ts_df[0], ts_df[2]
         create_gmd_time_series_forecast_plot(ts_df, gmd_name_list=gmd_name_list)
+
+
+def generate_feature_qq_plots(input_csv_file, year_col='YEAR', temporal_features=('ET', 'P'), pred_attr='GW'):
+    """
+    Generate QQ plots for all features
+    :param input_csv_file: Input CSV file path
+    :param year_col: Name of Year column
+    :param temporal_features: Temporal feature names
+    :param pred_attr: Prediction attribute name to be dropped from boxplot
+    :return: None
+    """
+
+    input_df = pd.read_csv(input_csv_file)
+    feature_names = input_df.columns.values.tolist()
+    feature_names.remove(pred_attr)
+    for tf in temporal_features:
+        sub_df = input_df[[year_col, tf]]
+        fig, ax = plt.subplots(figsize=(12, 5))
+        seaborn.boxplot(x='YEAR', y=tf, data=sub_df, ax=ax)
+        plt.show()
+        feature_names.remove(tf)
+    feature_names.remove(year_col)
+    feature_names.remove('Crop')
+    sub_df = pd.melt(input_df.loc[input_df[year_col] == 2015][feature_names])
+    sub_df = sub_df.rename(columns={'variable': 'Land-Use Features', 'value': 'Land-Use Density'})
+    seaborn.boxplot(x='Land-Use Features', y='Land-Use Density', data=sub_df)
+    plt.show()
+    sub_df = pd.melt(input_df.loc[input_df[year_col] == 2015][['Crop']])
+    sub_df['variable'] = ''
+    sub_df = sub_df.rename(columns={'variable': 'Crop Coefficient', 'value': 'Value'})
+    seaborn.boxplot(x='Crop Coefficient', y='Value', data=sub_df)
+    plt.show()
+
+
+
+

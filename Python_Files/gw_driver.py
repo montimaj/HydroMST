@@ -349,14 +349,15 @@ class HydroML:
             rops.update_crop_coeff_raster(crop_coeff_file, agri_file)
         print('Crop coefficients updated!')
 
-    def create_dataframe(self, year_list, column_names=None, ordering=False, load_df=False, exclude_years=(2019, ),
-                         verbose=True):
+    def create_dataframe(self, year_list, column_names=None, ordering=False, load_df=False, exclude_vars=(),
+                         exclude_years=(2019, ), verbose=True):
         """
         Create dataframe from preprocessed files
         :param year_list: List of years for which the dataframe will be created
         :param column_names: Dataframe column names, these must be df headers
         :param ordering: Set True to order dataframe column names
         :param load_df: Set true to load existing dataframe
+        :param exclude_vars: Exclude these variables from the dataframe
         :param exclude_years: List of years to exclude from dataframe
         :param verbose: Get extra information if set to True
         :return: Pandas dataframe object
@@ -381,7 +382,7 @@ class HydroML:
                        pattern_list=['*.tif'], rep=True, verbose=verbose)
             print('Creating dataframe...')
             df = rfr.create_dataframe(self.rf_data_dir, out_df=df_file, column_names=column_names, make_year_col=True,
-                                      exclude_years=exclude_years, ordering=ordering)
+                                      exclude_vars=exclude_vars, exclude_years=exclude_years, ordering=ordering)
             return df
 
     def tune_parameters(self, df, pred_attr, drop_attrs=()):
@@ -516,7 +517,8 @@ def run_gw(analyze_only=False, load_files=True, load_rf_model=False, use_gmds=Tr
                      (59.5, 61.5): 0,
                      (130.5, 195.5): 0
                      }
-    drop_attrs = ('YEAR', 'SSEBop', 'Crop')
+    exclude_vars = ('SSEBop',)
+    drop_attrs = ('YEAR', )
     pred_attr = 'GW'
     ssebop_link = 'https://edcintl.cr.usgs.gov/downloads/sciweb1/shared/uswem/web/conus/eta/modis_eta/monthly/' \
                   'downloads/'
@@ -537,15 +539,16 @@ def run_gw(analyze_only=False, load_files=True, load_rf_model=False, use_gmds=Tr
         gw.mask_rasters(already_masked=load_files)
         gw.create_land_use_rasters(already_created=load_files)
         gw.update_crop_coeff_raster(already_updated=load_files)
-        df = gw.create_dataframe(year_list=range(2002, 2020), load_df=load_files)
+        df = gw.create_dataframe(year_list=range(2002, 2020), exclude_vars=exclude_vars, load_df=load_files)
         max_features = len(df.columns.values.tolist()) - len(drop_attrs) - 1
-        rf_model = gw.build_model(df, n_estimators=500, test_year=range(2012, 2013), drop_attrs=drop_attrs,
+        rf_model = gw.build_model(df, n_estimators=500, test_year=range(2011, 2020), drop_attrs=drop_attrs,
                                   pred_attr=pred_attr, load_model=load_rf_model, max_features=max_features,
                                   plot_graphs=False)
-        pred_gw_dir = gw.get_predictions(rf_model=rf_model, pred_years=range(2002, 2020), drop_attrs=drop_attrs,
-                                         pred_attr=pred_attr, only_pred=False)
-    ma.run_analysis(gw_dir, pred_gw_dir, grace_csv, use_gmds=use_gmds, input_gmd_file=input_gmd_file,
-                    out_dir=output_dir)
+        pred_gw_dir = gw.get_predictions(rf_model=rf_model, pred_years=range(2002, 2020),
+                                         drop_attrs=drop_attrs + exclude_vars, pred_attr=pred_attr, only_pred=False)
+    # ma.run_analysis(gw_dir, pred_gw_dir, grace_csv, use_gmds=use_gmds, input_gmd_file=input_gmd_file,
+    #                 out_dir=output_dir)
+    ma.generate_feature_qq_plots(output_dir + '/raster_df.csv')
 
 
-run_gw(analyze_only=False, load_files=True, load_rf_model=False, use_gmds=False)
+run_gw(analyze_only=True, load_files=True, load_rf_model=False, use_gmds=False)
