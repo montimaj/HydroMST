@@ -14,7 +14,8 @@ from glob import glob
 class HydroML:
 
     def __init__(self, input_dir, file_dir, output_dir, output_shp_dir, output_gw_raster_dir,
-                 input_gmd_file, input_state_file, gdal_path, input_ts_dir=None, input_cdl_file=None, ssebop_link=None):
+                 input_gmd_file, input_state_file, gdal_path, input_ts_dir=None, input_cdl_file=None, ssebop_link=None,
+                 test_area_file=None):
         """
         Constructor for initializing class variables
         :param input_dir: Input data directory
@@ -30,6 +31,7 @@ class HydroML:
         :param input_ts_dir: Input directory containing the time series data
         :param input_cdl_file: Input NASS CDL file path
         :param ssebop_link: SSEBop data download link. SSEBop data are not downloaded if its set to None.
+        :param test_area_file: Test shape file to use instead of GMD for model training
         """
 
         self.input_dir = make_proper_dir_name(input_dir)
@@ -40,6 +42,7 @@ class HydroML:
         self.output_gw_raster_dir = make_proper_dir_name(output_gw_raster_dir)
         self.gdal_path = make_proper_dir_name(gdal_path)
         self.input_gmd_file = input_gmd_file
+        self.test_area_file = test_area_file
         self.input_state_file = input_state_file
         self.input_cdl_file = input_cdl_file
         self.input_gmd_reproj_file = None
@@ -381,9 +384,12 @@ class HydroML:
             copy_files([self.crop_coeff_mask_dir], target_dir=self.rf_data_dir, year_list=year_list,
                        pattern_list=['*.tif'], rep=True, verbose=verbose)
             print('Creating dataframe...')
-            df = rfr.create_dataframe(self.rf_data_dir, input_gmd_file=self.input_gmd_reproj_file,
-                                      output_dir=self.output_dir, column_names=column_names, make_year_col=True,
-                                      exclude_vars=exclude_vars, exclude_years=exclude_years, ordering=ordering)
+            gmd_file = self.input_gmd_reproj_file
+            if self.test_area_file:
+                gmd_file = self.test_area_file
+            df = rfr.create_dataframe(self.rf_data_dir, input_gmd_file=gmd_file, output_dir=self.output_dir,
+                                      column_names=column_names, make_year_col=True, exclude_vars=exclude_vars,
+                                      exclude_years=exclude_years, ordering=ordering)
             return df
 
     def tune_parameters(self, df, pred_attr, drop_attrs=()):
@@ -505,6 +511,7 @@ def run_gw(analyze_only=False, load_files=True, load_rf_model=False, use_gmds=Tr
     output_shp_dir = file_dir + 'GW_Shapefiles/'
     output_gw_raster_dir = file_dir + 'GW_Rasters/'
     input_gmd_file = input_dir + 'gmds/ks_gmds.shp'
+    test_area_file = input_dir + 'Test_Area/Test_New/Test_New.shp'
     input_gdb_dir = input_dir + 'ks_pd_data_updated2018.gdb'
     input_state_file = input_dir + 'Kansas/kansas.shp'
     gdal_path = 'C:/OSGeo4W64/'
@@ -520,8 +527,8 @@ def run_gw(analyze_only=False, load_files=True, load_rf_model=False, use_gmds=Tr
                      (59.5, 61.5): 0,
                      (130.5, 195.5): 0
                      }
-    exclude_vars = ('SSEBop', 'URBAN', 'AGRI', 'SW', 'Crop')
-    drop_attrs = ('YEAR', 'GMD')
+    exclude_vars = ('SSEBop',)
+    drop_attrs = ('YEAR', 'GMD',)
     pred_attr = 'GW'
     ssebop_link = 'https://edcintl.cr.usgs.gov/downloads/sciweb1/shared/uswem/web/conus/eta/modis_eta/monthly/' \
                   'downloads/'
@@ -530,7 +537,7 @@ def run_gw(analyze_only=False, load_files=True, load_rf_model=False, use_gmds=Tr
     data_end_month = 9
     if not analyze_only:
         gw = HydroML(input_dir, file_dir, output_dir, output_shp_dir, output_gw_raster_dir, input_gmd_file,
-                     input_state_file, gdal_path, ssebop_link=ssebop_link)
+                     input_state_file, gdal_path, ssebop_link=ssebop_link, test_area_file=test_area_file)
         gw.download_data(year_list=data_year_list, start_month=data_start_month, end_month=data_end_month,
                          already_downloaded=load_files, already_extracted=load_files)
         gw.extract_shp_from_gdb(input_gdb_dir, year_list=range(2002, 2019), already_extracted=load_files)
@@ -544,13 +551,13 @@ def run_gw(analyze_only=False, load_files=True, load_rf_model=False, use_gmds=Tr
         gw.update_crop_coeff_raster(already_updated=load_files)
         df = gw.create_dataframe(year_list=range(2002, 2020), exclude_vars=exclude_vars, load_df=False)
         max_features = len(df.columns.values.tolist()) - len(drop_attrs) - 1
-        rf_model = gw.build_model(df, n_estimators=500, test_year=range(2011, 2020), test_gmd=(2,), use_gmd=True,
+        rf_model = gw.build_model(df, n_estimators=500, test_year=None, test_gmd=(-1,), use_gmd=True,
                                   drop_attrs=drop_attrs, pred_attr=pred_attr, load_model=load_rf_model,
                                   max_features=max_features, plot_graphs=False, split_attribute=True)
         pred_gw_dir = gw.get_predictions(rf_model=rf_model, pred_years=range(2002, 2020),
                                          drop_attrs=drop_attrs[:1] + exclude_vars, pred_attr=pred_attr, only_pred=False)
     ma.run_analysis(gw_dir, pred_gw_dir, grace_csv, use_gmds=use_gmds, out_dir=output_dir,
-                    input_gmd_file=file_dir + 'gmds/reproj/input_gmd_reproj.shp')
+                    input_gmd_file=input_gmd_file)
     ma.generate_feature_qq_plots(output_dir + '/raster_df.csv')
 
 

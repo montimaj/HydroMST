@@ -416,7 +416,7 @@ def reproject_rasters(input_raster_dir, ref_raster, outdir, pattern='*.tif', gda
 
     for raster_file in glob(input_raster_dir + pattern):
         out_raster = outdir + raster_file[raster_file.rfind(os.sep) + 1:]
-        reproject_raster(raster_file, from_raster=ref_raster, outfile_path=out_raster, gdal_path=gdal_path, 
+        reproject_raster(raster_file, from_raster=ref_raster, outfile_path=out_raster, gdal_path=gdal_path,
                          verbose=verbose)
 
 
@@ -517,7 +517,7 @@ def compute_raster_shp(input_raster_file, input_shp_file, outfile_path, nan_fill
 
 
 def compute_rasters_from_shp(input_raster_dir, input_shp_dir, outdir, nan_fill=0, point_arithmetic='sum',
-                             value_field_pos=0, pattern='*.tif', gdal_path='/usr/local/Cellar/gdal/2.4.2/bin/', 
+                             value_field_pos=0, pattern='*.tif', gdal_path='/usr/local/Cellar/gdal/2.4.2/bin/',
                              verbose=True):
     """
     Replace/Insert values of all rasters in a directory based on the point coordinates from the shape file and applying
@@ -839,7 +839,10 @@ def get_gmd_info_arr(input_raster_file, input_gmd_shp_file, output_dir, label_at
             feature = gmd_shp[gmd_shp[label_attr] == label]
             poly = feature['geometry'].iloc[0]
             if poly.contains(gp):
-                gmd_arr[idx] = int(label[-1])
+                gmd_label = label[-1]
+                if label[-2].isnumeric():
+                    gmd_label = label[-2:]
+                gmd_arr[idx] = int(gmd_label)
                 break
     gmd_arr[np.isnan(raster_arr)] = np.nan
     np.save(gmd_out, gmd_arr)
