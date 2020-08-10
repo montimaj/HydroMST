@@ -241,6 +241,104 @@ def create_gmd_time_series_forecast_plot(input_df_list, gmd_name_list, forecast_
         plt.show()
 
 
+def create_time_series_forecast_plot_multi_pred(input_df_list, forecast_years=(2019, ), plot_title=''):
+    """
+    Create time series plot considering entire Kansas for predicted GW from All, Only Spatial, and Only Temporal use
+    cases
+    :param input_df_list: Input data frames as constructed from #run_analysis2
+    :param forecast_years: The line color changes for these years
+    :param plot_title: Plot title
+    :return: None
+    """
+
+    df_all, df_spatial, df_st = input_df_list
+    gw_df_all = df_all[0]
+    gw_df_spatial = df_spatial[0]
+    gw_df_st = df_st[0]
+    grace_df = df_all[1]
+    fig, (ax1, ax2) = plt.subplots(2, 1)
+    fig.suptitle(plot_title)
+    gw_df_all.set_index('YEAR').plot(y='Actual_GW', ax=ax1, color='r', linestyle='solid')
+    gw_df_all.set_index('YEAR').plot(y='Pred_GW', ax=ax1, color='#3D357A', linestyle='dashed')
+    gw_df_spatial.set_index('YEAR').plot(y='Pred_GW', ax=ax1, color='k', linestyle='solid', linewidth=2)
+    gw_df_st.set_index('YEAR').plot(y='Pred_GW', ax=ax1, color='#00A1D9', linestyle=(0, (1, 1)))
+    grace_df.set_index('DT').plot(ax=ax2)
+    grace_df_years = list(grace_df.DT)
+    ax1.axvspan(2010.5, 2018.5, color='#a6bddb', alpha=0.6)
+    min_forecast_yr = min(forecast_years)
+    ax1.set_xlim(left=np.min(gw_df_all.YEAR) - 0.1, right=np.max(gw_df_all.YEAR) + 0.1)
+    ax1.axvspan(min_forecast_yr - 0.5, np.max(gw_df_all.YEAR) + 0.1, color='#fee8c8', alpha=1)
+    ax1.legend(loc=2, ncol=2, frameon=False, fancybox=False, bbox_to_anchor=(0.1, 1),
+               labels=['Actual GW', 'Predicted GW: All', 'Predicted GW: Spatial', 'Predicted GW: ST',
+                       'Test Years', 'Forecast'])
+    ax1.set_ylabel('Mean GW Pumping (mm)')
+    ax1.set_xticks(gw_df_all.YEAR)
+    ax1.set_xticklabels(gw_df_all.YEAR)
+    ax1.set_xlabel('Year')
+    ax2.set_ylim(bottom=-150, top=150)
+    ax2.invert_yaxis()
+    ax2.set_ylabel('Monthly TWS (mm)')
+    ax2.set_xlabel('Year')
+    ax2.legend(loc=2, bbox_to_anchor=(0.1, 1), frameon=False, fancybox=False, labels=['GRACE TWS'])
+    ax2.xaxis.set_major_locator(mdates.YearLocator())
+    ax2.xaxis.set_major_formatter(mdates.DateFormatter('%Y'))
+    datemin = np.datetime64(grace_df_years[0], 'Y')
+    datemax = np.datetime64(grace_df_years[-1], 'Y') + np.timedelta64(1, 'Y')
+    ax2.set_xlim(datemin, datemax)
+    ax2.format_xdata = mdates.DateFormatter('%Y')
+    plt.tight_layout(pad=0.4, w_pad=0.5, h_pad=1.0)
+    plt.show()
+
+
+def create_gmd_time_series_forecast_plot_multi_pred(input_df_list, gmd_name_list, forecast_years=(2019, ),
+                                                    plot_title=''):
+    """
+    Create time series plot considering all GMDs for predicted GW from All, Only Spatial, and Only Temporal use cases
+    :param input_df_list: Input data frames as constructed from #run_analysis2
+    :param gmd_name_list: GMD labels
+    :param forecast_years: The line color changes for these years
+    :param plot_title: Plot title
+    :return: None
+    """
+
+    df_all, df_spatial, df_st = input_df_list
+    gw_df_all = df_all[0]
+    gw_df_spatial = df_spatial[0]
+    gw_df_st = df_st[0]
+    grace_df = df_all[1]
+    for gmd in gmd_name_list:
+        fig, (ax1, ax2) = plt.subplots(2, 1)
+        fig.suptitle(plot_title)
+        df_all = gw_df_all[gw_df_all.GMD == gmd]
+        df_spatial = gw_df_spatial[gw_df_spatial.GMD == gmd]
+        df_st = gw_df_st[gw_df_st.GMD == gmd]
+        df_all.set_index('YEAR').plot(y='Actual_GW', ax=ax1, color='r', linestyle='solid')
+        df_all.set_index('YEAR').plot(y='Pred_GW', ax=ax1, color='#3D357A', linestyle='dashed')
+        df_spatial.set_index('YEAR').plot(y='Pred_GW', ax=ax1, color='k', linestyle='solid', linewidth=2)
+        df_st.set_index('YEAR').plot(y='Pred_GW', ax=ax1, color='#00A1D9', linestyle=(0, (1, 1)))
+        ax1.axvspan(2010.5, 2018.5, color='#a6bddb', alpha=0.6)
+        min_forecast_yr = min(forecast_years)
+        ax1.set_xlim(left=np.min(df_all.YEAR) - 0.1, right=np.max(df_all.YEAR) + 0.1)
+        ax1.axvspan(min_forecast_yr - 0.5, np.max(df_all.YEAR) + 0.1, color='#fee8c8', alpha=1)
+        ax1.legend(loc=2, ncol=2, frameon=False, fancybox=False, bbox_to_anchor=(0.01, 1),
+                   labels=['Actual GW: ' + gmd, 'Predicted GW (All): ' + gmd, 'Predicted GW (Spatial): ' + gmd,
+                           'Predicted GW (ST): ' + gmd, 'Test Years', 'Forecast'])
+        ax1.set_ylabel('Mean GW Pumping (mm)')
+        ax1.set_xticks(df_all.YEAR)
+        ax1.set_xticklabels(df_all.YEAR)
+        ax1.set_xlabel('Year')
+        max_gw = int(max(np.max(gw_df_all.Actual_GW), np.max(gw_df_all.Pred_GW)) + 10)
+        ax1.set_ylim(bottom=0, top=max_gw)
+        grace_df.set_index('DT').plot(ax=ax2)
+        ax2.set_ylim(bottom=-150, top=150)
+        ax2.invert_yaxis()
+        ax2.set_ylabel('Monthly TWS (mm)')
+        ax2.set_xlabel('Year')
+        ax2.legend(loc=2, bbox_to_anchor=(0.01, 1), frameon=False, fancybox=False, labels=['GRACE TWS'])
+        plt.tight_layout(pad=0.4, w_pad=0.5, h_pad=1.0)
+        plt.show()
+
+
 def preprocess_gmds(actual_gw_dir, pred_gw_dir, input_gmd_file, out_dir, actual_gw_pattern='GW*.tif',
                     pred_gw_pattern='pred*.tif'):
     """
@@ -295,10 +393,15 @@ def calculate_gmd_stats(gw_df, gmd_name_list, out_dir, train_end=2010, test_star
         for gmd in gmd_name_list:
             actual_values = gw_df[gw_df.GMD == gmd].Actual_GW
             pred_values = gw_df[gw_df.GMD == gmd].Pred_GW
-            rmse = np.round(metrics.mean_squared_error(actual_values, pred_values, squared=False), 2)
+            rmse = metrics.mean_squared_error(actual_values, pred_values, squared=False)
             r2 = np.round(metrics.r2_score(actual_values, pred_values), 2)
-            mae = np.round(metrics.mean_absolute_error(actual_values, pred_values), 2)
-            gmd_metrics_dict = {'GW_TYPE': [gw_df_label], 'GMD': [gmd], 'RMSE': [rmse], 'R2': [r2], 'MAE': [mae]}
+            mae = metrics.mean_absolute_error(actual_values, pred_values)
+            nmae = np.round(mae / np.mean(actual_values), 2)
+            nrmse = np.round(rmse / np.mean(actual_values), 2)
+            mae = np.round(mae, 2)
+            rmse = np.round(rmse, 2)
+            gmd_metrics_dict = {'GW_TYPE': [gw_df_label], 'GMD': [gmd], 'RMSE': [rmse], 'R2': [r2], 'MAE': [mae],
+                                'NMAE': [nmae], 'NRMSE': [nrmse]}
             gmd_metrics_df = gmd_metrics_df.append(pd.DataFrame(data=gmd_metrics_dict))
     out_csv = out_dir + 'GMD_Metrics.csv'
     gmd_metrics_df.to_csv(out_csv, index=False)
@@ -306,7 +409,7 @@ def calculate_gmd_stats(gw_df, gmd_name_list, out_dir, train_end=2010, test_star
 
 
 def run_analysis(actual_gw_dir, pred_gw_dir, grace_csv, out_dir, input_gmd_file=None, use_gmds=True,
-                 actual_gw_pattern='GW*.tif', pred_gw_pattern='pred*.tif'):
+                 actual_gw_pattern='GW*.tif', pred_gw_pattern='pred*.tif', generate_plots=True):
     """
     Run model analysis to get actual vs predicted graph along with GRACE TWSA variations
     :param actual_gw_dir: Directory containing the actual data
@@ -317,17 +420,20 @@ def run_analysis(actual_gw_dir, pred_gw_dir, grace_csv, out_dir, input_gmd_file=
     :param use_gmds: Set False to use entire GW raster for analysis
     :param actual_gw_pattern: Actual GW pumping raster file pattern
     :param pred_gw_pattern: Predicted GW pumping raster file pattern
-    :return: None
+    :param generate_plots: Set False to disable plotting
+    :return: Tuple of Pandas dataframes if generate_plots=False else None
     """
 
     out_dir = make_proper_dir_name(out_dir)
+    gmd_name_list = []
     makedirs([out_dir])
     if not use_gmds:
         ts_df = create_gw_forecast_time_series([actual_gw_dir], [pred_gw_dir], grace_csv=grace_csv, out_dir=out_dir,
                                                actual_gw_pattern=actual_gw_pattern, pred_gw_pattern=pred_gw_pattern,
                                                use_gmds=use_gmds)
         ts_df = ts_df[0], ts_df[2]
-        create_time_series_forecast_plot(ts_df)
+        if generate_plots:
+            create_time_series_forecast_plot(ts_df)
     else:
         actual_gw_dir_list, pred_gw_dir_list, gmd_name_list = preprocess_gmds(actual_gw_dir, pred_gw_dir,
                                                                               input_gmd_file, out_dir,
@@ -336,10 +442,14 @@ def run_analysis(actual_gw_dir, pred_gw_dir, grace_csv, out_dir, input_gmd_file=
         ts_df = create_gw_forecast_time_series(actual_gw_dir_list, pred_gw_dir_list, gmd_name_list=gmd_name_list,
                                                grace_csv=grace_csv, use_gmds=use_gmds, out_dir=out_dir,
                                                actual_gw_pattern=actual_gw_pattern, pred_gw_pattern=pred_gw_pattern)
-
-        print(calculate_gmd_stats(ts_df[1], gmd_name_list, out_dir))
         ts_df = ts_df[0], ts_df[2]
-        create_gmd_time_series_forecast_plot(ts_df, gmd_name_list=gmd_name_list)
+        if generate_plots:
+            print(calculate_gmd_stats(ts_df[1], gmd_name_list, out_dir))
+            create_gmd_time_series_forecast_plot(ts_df, gmd_name_list=gmd_name_list)
+    if not generate_plots:
+        if use_gmds:
+            return ts_df, gmd_name_list
+        return ts_df
 
 
 def generate_feature_qq_plots(input_csv_file, year_col='YEAR', temporal_features=('ET', 'P'), pred_attr='GW'):
@@ -372,3 +482,33 @@ def generate_feature_qq_plots(input_csv_file, year_col='YEAR', temporal_features
     sub_df = sub_df.rename(columns={'variable': 'Crop Coefficient', 'value': 'Value'})
     seaborn.boxplot(x='Crop Coefficient', y='Value', data=sub_df)
     plt.show()
+
+
+def run_analysis2(actual_gw_dir, pred_gw_dir_list, grace_csv, out_dir, input_gmd_file=None, use_gmds=True,
+                  actual_gw_pattern='GW*.tif', pred_gw_pattern='pred*.tif'):
+    """
+    Run model analysis to get actual vs predicted graph along with GRACE TWSA variations for different use cases
+    :param actual_gw_dir: Directory containing the actual data
+    :param pred_gw_dir_list: List of directories containing the predicted data for different use-cases ordered by All,
+    Only Spatial, and Only Spatio-temporal predictions
+    :param grace_csv: GRACE TWSA CSV file
+    :param out_dir: Output directory for storing intermediate files
+    :param input_gmd_file: Input GMD shapefile for creating GMD specific plots, required only if use_gmds=True
+    :param use_gmds: Set False to use entire GW raster for analysis
+    :param actual_gw_pattern: Actual GW pumping raster file pattern
+    :param pred_gw_pattern: Predicted GW pumping raster file pattern
+    :return: None
+    """
+
+    ts_list = []
+    gmd_name_list = []
+    for pred_gw_dir in pred_gw_dir_list:
+        ts_df = run_analysis(actual_gw_dir, pred_gw_dir, grace_csv, out_dir, input_gmd_file, use_gmds,
+                             actual_gw_pattern, pred_gw_pattern, generate_plots=False)
+        if use_gmds:
+            ts_df, gmd_name_list = ts_df
+        ts_list.append(ts_df)
+    if not use_gmds:
+        create_time_series_forecast_plot_multi_pred(ts_list)
+    else:
+        create_gmd_time_series_forecast_plot_multi_pred(ts_list, gmd_name_list=gmd_name_list)

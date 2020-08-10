@@ -20,7 +20,7 @@ from Python_Files.hydrolibs import rasterops as rops
 
 
 def create_dataframe(input_file_dir, input_gmd_file, output_dir, column_names=None, pattern='*.tif', exclude_years=(),
-                     exclude_vars=(), make_year_col=True, ordering=False):
+                     exclude_vars=(), make_year_col=True, ordering=False, label_attr='Label'):
     """
     Create dataframe from file list
     :param input_file_dir: Input directory where the file names begin with <Variable>_<Year>, e.g, ET_2015.tif
@@ -32,6 +32,7 @@ def create_dataframe(input_file_dir, input_gmd_file, output_dir, column_names=No
     :param exclude_vars: Exclude these variables from the dataframe
     :param make_year_col: Make a dataframe column entry for year
     :param ordering: Set True to order dataframe column names
+    :param label_attr: Label attribute present in the shapefile
     :return: Pandas dataframe
     """
 
@@ -47,7 +48,8 @@ def create_dataframe(input_file_dir, input_gmd_file, output_dir, column_names=No
     years = sorted(list(raster_file_dict.keys()))
     df = None
     raster_arr = None
-    gmd_arr = rops.get_gmd_info_arr(raster_file_dict[years[0]][0], input_gmd_file, output_dir=output_dir)
+    gmd_arr = rops.get_gmd_info_arr(raster_file_dict[years[0]][0], input_gmd_file, output_dir=output_dir,
+                                    label_attr=label_attr)
     gmd_arr = gmd_arr.reshape(gmd_arr.shape[0] * gmd_arr.shape[1])
     for year in years:
         file_list = raster_file_dict[year]

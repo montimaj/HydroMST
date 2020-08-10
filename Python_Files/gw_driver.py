@@ -353,7 +353,7 @@ class HydroML:
         print('Crop coefficients updated!')
 
     def create_dataframe(self, year_list, column_names=None, ordering=False, load_df=False, exclude_vars=(),
-                         exclude_years=(2019, ), verbose=True):
+                         exclude_years=(2019, ), verbose=True, label_attr='Label'):
         """
         Create dataframe from preprocessed files
         :param year_list: List of years for which the dataframe will be created
@@ -363,6 +363,7 @@ class HydroML:
         :param exclude_vars: Exclude these variables from the dataframe
         :param exclude_years: List of years to exclude from dataframe
         :param verbose: Get extra information if set to True
+        :param label_attr: Label attribute present in the shapefile
         :return: Pandas dataframe object
         """
 
@@ -389,7 +390,7 @@ class HydroML:
                 gmd_file = self.test_area_file
             df = rfr.create_dataframe(self.rf_data_dir, input_gmd_file=gmd_file, output_dir=self.output_dir,
                                       column_names=column_names, make_year_col=True, exclude_vars=exclude_vars,
-                                      exclude_years=exclude_years, ordering=ordering)
+                                      exclude_years=exclude_years, ordering=ordering, label_attr=label_attr)
             return df
 
     def tune_parameters(self, df, pred_attr, drop_attrs=()):
@@ -494,13 +495,16 @@ class HydroML:
         return pred_out_dir
 
 
-def run_gw(analyze_only=False, load_files=True, load_rf_model=False, use_gmds=True):
+def run_gw(analyze_only=False, load_files=True, load_rf_model=False, use_gmds=True, show_qq_plots=False,
+           run_analysis2=False):
     """
     Main function for running the project, some variables require to be hardcoded
     :param analyze_only: Set True to just produce analysis results, all required files must be present
     :param load_files: Set True to load existing files, needed only if analyze_only=False
     :param load_rf_model: Set True to load existing Random Forest model, needed only if analyze_only=False
     :param use_gmds: Set False to use entire GW raster for analysis
+    :param show_qq_plots: Set True to display Q-Q plots of features
+    :param run_analysis2: Set True to run model analysis for predictions from different use cases
     :return: None
     """
 
@@ -511,13 +515,17 @@ def run_gw(analyze_only=False, load_files=True, load_rf_model=False, use_gmds=Tr
     output_shp_dir = file_dir + 'GW_Shapefiles/'
     output_gw_raster_dir = file_dir + 'GW_Rasters/'
     input_gmd_file = input_dir + 'gmds/ks_gmds.shp'
-    test_area_file = input_dir + 'Test_Area/Test_New/Test_New.shp'
+    test_area_file = input_dir + 'Test_Area/Test_Area.shp'
     input_gdb_dir = input_dir + 'ks_pd_data_updated2018.gdb'
     input_state_file = input_dir + 'Kansas/kansas.shp'
     gdal_path = 'C:/OSGeo4W64/'
     gw_dir = file_dir + 'RF_Data/'
     pred_gw_dir = output_dir + 'Predicted_Rasters/'
     grace_csv = input_dir + 'GRACE/TWS_GRACE.csv'
+    pred_gw_dir_all = output_dir + 'Predicted_Rasters_All/'
+    pred_gw_dir_spatial = output_dir + 'Predicted_Rasters_Spatial/'
+    pred_gw_dir_st = output_dir + 'Predicted_Rasters_ST/'
+    pred_gw_dir_list = [pred_gw_dir_all, pred_gw_dir_spatial, pred_gw_dir_st]
     ks_class_dict = {(0, 59.5): 1,
                      (66.5, 77.5): 1,
                      (203.5, 255): 1,
@@ -527,7 +535,7 @@ def run_gw(analyze_only=False, load_files=True, load_rf_model=False, use_gmds=Tr
                      (59.5, 61.5): 0,
                      (130.5, 195.5): 0
                      }
-    exclude_vars = ('SSEBop',)
+    exclude_vars = ('SSEBop', 'ET', 'P')
     drop_attrs = ('YEAR', 'GMD',)
     pred_attr = 'GW'
     ssebop_link = 'https://edcintl.cr.usgs.gov/downloads/sciweb1/shared/uswem/web/conus/eta/modis_eta/monthly/' \
@@ -551,14 +559,19 @@ def run_gw(analyze_only=False, load_files=True, load_rf_model=False, use_gmds=Tr
         gw.update_crop_coeff_raster(already_updated=load_files)
         df = gw.create_dataframe(year_list=range(2002, 2020), exclude_vars=exclude_vars, load_df=False)
         max_features = len(df.columns.values.tolist()) - len(drop_attrs) - 1
-        rf_model = gw.build_model(df, n_estimators=500, test_year=None, test_gmd=(-1,), use_gmd=True,
+        rf_model = gw.build_model(df, n_estimators=500, test_year=range(2011, 2019), test_gmd=(-1,), use_gmd=False,
                                   drop_attrs=drop_attrs, pred_attr=pred_attr, load_model=load_rf_model,
                                   max_features=max_features, plot_graphs=False, split_attribute=True)
         pred_gw_dir = gw.get_predictions(rf_model=rf_model, pred_years=range(2002, 2020),
                                          drop_attrs=drop_attrs[:1] + exclude_vars, pred_attr=pred_attr, only_pred=False)
-    ma.run_analysis(gw_dir, pred_gw_dir, grace_csv, use_gmds=use_gmds, out_dir=output_dir,
-                    input_gmd_file=input_gmd_file)
-    ma.generate_feature_qq_plots(output_dir + '/raster_df.csv')
+    if not run_analysis2:
+        ma.run_analysis(gw_dir, pred_gw_dir, grace_csv, use_gmds=use_gmds, out_dir=output_dir,
+                        input_gmd_file=input_gmd_file)
+    else:
+        ma.run_analysis2(gw_dir, pred_gw_dir_list, grace_csv, use_gmds=use_gmds, out_dir=output_dir,
+                         input_gmd_file=input_gmd_file)
+    if show_qq_plots:
+        ma.generate_feature_qq_plots(output_dir + '/raster_df.csv')
 
 
-run_gw(analyze_only=False, load_files=True, load_rf_model=False, use_gmds=True)
+run_gw(analyze_only=False, load_files=True, load_rf_model=False, use_gmds=False, run_analysis2=True)
