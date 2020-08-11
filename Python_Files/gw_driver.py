@@ -535,7 +535,7 @@ def run_gw(analyze_only=False, load_files=True, load_rf_model=False, use_gmds=Tr
                      (59.5, 61.5): 0,
                      (130.5, 195.5): 0
                      }
-    exclude_vars = ('SSEBop', 'ET', 'P')
+    exclude_vars = ('SSEBop',)
     drop_attrs = ('YEAR', 'GMD',)
     pred_attr = 'GW'
     ssebop_link = 'https://edcintl.cr.usgs.gov/downloads/sciweb1/shared/uswem/web/conus/eta/modis_eta/monthly/' \
@@ -559,7 +559,7 @@ def run_gw(analyze_only=False, load_files=True, load_rf_model=False, use_gmds=Tr
         gw.update_crop_coeff_raster(already_updated=load_files)
         df = gw.create_dataframe(year_list=range(2002, 2020), exclude_vars=exclude_vars, load_df=False)
         max_features = len(df.columns.values.tolist()) - len(drop_attrs) - 1
-        rf_model = gw.build_model(df, n_estimators=500, test_year=range(2011, 2019), test_gmd=(-1,), use_gmd=False,
+        rf_model = gw.build_model(df, n_estimators=500, test_year=range(2014, 2015), test_gmd=(-1,), use_gmd=False,
                                   drop_attrs=drop_attrs, pred_attr=pred_attr, load_model=load_rf_model,
                                   max_features=max_features, plot_graphs=False, split_attribute=True)
         pred_gw_dir = gw.get_predictions(rf_model=rf_model, pred_years=range(2002, 2020),
@@ -574,4 +574,4 @@ def run_gw(analyze_only=False, load_files=True, load_rf_model=False, use_gmds=Tr
         ma.generate_feature_qq_plots(output_dir + '/raster_df.csv')
 
 
-run_gw(analyze_only=False, load_files=True, load_rf_model=False, use_gmds=False, run_analysis2=True)
+run_gw(analyze_only=False, load_files=True, load_rf_model=False, use_gmds=False, run_analysis2=False)
