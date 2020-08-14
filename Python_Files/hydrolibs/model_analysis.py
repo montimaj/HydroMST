@@ -163,12 +163,13 @@ def create_time_series_plot(input_df_list):
     plt.show()
 
 
-def create_time_series_forecast_plot(input_df_list, forecast_years=(2019, ), plot_title=''):
+def create_time_series_forecast_plot(input_df_list, forecast_years=(2019, ), plot_title='', gmd_train=False):
     """
     Create time series plot
     :param input_df_list: Input data frames as constructed from #create_gw_time_series
     :param forecast_years: The line color changes for these years
     :param plot_title: Plot title
+    :param gmd_train: Remove year highlights if gmd_train is set True
     :return: None
     """
 
@@ -178,12 +179,15 @@ def create_time_series_forecast_plot(input_df_list, forecast_years=(2019, ), plo
     df1.set_index('YEAR').plot(ax=ax1)
     df2.set_index('DT').plot(ax=ax2)
     df2_years = list(df2.DT)
-    ax1.axvspan(2010.5, 2018.5, color='#a6bddb', alpha=0.6)
-    min_forecast_yr = min(forecast_years)
     ax1.set_xlim(left=np.min(df1.YEAR) - 0.1, right=np.max(df1.YEAR) + 0.1)
-    ax1.axvspan(min_forecast_yr - 0.5, np.max(df1.YEAR) + 0.1, color='#fee8c8', alpha=1)
-    ax1.legend(loc=2, ncol=2, frameon=False, fancybox=False, bbox_to_anchor=(0.1, 1),
-               labels=['Actual GW', 'Predicted GW', 'Test Years', 'Forecast'])
+    ax1.set_ylim(bottom=0, top=50)
+    labels = ['Actual GW', 'Predicted GW']
+    if not gmd_train:
+        ax1.axvspan(2010.5, 2018.5, color='#a6bddb', alpha=0.6)
+        min_forecast_yr = min(forecast_years)
+        ax1.axvspan(min_forecast_yr - 0.5, np.max(df1.YEAR) + 0.1, color='#fee8c8', alpha=1)
+        labels = labels + ['Test Years', 'Forecast']
+    ax1.legend(loc=2, ncol=2, frameon=False, fancybox=False, bbox_to_anchor=(0.1, 0.3), labels=labels)
     ax1.set_ylabel('Mean GW Pumping (mm)')
     ax1.set_xticks(df1.YEAR)
     ax1.set_xticklabels(df1.YEAR)
@@ -203,13 +207,15 @@ def create_time_series_forecast_plot(input_df_list, forecast_years=(2019, ), plo
     plt.show()
 
 
-def create_gmd_time_series_forecast_plot(input_df_list, gmd_name_list, forecast_years=(2019, ), plot_title=''):
+def create_gmd_time_series_forecast_plot(input_df_list, gmd_name_list, forecast_years=(2019, ), plot_title='',
+                                         gmd_train=False):
     """
     Create time series plot considering all GMDs
     :param input_df_list: Input data frames as constructed from #create_gw_time_series
     :param gmd_name_list: GMD labels
     :param forecast_years: The line color changes for these years
     :param plot_title: Plot title
+    :param gmd_train: Remove year highlights if gmd_train is set True
     :return: None
     """
 
@@ -219,12 +225,14 @@ def create_gmd_time_series_forecast_plot(input_df_list, gmd_name_list, forecast_
         fig.suptitle(plot_title)
         df = gw_df[gw_df.GMD == gmd]
         df.set_index('YEAR').plot(ax=ax1)
-        ax1.axvspan(2010.5, 2018.5, color='#a6bddb', alpha=0.6)
-        min_forecast_yr = min(forecast_years)
         ax1.set_xlim(left=np.min(df.YEAR) - 0.1, right=np.max(df.YEAR) + 0.1)
-        ax1.axvspan(min_forecast_yr - 0.5, np.max(df.YEAR) + 0.1, color='#fee8c8', alpha=1)
-        ax1.legend(loc=2, ncol=2, frameon=False, fancybox=False, bbox_to_anchor=(0.1, 1),
-                   labels=['Actual GW: ' + gmd, 'Predicted GW: ' + gmd, 'Test Years', 'Forecast'])
+        labels = ['Actual GW: ' + gmd, 'Predicted GW: ' + gmd]
+        if not gmd_train:
+            ax1.axvspan(2010.5, 2018.5, color='#a6bddb', alpha=0.6)
+            min_forecast_yr = min(forecast_years)
+            ax1.axvspan(min_forecast_yr - 0.5, np.max(df.YEAR) + 0.1, color='#fee8c8', alpha=1)
+            labels = labels + ['Test Years', 'Forecast']
+        ax1.legend(loc=2, ncol=2, frameon=False, fancybox=False, bbox_to_anchor=(0.1, 1), labels=labels)
         ax1.set_ylabel('Mean GW Pumping (mm)')
         ax1.set_xticks(df.YEAR)
         ax1.set_xticklabels(df.YEAR)
@@ -374,7 +382,56 @@ def preprocess_gmds(actual_gw_dir, pred_gw_dir, input_gmd_file, out_dir, actual_
     return actual_gw_dir_list, pred_gw_dir_list, gmd_name_list
 
 
-def calculate_gmd_stats(gw_df, gmd_name_list, out_dir, train_end=2010, test_start=2011):
+def preproces_gmd_train_test(actual_gw_dir_list, pred_gw_dir_list, input_train_shp, out_dir, forecast_years=(2019,)):
+    """
+    Preprocess GMD rasters to obtain train and test rasters for each GMD based on input_train_shp.
+    #preprocess_gmds() must be called before using this method.
+    :param actual_gw_dir_list: Actual GW directory list obtained from #preprocess_gmds()
+    :param pred_gw_dir_list: Predicted GW directory list obtained from #preprocess_gmds()
+    :param input_train_shp: Training shape file path
+    :param out_dir: Output directory for storing intermediate files
+    :param forecast_years: Tuple of forecast years
+    :return: Directory paths (as tuple) of the actual and predicted GMD specific train and test GW rasters
+    """
+
+    gw_dir_lists = [actual_gw_dir_list, pred_gw_dir_list]
+    gw_labels = ['Actual_GW', 'Pred_GW']
+    gmd_df_list = [pd.DataFrame(), pd.DataFrame()]
+    gmd_df_forecast = pd.DataFrame()
+    for pos, gw_dir_list in enumerate(gw_dir_lists):
+        gw_dir_list.sort()
+        for gw_dir in gw_dir_list:
+            gmd_name = gw_dir[gw_dir[:-1].rfind(os.sep) + 1: gw_dir.rfind(os.sep)]
+            raster_file_list = glob(gw_dir + '*.tif')
+            raster_file_list.sort()
+            for raster_file in raster_file_list:
+                year = raster_file[raster_file.rfind('_') + 1: raster_file.rfind('.')]
+                train_arr, test_arr = rops.extract_train_test_raster_arr(raster_file, input_train_shp)
+                train_arr = train_arr.reshape(train_arr.shape[0] * train_arr.shape[1]).tolist()
+                test_arr = test_arr.reshape(test_arr.shape[0] * test_arr.shape[1]).tolist()
+                train_label, test_label = ['TRAIN'] * len(train_arr), ['TEST'] * len(test_arr)
+                raster_arr = train_arr + test_arr
+                raster_label = train_label + test_label
+                year_list = [year] * len(raster_arr)
+                gmd_list = [gmd_name] * len(raster_arr)
+                raster_dict = {'YEAR': year_list, 'DATA': raster_label, gw_labels[pos]: raster_arr, 'GMD': gmd_list}
+                df = pd.DataFrame(data=raster_dict)
+                if int(year) not in forecast_years:
+                    gmd_df_list[pos] = gmd_df_list[pos].append(df)
+                else:
+                    df['DATA'] = ['FORECAST'] * len(raster_label)
+                    gmd_df_forecast = gmd_df_forecast.append(df)
+                    gmd_df_forecast = gmd_df_forecast.dropna()
+    gmd_df_actual = gmd_df_list[0]
+    gmd_df_pred = gmd_df_list[1]
+    gmd_df_pred[gw_labels[0]] = gmd_df_actual[gw_labels[0]]
+    gmd_df_pred = gmd_df_pred.dropna()
+    gmd_df_pred = gmd_df_pred.append(gmd_df_forecast)
+    gmd_df_pred.to_csv(out_dir + 'GMD_Train_Test.csv', index=False)
+    return gmd_df_pred
+
+
+def calculate_gmd_stats_yearly(gw_df, gmd_name_list, out_dir, train_end=2010, test_start=2011):
     """
     Calculate error metrics for each GMD
     :param gw_df: Input GW Dataframe containing actual and predicted GW
@@ -408,8 +465,89 @@ def calculate_gmd_stats(gw_df, gmd_name_list, out_dir, train_end=2010, test_star
     return gmd_metrics_df
 
 
+def get_error_stats(actual_values, pred_values):
+    """
+    Get R2, MAE, RMSE, NMAE, and NRMSE
+    :param actual_values: List of actual values
+    :param pred_values: List of predicted values
+    :return: Tuple containing R2, MAE, RMSE, NMAE, and NRMSE
+    """
+
+    mae = metrics.mean_absolute_error(actual_values, pred_values)
+    r2_score = np.round(metrics.r2_score(actual_values, pred_values), 2)
+    rmse = metrics.mean_squared_error(actual_values, pred_values, squared=False)
+    nrmse = np.round(rmse / np.mean(actual_values), 2)
+    nmae = np.round(mae / np.mean(actual_values), 2)
+    rmse = np.round(rmse, 2)
+    mae = np.round(mae, 2)
+    return r2_score, mae, rmse, nmae, nrmse
+
+
+def calculate_gmd_stats_train_test(gw_df, out_dir):
+    """
+    Calculate error metrics for both train and test GMDs
+    :param gw_df: Input GW Dataframe containing actual and predicted GW
+    :param out_dir: Output directory to write results to
+    :return: Tuple of GMD, Yearly GMD, and Mean GMD metrics dataframes
+    """
+
+    gmd_name_list = set(gw_df['GMD'])
+    gmd_metrics, gmd_metrics_yearly, mean_gmd_metrics = [pd.DataFrame()] * 3
+    for gmd in gmd_name_list:
+        gmd_df = gw_df[gw_df.GMD == gmd]
+        train_df = gmd_df[gmd_df.DATA == 'TRAIN']
+        test_df = gmd_df[gmd_df.DATA == 'TEST']
+        all_df = gmd_df[gmd_df.DATA != 'FORECAST']
+        df_list1 = [train_df, test_df, all_df]
+        df_names = ['TRAIN', 'TEST', 'TRAIN+TEST']
+        for df, df_name in zip(df_list1, df_names):
+            actual_gw = df['Actual_GW']
+            pred_gw = df['Pred_GW']
+            r2_score, mae, rmse, nmae, nrmse = get_error_stats(actual_gw, pred_gw)
+            gmd_metrics = gmd_metrics.append(pd.DataFrame(data={'GMD': [gmd], 'DATA': [df_name], 'R2': [r2_score],
+                                                                'MAE': [mae], 'RMSE': [rmse], 'NMAE': [nmae],
+                                                                'NRMSE': [nrmse]}))
+        year_list = set(train_df['YEAR'])
+        for year in year_list:
+            train_df_yearly = train_df[train_df.YEAR == year]
+            test_df_yearly = test_df[test_df.YEAR == year]
+            all_df_yearly = all_df[all_df.YEAR == year]
+            df_list2 = [train_df_yearly, test_df_yearly, all_df_yearly]
+            for df, df_name in zip(df_list2, df_names):
+                actual_gw = df['Actual_GW']
+                pred_gw = df['Pred_GW']
+                mean_actual_gw = np.mean(actual_gw)
+                mean_pred_gw = np.mean(pred_gw)
+                r2_score, mae, rmse, nmae, nrmse = get_error_stats(actual_gw, pred_gw)
+                gmd_metrics_yearly = gmd_metrics_yearly.append(pd.DataFrame(data={'YEAR': [year], 'GMD': [gmd],
+                                                                                  'DATA': [df_name],
+                                                                                  'Mean_Actual_GW': [mean_actual_gw],
+                                                                                  'Mean_Pred_GW': [mean_pred_gw],
+                                                                                  'R2': [r2_score],
+                                                                                  'MAE': [mae], 'RMSE': [rmse],
+                                                                                  'NMAE': [nmae], 'NRMSE': [nrmse]}))
+
+        for df, df_name in zip(df_list1, df_names):
+            gmd_metrics_df = gmd_metrics_yearly[(gmd_metrics_yearly.DATA == df_name) & (gmd_metrics_yearly.GMD == gmd)]
+            actual_gw = gmd_metrics_df['Mean_Actual_GW']
+            pred_gw = gmd_metrics_df['Mean_Pred_GW']
+            r2_score, mae, rmse, nmae, nrmse = get_error_stats(actual_gw, pred_gw)
+            mean_gmd_metrics = mean_gmd_metrics.append(pd.DataFrame(data={'GMD': [gmd], 'DATA': [df_name],
+                                                                          'R2': [r2_score], 'MAE': [mae],
+                                                                          'RMSE': [rmse], 'NMAE': [nmae],
+                                                                          'NRMSE': [nrmse]}))
+    gmd_metrics = gmd_metrics.sort_values(by=['DATA', 'GMD'])
+    gmd_metrics_yearly = gmd_metrics_yearly.sort_values(by=['YEAR', 'DATA', 'GMD'])
+    mean_gmd_metrics = mean_gmd_metrics.sort_values(by=['DATA', 'GMD'])
+    gmd_metrics.to_csv(out_dir + 'GMD_Metrics_Train_Test.csv', index=False)
+    gmd_metrics_yearly.to_csv(out_dir + 'GMD_Metrics_Train_Test_Yearly.csv', index=False)
+    mean_gmd_metrics.to_csv(out_dir + 'Mean_GMD_Metrics_Train_Test.csv', index=False)
+    return gmd_metrics, gmd_metrics_yearly, mean_gmd_metrics
+
+
 def run_analysis(actual_gw_dir, pred_gw_dir, grace_csv, out_dir, input_gmd_file=None, use_gmds=True,
-                 actual_gw_pattern='GW*.tif', pred_gw_pattern='pred*.tif', generate_plots=True):
+                 actual_gw_pattern='GW*.tif', pred_gw_pattern='pred*.tif', generate_plots=True, gmd_train=False,
+                 input_train_shp_file=None):
     """
     Run model analysis to get actual vs predicted graph along with GRACE TWSA variations
     :param actual_gw_dir: Directory containing the actual data
@@ -421,11 +559,14 @@ def run_analysis(actual_gw_dir, pred_gw_dir, grace_csv, out_dir, input_gmd_file=
     :param actual_gw_pattern: Actual GW pumping raster file pattern
     :param pred_gw_pattern: Predicted GW pumping raster file pattern
     :param generate_plots: Set False to disable plotting
+    :param gmd_train: Set True to use custom shapefile for getting GMD specific results
+    :param input_train_shp_file: Training shape file path, gmd_train must be True
     :return: Tuple of Pandas dataframes if generate_plots=False else None
     """
 
     out_dir = make_proper_dir_name(out_dir)
     gmd_name_list = []
+    ts_df = pd.DataFrame()
     makedirs([out_dir])
     if not use_gmds:
         ts_df = create_gw_forecast_time_series([actual_gw_dir], [pred_gw_dir], grace_csv=grace_csv, out_dir=out_dir,
@@ -433,20 +574,25 @@ def run_analysis(actual_gw_dir, pred_gw_dir, grace_csv, out_dir, input_gmd_file=
                                                use_gmds=use_gmds)
         ts_df = ts_df[0], ts_df[2]
         if generate_plots:
-            create_time_series_forecast_plot(ts_df)
+            create_time_series_forecast_plot(ts_df, gmd_train=gmd_train)
     else:
         actual_gw_dir_list, pred_gw_dir_list, gmd_name_list = preprocess_gmds(actual_gw_dir, pred_gw_dir,
                                                                               input_gmd_file, out_dir,
                                                                               actual_gw_pattern, pred_gw_pattern)
+        if gmd_train:
+            gw_df = preproces_gmd_train_test(actual_gw_dir_list, pred_gw_dir_list, input_train_shp_file, out_dir)
+            calculate_gmd_stats_train_test(gw_df, out_dir)
+        else:
 
-        ts_df = create_gw_forecast_time_series(actual_gw_dir_list, pred_gw_dir_list, gmd_name_list=gmd_name_list,
-                                               grace_csv=grace_csv, use_gmds=use_gmds, out_dir=out_dir,
-                                               actual_gw_pattern=actual_gw_pattern, pred_gw_pattern=pred_gw_pattern)
-        ts_df = ts_df[0], ts_df[2]
-        if generate_plots:
-            print(calculate_gmd_stats(ts_df[1], gmd_name_list, out_dir))
-            create_gmd_time_series_forecast_plot(ts_df, gmd_name_list=gmd_name_list)
-    if not generate_plots:
+            ts_df = create_gw_forecast_time_series(actual_gw_dir_list, pred_gw_dir_list, gmd_name_list=gmd_name_list,
+                                                   grace_csv=grace_csv, use_gmds=use_gmds, out_dir=out_dir,
+                                                   actual_gw_pattern=actual_gw_pattern, pred_gw_pattern=pred_gw_pattern)
+            gw_df = ts_df[1]
+            ts_df = ts_df[0], ts_df[2]
+            if generate_plots:
+                print(calculate_gmd_stats_yearly(gw_df, gmd_name_list, out_dir))
+                create_gmd_time_series_forecast_plot(ts_df, gmd_name_list=gmd_name_list)
+    if (not gmd_train) and (not generate_plots):
         if use_gmds:
             return ts_df, gmd_name_list
         return ts_df

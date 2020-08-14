@@ -12,6 +12,7 @@ import subprocess
 import xmltodict
 import os
 import multiprocessing
+from copy import deepcopy
 from joblib import Parallel, delayed
 from rasterio.plot import plotting_extent
 from rasterio.mask import mask
@@ -19,7 +20,7 @@ from shapely.geometry import mapping, Point
 from collections import defaultdict
 from datetime import datetime
 from glob import glob
-from Python_Files.hydrolibs.sysops import make_gdal_sys_call_str
+from Python_Files.hydrolibs.sysops import make_gdal_sys_call_str, makedirs
 
 NO_DATA_VALUE = -32767.0
 
@@ -850,3 +851,41 @@ def get_gmd_info_arr(input_raster_file, input_gmd_shp_file, output_dir, label_at
     gmd_out = output_dir + 'GMD_Info_Raster.tif'
     write_raster(gmd_arr, raster_file, transform=raster_file.transform, outfile_path=gmd_out)
     return gmd_arr
+
+
+def extract_train_test_raster_arr(input_raster_file, input_train_shp_file):
+    """
+    Extract train and test raster arrays based on input_shp_file and write to output_file
+    :param input_raster_file: Input raster file path
+    :param input_train_shp_file: Input shapefile path having training polygon data
+    :return: Tuple containing train and test raster arrays
+    """
+
+    raster_arr, raster_file = read_raster_as_arr(input_raster_file)
+    train_arr = np.full_like(raster_arr, fill_value=np.nan)
+    test_arr = np.full_like(raster_arr, fill_value=np.nan)
+    train_shp_file = gpd.read_file(input_train_shp_file)
+    os_sep = input_raster_file.rfind(os.sep) + 1
+    output_dir = input_raster_file[:os_sep]
+    raster_file_name = input_raster_file[os_sep:]
+    output_train_dir, output_test_dir = output_dir + 'GMD_Train/', output_dir + 'GMD_Test/'
+    makedirs([output_train_dir, output_test_dir])
+    output_train_file, output_test_file = output_train_dir + raster_file_name, output_test_dir + raster_file_name
+    print('Extracting train and test rasters...', input_raster_file)
+    for idx, value in np.ndenumerate(raster_arr):
+        gx, gy = raster_file.xy(idx[0], idx[1])
+        gp = Point(gx, gy)
+        check_flag = False
+        for poly in train_shp_file['geometry']:
+            if poly.contains(gp):
+                train_arr[idx] = value
+                check_flag = True
+                break
+        if not check_flag:
+            test_arr[idx] = value
+    ret_train_arr, ret_test_arr = deepcopy(train_arr), deepcopy(test_arr)
+    train_arr[np.isnan(train_arr)] = raster_file.nodata
+    test_arr[np.isnan(test_arr)] = raster_file.nodata
+    write_raster(train_arr, raster_file, transform=raster_file.transform, outfile_path=output_train_file)
+    write_raster(test_arr, raster_file, transform=raster_file.transform, outfile_path=output_test_file)
+    return ret_train_arr, ret_test_arr

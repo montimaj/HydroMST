@@ -496,7 +496,7 @@ class HydroML:
 
 
 def run_gw(analyze_only=False, load_files=True, load_rf_model=False, use_gmds=True, show_qq_plots=False,
-           run_analysis2=False):
+           run_analysis2=False, gmd_train=False):
     """
     Main function for running the project, some variables require to be hardcoded
     :param analyze_only: Set True to just produce analysis results, all required files must be present
@@ -505,6 +505,7 @@ def run_gw(analyze_only=False, load_files=True, load_rf_model=False, use_gmds=Tr
     :param use_gmds: Set False to use entire GW raster for analysis
     :param show_qq_plots: Set True to display Q-Q plots of features
     :param run_analysis2: Set True to run model analysis for predictions from different use cases
+    :param gmd_train: Set True to use custom shapefile for training, the variable is hardcoded (test_area_file)
     :return: None
     """
 
@@ -559,14 +560,16 @@ def run_gw(analyze_only=False, load_files=True, load_rf_model=False, use_gmds=Tr
         gw.update_crop_coeff_raster(already_updated=load_files)
         df = gw.create_dataframe(year_list=range(2002, 2020), exclude_vars=exclude_vars, load_df=False)
         max_features = len(df.columns.values.tolist()) - len(drop_attrs) - 1
-        rf_model = gw.build_model(df, n_estimators=500, test_year=range(2014, 2015), test_gmd=(-1,), use_gmd=False,
-                                  drop_attrs=drop_attrs, pred_attr=pred_attr, load_model=load_rf_model,
-                                  max_features=max_features, plot_graphs=False, split_attribute=True)
+        rf_model = gw.build_model(df, n_estimators=500, test_year=range(2014, 2015), test_gmd=(-1,),
+                                  use_gmd=gmd_train, drop_attrs=drop_attrs, pred_attr=pred_attr,
+                                  load_model=load_rf_model, max_features=max_features, plot_graphs=False,
+                                  split_attribute=True)
         pred_gw_dir = gw.get_predictions(rf_model=rf_model, pred_years=range(2002, 2020),
                                          drop_attrs=drop_attrs[:1] + exclude_vars, pred_attr=pred_attr, only_pred=False)
+    input_gmd_file = file_dir + 'gmds/reproj/input_gmd_reproj.shp'
     if not run_analysis2:
         ma.run_analysis(gw_dir, pred_gw_dir, grace_csv, use_gmds=use_gmds, out_dir=output_dir,
-                        input_gmd_file=input_gmd_file)
+                        input_gmd_file=input_gmd_file, input_train_shp_file=test_area_file, gmd_train=gmd_train)
     else:
         ma.run_analysis2(gw_dir, pred_gw_dir_list, grace_csv, use_gmds=use_gmds, out_dir=output_dir,
                          input_gmd_file=input_gmd_file)
@@ -574,4 +577,4 @@ def run_gw(analyze_only=False, load_files=True, load_rf_model=False, use_gmds=Tr
         ma.generate_feature_qq_plots(output_dir + '/raster_df.csv')
 
 
-run_gw(analyze_only=False, load_files=True, load_rf_model=False, use_gmds=False, run_analysis2=False)
+run_gw(analyze_only=True, load_files=True, load_rf_model=False, use_gmds=True, run_analysis2=False, gmd_train=True)
