@@ -465,22 +465,29 @@ def calculate_gmd_stats_yearly(gw_df, gmd_name_list, out_dir, train_end=2010, te
     return gmd_metrics_df
 
 
-def get_error_stats(actual_values, pred_values):
+def get_error_stats(actual_values, pred_values, round_places=2):
     """
-    Get R2, MAE, RMSE, NMAE, and NRMSE
+    Get R2 (scikit-learn), Standard R2 (coefficient of determination), MAE, RMSE, NMAE (normalized MAE), and
+    NRMSE (normalized RMSE)
     :param actual_values: List of actual values
     :param pred_values: List of predicted values
-    :return: Tuple containing R2, MAE, RMSE, NMAE, and NRMSE
+    :param round_places: Number of decimal places to round at, default 2.
+    :return: Tuple containing R2, Standard R2, MAE, RMSE, NMAE, and NRMSE (rounded to 2 decimal places by default)
     """
 
+    if isinstance(actual_values, pd.DataFrame):
+        actual_values = actual_values.iloc[:, 0].tolist()
+    if isinstance(pred_values, pd.DataFrame):
+        pred_values = pred_values.iloc[:, 0].tolist()
     mae = metrics.mean_absolute_error(actual_values, pred_values)
-    r2_score = np.round(metrics.r2_score(actual_values, pred_values), 2)
+    r2_score = np.round(metrics.r2_score(actual_values, pred_values), round_places)
+    standard_r2 = np.round(np.corrcoef(actual_values, pred_values)[0, 1] ** 2, round_places)
     rmse = metrics.mean_squared_error(actual_values, pred_values, squared=False)
-    nrmse = np.round(rmse / np.mean(actual_values), 2)
-    nmae = np.round(mae / np.mean(actual_values), 2)
-    rmse = np.round(rmse, 2)
-    mae = np.round(mae, 2)
-    return r2_score, mae, rmse, nmae, nrmse
+    nrmse = np.round(rmse / np.mean(actual_values), round_places)
+    nmae = np.round(mae / np.mean(actual_values), round_places)
+    rmse = np.round(rmse, round_places)
+    mae = np.round(mae, round_places)
+    return r2_score, standard_r2, mae, rmse, nmae, nrmse
 
 
 def calculate_gmd_stats_train_test(gw_df, out_dir):
@@ -503,10 +510,10 @@ def calculate_gmd_stats_train_test(gw_df, out_dir):
         for df, df_name in zip(df_list1, df_names):
             actual_gw = df['Actual_GW']
             pred_gw = df['Pred_GW']
-            r2_score, mae, rmse, nmae, nrmse = get_error_stats(actual_gw, pred_gw)
+            r2_score, standard_r2, mae, rmse, nmae, nrmse = get_error_stats(actual_gw, pred_gw)
             gmd_metrics = gmd_metrics.append(pd.DataFrame(data={'GMD': [gmd], 'DATA': [df_name], 'R2': [r2_score],
-                                                                'MAE': [mae], 'RMSE': [rmse], 'NMAE': [nmae],
-                                                                'NRMSE': [nrmse]}))
+                                                                'SR2': [standard_r2], 'MAE': [mae], 'RMSE': [rmse],
+                                                                'NMAE': [nmae], 'NRMSE': [nrmse]}))
         year_list = set(train_df['YEAR'])
         for year in year_list:
             train_df_yearly = train_df[train_df.YEAR == year]
@@ -518,23 +525,24 @@ def calculate_gmd_stats_train_test(gw_df, out_dir):
                 pred_gw = df['Pred_GW']
                 mean_actual_gw = np.mean(actual_gw)
                 mean_pred_gw = np.mean(pred_gw)
-                r2_score, mae, rmse, nmae, nrmse = get_error_stats(actual_gw, pred_gw)
+                r2_score, standard_r2, mae, rmse, nmae, nrmse = get_error_stats(actual_gw, pred_gw)
                 gmd_metrics_yearly = gmd_metrics_yearly.append(pd.DataFrame(data={'YEAR': [year], 'GMD': [gmd],
                                                                                   'DATA': [df_name],
                                                                                   'Mean_Actual_GW': [mean_actual_gw],
                                                                                   'Mean_Pred_GW': [mean_pred_gw],
                                                                                   'R2': [r2_score],
-                                                                                  'MAE': [mae], 'RMSE': [rmse],
-                                                                                  'NMAE': [nmae], 'NRMSE': [nrmse]}))
+                                                                                  'SR2': [standard_r2], 'MAE': [mae],
+                                                                                  'RMSE': [rmse], 'NMAE': [nmae],
+                                                                                  'NRMSE': [nrmse]}))
 
         for df, df_name in zip(df_list1, df_names):
             gmd_metrics_df = gmd_metrics_yearly[(gmd_metrics_yearly.DATA == df_name) & (gmd_metrics_yearly.GMD == gmd)]
             actual_gw = gmd_metrics_df['Mean_Actual_GW']
             pred_gw = gmd_metrics_df['Mean_Pred_GW']
-            r2_score, mae, rmse, nmae, nrmse = get_error_stats(actual_gw, pred_gw)
+            r2_score, standard_r2, mae, rmse, nmae, nrmse = get_error_stats(actual_gw, pred_gw)
             mean_gmd_metrics = mean_gmd_metrics.append(pd.DataFrame(data={'GMD': [gmd], 'DATA': [df_name],
-                                                                          'R2': [r2_score], 'MAE': [mae],
-                                                                          'RMSE': [rmse], 'NMAE': [nmae],
+                                                                          'R2': [r2_score], 'SR2': [standard_r2],
+                                                                          'MAE': [mae], 'RMSE': [rmse], 'NMAE': [nmae],
                                                                           'NRMSE': [nrmse]}))
     gmd_metrics = gmd_metrics.sort_values(by=['DATA', 'GMD'])
     gmd_metrics_yearly = gmd_metrics_yearly.sort_values(by=['YEAR', 'DATA', 'GMD'])

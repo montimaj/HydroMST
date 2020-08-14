@@ -422,7 +422,7 @@ class HydroML:
 
     def build_model(self, df, n_estimators=100, random_state=0, bootstrap=True, max_features=3, test_size=None,
                     pred_attr='GW', shuffle=False, plot_graphs=False, plot_3d=False, drop_attrs=(), test_year=(2012,),
-                    test_gmd=(1, 2, 3), use_gmd=False, split_attribute=True, load_model=False):
+                    test_gmd=(1, 2, 3), use_gmd=False, split_attribute=True, load_model=False, calc_perm_imp=False):
         """
         Build random forest model
         :param df: Input pandas dataframe object
@@ -443,6 +443,7 @@ class HydroML:
         :param use_gmd: Set True to build test data from only test_gmd
         :param split_attribute: Split train test data based on years
         :param load_model: Load an earlier pre-trained RF model
+        :param calc_perm_imp: Set True to get permutation importances on train and test data
         :return: Fitted RandomForestRegressor object
         """
 
@@ -453,7 +454,8 @@ class HydroML:
                                     pred_attr=pred_attr, drop_attrs=drop_attrs, test_year=test_year, test_gmd=test_gmd,
                                     use_gmd=use_gmd, shuffle=shuffle, plot_graphs=plot_graphs, plot_3d=plot_3d,
                                     split_attribute=split_attribute, bootstrap=bootstrap, plot_dir=plot_dir,
-                                    max_features=max_features, load_model=load_model, test_size=test_size)
+                                    max_features=max_features, load_model=load_model, test_size=test_size,
+                                    calc_perm_imp=calc_perm_imp)
         return rf_model
 
     def get_predictions(self, rf_model, pred_years, column_names=None, final_mask=None, ordering=False, pred_attr='GW',
@@ -558,12 +560,12 @@ def run_gw(analyze_only=False, load_files=True, load_rf_model=False, use_gmds=Tr
         gw.mask_rasters(already_masked=load_files)
         gw.create_land_use_rasters(already_created=load_files)
         gw.update_crop_coeff_raster(already_updated=load_files)
-        df = gw.create_dataframe(year_list=range(2002, 2020), exclude_vars=exclude_vars, load_df=False)
+        df = gw.create_dataframe(year_list=range(2002, 2020), exclude_vars=exclude_vars, load_df=load_files)
         max_features = len(df.columns.values.tolist()) - len(drop_attrs) - 1
         rf_model = gw.build_model(df, n_estimators=500, test_year=range(2014, 2015), test_gmd=(-1,),
                                   use_gmd=gmd_train, drop_attrs=drop_attrs, pred_attr=pred_attr,
                                   load_model=load_rf_model, max_features=max_features, plot_graphs=False,
-                                  split_attribute=True)
+                                  split_attribute=True, calc_perm_imp=False)
         pred_gw_dir = gw.get_predictions(rf_model=rf_model, pred_years=range(2002, 2020),
                                          drop_attrs=drop_attrs[:1] + exclude_vars, pred_attr=pred_attr, only_pred=False)
     input_gmd_file = file_dir + 'gmds/reproj/input_gmd_reproj.shp'
@@ -577,4 +579,4 @@ def run_gw(analyze_only=False, load_files=True, load_rf_model=False, use_gmds=Tr
         ma.generate_feature_qq_plots(output_dir + '/raster_df.csv')
 
 
-run_gw(analyze_only=True, load_files=True, load_rf_model=False, use_gmds=True, run_analysis2=False, gmd_train=True)
+run_gw(analyze_only=False, load_files=True, load_rf_model=True, use_gmds=True, run_analysis2=False, gmd_train=True)
