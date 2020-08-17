@@ -382,7 +382,8 @@ def preprocess_gmds(actual_gw_dir, pred_gw_dir, input_gmd_file, out_dir, actual_
     return actual_gw_dir_list, pred_gw_dir_list, gmd_name_list
 
 
-def preproces_gmd_train_test(actual_gw_dir_list, pred_gw_dir_list, input_train_shp, out_dir, forecast_years=(2019,)):
+def preproces_gmd_train_test(actual_gw_dir_list, pred_gw_dir_list, input_train_shp, out_dir, forecast_years=(2019,),
+                             rev_train_test=False):
     """
     Preprocess GMD rasters to obtain train and test rasters for each GMD based on input_train_shp.
     #preprocess_gmds() must be called before using this method.
@@ -391,6 +392,8 @@ def preproces_gmd_train_test(actual_gw_dir_list, pred_gw_dir_list, input_train_s
     :param input_train_shp: Training shape file path
     :param out_dir: Output directory for storing intermediate files
     :param forecast_years: Tuple of forecast years
+    :param rev_train_test: Set True to swap train and test arrays (required when input_train_shp_file is actually used
+    for testing instead of training)
     :return: Directory paths (as tuple) of the actual and predicted GMD specific train and test GW rasters
     """
 
@@ -406,7 +409,7 @@ def preproces_gmd_train_test(actual_gw_dir_list, pred_gw_dir_list, input_train_s
             raster_file_list.sort()
             for raster_file in raster_file_list:
                 year = raster_file[raster_file.rfind('_') + 1: raster_file.rfind('.')]
-                train_arr, test_arr = rops.extract_train_test_raster_arr(raster_file, input_train_shp)
+                train_arr, test_arr = rops.extract_train_test_raster_arr(raster_file, input_train_shp, rev_train_test)
                 train_arr = train_arr.reshape(train_arr.shape[0] * train_arr.shape[1]).tolist()
                 test_arr = test_arr.reshape(test_arr.shape[0] * test_arr.shape[1]).tolist()
                 train_label, test_label = ['TRAIN'] * len(train_arr), ['TEST'] * len(test_arr)
@@ -555,7 +558,7 @@ def calculate_gmd_stats_train_test(gw_df, out_dir):
 
 def run_analysis(actual_gw_dir, pred_gw_dir, grace_csv, out_dir, input_gmd_file=None, use_gmds=True,
                  actual_gw_pattern='GW*.tif', pred_gw_pattern='pred*.tif', generate_plots=True, gmd_train=False,
-                 input_train_shp_file=None):
+                 input_train_shp_file=None, rev_train_test=False):
     """
     Run model analysis to get actual vs predicted graph along with GRACE TWSA variations
     :param actual_gw_dir: Directory containing the actual data
@@ -569,6 +572,8 @@ def run_analysis(actual_gw_dir, pred_gw_dir, grace_csv, out_dir, input_gmd_file=
     :param generate_plots: Set False to disable plotting
     :param gmd_train: Set True to use custom shapefile for getting GMD specific results
     :param input_train_shp_file: Training shape file path, gmd_train must be True
+    :param rev_train_test: Set True to swap train and test arrays (required when input_train_shp_file is actually used
+    for testing instead of training), works only if gmd_train=True
     :return: Tuple of Pandas dataframes if generate_plots=False else None
     """
 
@@ -588,7 +593,8 @@ def run_analysis(actual_gw_dir, pred_gw_dir, grace_csv, out_dir, input_gmd_file=
                                                                               input_gmd_file, out_dir,
                                                                               actual_gw_pattern, pred_gw_pattern)
         if gmd_train:
-            gw_df = preproces_gmd_train_test(actual_gw_dir_list, pred_gw_dir_list, input_train_shp_file, out_dir)
+            gw_df = preproces_gmd_train_test(actual_gw_dir_list, pred_gw_dir_list, input_train_shp_file, out_dir,
+                                             rev_train_test=rev_train_test)
             calculate_gmd_stats_train_test(gw_df, out_dir)
         else:
 

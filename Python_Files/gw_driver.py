@@ -390,7 +390,8 @@ class HydroML:
                 gmd_file = self.test_area_file
             df = rfr.create_dataframe(self.rf_data_dir, input_gmd_file=gmd_file, output_dir=self.output_dir,
                                       column_names=column_names, make_year_col=True, exclude_vars=exclude_vars,
-                                      exclude_years=exclude_years, ordering=ordering, label_attr=label_attr)
+                                      exclude_years=exclude_years, ordering=ordering, label_attr=label_attr,
+                                      load_gmd_info=load_df)
             return df
 
     def tune_parameters(self, df, pred_attr, drop_attrs=()):
@@ -498,7 +499,7 @@ class HydroML:
 
 
 def run_gw(analyze_only=False, load_files=True, load_rf_model=False, use_gmds=True, show_qq_plots=False,
-           run_analysis2=False, gmd_train=False):
+           run_analysis2=False, gmd_train=False, load_df=False):
     """
     Main function for running the project, some variables require to be hardcoded
     :param analyze_only: Set True to just produce analysis results, all required files must be present
@@ -508,6 +509,7 @@ def run_gw(analyze_only=False, load_files=True, load_rf_model=False, use_gmds=Tr
     :param show_qq_plots: Set True to display Q-Q plots of features
     :param run_analysis2: Set True to run model analysis for predictions from different use cases
     :param gmd_train: Set True to use custom shapefile for training, the variable is hardcoded (test_area_file)
+    :param load_df: Set True to load existing dataframe from CSV
     :return: None
     """
 
@@ -518,7 +520,7 @@ def run_gw(analyze_only=False, load_files=True, load_rf_model=False, use_gmds=Tr
     output_shp_dir = file_dir + 'GW_Shapefiles/'
     output_gw_raster_dir = file_dir + 'GW_Rasters/'
     input_gmd_file = input_dir + 'gmds/ks_gmds.shp'
-    test_area_file = input_dir + 'Test_Area/Test_Area.shp'
+    test_area_file = input_dir + 'Test_Area/Test_Poly/Test_Area.shp'
     input_gdb_dir = input_dir + 'ks_pd_data_updated2018.gdb'
     input_state_file = input_dir + 'Kansas/kansas.shp'
     gdal_path = 'C:/OSGeo4W64/'
@@ -546,6 +548,7 @@ def run_gw(analyze_only=False, load_files=True, load_rf_model=False, use_gmds=Tr
     data_year_list = range(2002, 2020)
     data_start_month = 4
     data_end_month = 9
+    test_gmd = range(1, 6)
     if not analyze_only:
         gw = HydroML(input_dir, file_dir, output_dir, output_shp_dir, output_gw_raster_dir, input_gmd_file,
                      input_state_file, gdal_path, ssebop_link=ssebop_link, test_area_file=test_area_file)
@@ -560,9 +563,10 @@ def run_gw(analyze_only=False, load_files=True, load_rf_model=False, use_gmds=Tr
         gw.mask_rasters(already_masked=load_files)
         gw.create_land_use_rasters(already_created=load_files)
         gw.update_crop_coeff_raster(already_updated=load_files)
-        df = gw.create_dataframe(year_list=range(2002, 2020), exclude_vars=exclude_vars, load_df=load_files)
+        df = gw.create_dataframe(year_list=range(2002, 2020), exclude_vars=exclude_vars, load_df=load_df,
+                                 label_attr='Label')
         max_features = len(df.columns.values.tolist()) - len(drop_attrs) - 1
-        rf_model = gw.build_model(df, n_estimators=500, test_year=range(2014, 2015), test_gmd=(-1,),
+        rf_model = gw.build_model(df, n_estimators=500, test_year=range(2014, 2015), test_gmd=test_gmd,
                                   use_gmd=gmd_train, drop_attrs=drop_attrs, pred_attr=pred_attr,
                                   load_model=load_rf_model, max_features=max_features, plot_graphs=False,
                                   split_attribute=True, calc_perm_imp=False)
@@ -570,8 +574,12 @@ def run_gw(analyze_only=False, load_files=True, load_rf_model=False, use_gmds=Tr
                                          drop_attrs=drop_attrs[:1] + exclude_vars, pred_attr=pred_attr, only_pred=False)
     input_gmd_file = file_dir + 'gmds/reproj/input_gmd_reproj.shp'
     if not run_analysis2:
+        rev_train_test = False
+        if -1 not in test_gmd:
+            rev_train_test = True
         ma.run_analysis(gw_dir, pred_gw_dir, grace_csv, use_gmds=use_gmds, out_dir=output_dir,
-                        input_gmd_file=input_gmd_file, input_train_shp_file=test_area_file, gmd_train=gmd_train)
+                        input_gmd_file=input_gmd_file, input_train_shp_file=test_area_file, gmd_train=gmd_train,
+                        rev_train_test=rev_train_test)
     else:
         ma.run_analysis2(gw_dir, pred_gw_dir_list, grace_csv, use_gmds=use_gmds, out_dir=output_dir,
                          input_gmd_file=input_gmd_file)
@@ -579,4 +587,5 @@ def run_gw(analyze_only=False, load_files=True, load_rf_model=False, use_gmds=Tr
         ma.generate_feature_qq_plots(output_dir + '/raster_df.csv')
 
 
-run_gw(analyze_only=False, load_files=True, load_rf_model=True, use_gmds=True, run_analysis2=False, gmd_train=True)
+run_gw(analyze_only=False, load_files=True, load_rf_model=False, use_gmds=True, run_analysis2=False, gmd_train=True,
+       load_df=False)

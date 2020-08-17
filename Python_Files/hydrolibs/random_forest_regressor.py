@@ -10,7 +10,6 @@ import os
 from glob import glob
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import train_test_split
-from sklearn import metrics
 from collections import defaultdict
 from sklearn.inspection import plot_partial_dependence
 from sklearn.inspection import partial_dependence
@@ -21,7 +20,7 @@ from Python_Files.hydrolibs import model_analysis as ma
 
 
 def create_dataframe(input_file_dir, input_gmd_file, output_dir, column_names=None, pattern='*.tif', exclude_years=(),
-                     exclude_vars=(), make_year_col=True, ordering=False, label_attr='Label'):
+                     exclude_vars=(), make_year_col=True, ordering=False, label_attr='Label', load_gmd_info=False):
     """
     Create dataframe from file list
     :param input_file_dir: Input directory where the file names begin with <Variable>_<Year>, e.g, ET_2015.tif
@@ -34,6 +33,7 @@ def create_dataframe(input_file_dir, input_gmd_file, output_dir, column_names=No
     :param make_year_col: Make a dataframe column entry for year
     :param ordering: Set True to order dataframe column names
     :param label_attr: Label attribute present in the shapefile
+    :param load_gmd_info: Set True to load previously created GMD info raster
     :return: Pandas dataframe
     """
 
@@ -43,14 +43,13 @@ def create_dataframe(input_file_dir, input_gmd_file, output_dir, column_names=No
         variable, year = f[f.rfind(os.sep) + 1: sep], f[sep + 1: f.rfind('.')]
         if variable not in exclude_vars and int(year) not in exclude_years:
             raster_file_dict[int(year)].append(f)
-
     raster_dict = {}
     flag = False
     years = sorted(list(raster_file_dict.keys()))
     df = None
     raster_arr = None
     gmd_arr = rops.get_gmd_info_arr(raster_file_dict[years[0]][0], input_gmd_file, output_dir=output_dir,
-                                    label_attr=label_attr)
+                                    label_attr=label_attr, load_gmd_info=load_gmd_info)
     gmd_arr = gmd_arr.reshape(gmd_arr.shape[0] * gmd_arr.shape[1])
     for year in years:
         file_list = raster_file_dict[year]
@@ -66,7 +65,6 @@ def create_dataframe(input_file_dir, input_gmd_file, output_dir, column_names=No
             flag = True
         else:
             df = df.append(pd.DataFrame(data=raster_dict))
-
     df['GMD'] = gmd_arr.tolist() * len(years)
     df = df.dropna(axis=0)
     df = reindex_df(df, column_names=column_names, ordering=ordering)

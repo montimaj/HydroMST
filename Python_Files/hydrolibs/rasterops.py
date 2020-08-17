@@ -815,18 +815,19 @@ def update_crop_coeff_raster(input_crop_coeff_raster, agri_raster):
                  outfile_path=input_crop_coeff_raster)
 
 
-def get_gmd_info_arr(input_raster_file, input_gmd_shp_file, output_dir, label_attr='GMD_label'):
+def get_gmd_info_arr(input_raster_file, input_gmd_shp_file, output_dir, label_attr='GMD_label', load_gmd_info=False):
     """
     Get GMD array wherein each pixel correspond to the GMD name. If there's no GMD,
     :param input_raster_file: Input raster file path
     :param input_gmd_shp_file:Input GMD shape file path, should have same projection as input_raster_file
     :param output_dir: Output directory to store the GMD array
     :param label_attr: Label attribute present in the shapefile
+    :param load_gmd_info: Set True to load previously created GMD info raster
     :return: GMD Numpy array
     """
 
     gmd_out = output_dir + 'GMD_Info.npy'
-    if os.path.isfile(gmd_out):
+    if os.path.isfile(gmd_out) and load_gmd_info:
         print('GMD Info Array already present..loading...')
         return np.load(gmd_out)
     raster_arr, raster_file = read_raster_as_arr(input_raster_file)
@@ -853,11 +854,13 @@ def get_gmd_info_arr(input_raster_file, input_gmd_shp_file, output_dir, label_at
     return gmd_arr
 
 
-def extract_train_test_raster_arr(input_raster_file, input_train_shp_file):
+def extract_train_test_raster_arr(input_raster_file, input_train_shp_file, rev_train_test=False):
     """
     Extract train and test raster arrays based on input_shp_file and write to output_file
     :param input_raster_file: Input raster file path
     :param input_train_shp_file: Input shapefile path having training polygon data
+    :param rev_train_test: Set True to swap train and test arrays (required when input_train_shp_file is actually used
+    for testing instead of training)
     :return: Tuple containing train and test raster arrays
     """
 
@@ -878,11 +881,17 @@ def extract_train_test_raster_arr(input_raster_file, input_train_shp_file):
         check_flag = False
         for poly in train_shp_file['geometry']:
             if poly.contains(gp):
-                train_arr[idx] = value
+                if rev_train_test:
+                    test_arr[idx] = value
+                else:
+                    train_arr[idx] = value
                 check_flag = True
                 break
         if not check_flag:
-            test_arr[idx] = value
+            if rev_train_test:
+                train_arr[idx] = value
+            else:
+                test_arr[idx] = value
     ret_train_arr, ret_test_arr = deepcopy(train_arr), deepcopy(test_arr)
     train_arr[np.isnan(train_arr)] = raster_file.nodata
     test_arr[np.isnan(test_arr)] = raster_file.nodata
