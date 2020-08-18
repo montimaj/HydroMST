@@ -569,7 +569,7 @@ def run_gw(analyze_only=False, load_files=True, load_rf_model=False, use_gmds=Tr
         df = gw.create_dataframe(year_list=range(2002, 2020), exclude_vars=exclude_vars, load_df=load_df,
                                  label_attr='Label')
         max_features = len(df.columns.values.tolist()) - len(drop_attrs) - 1
-        rf_model = gw.build_model(df, n_estimators=500, test_year=range(2014, 2015), test_gmd=test_gmd,
+        rf_model = gw.build_model(df, n_estimators=500, test_year=range(2011, 2019), test_gmd=test_gmd,
                                   use_gmd=gmd_train, drop_attrs=drop_attrs, pred_attr=pred_attr,
                                   load_model=load_rf_model, max_features=max_features, plot_graphs=False,
                                   split_attribute=True, calc_perm_imp=False)
@@ -590,5 +590,5 @@ def run_gw(analyze_only=False, load_files=True, load_rf_model=False, use_gmds=Tr
         ma.generate_feature_qq_plots(output_dir + '/raster_df.csv')
 
 
-run_gw(analyze_only=False, load_files=True, load_rf_model=False, use_gmds=False, run_analysis2=False, gmd_train=True,
+run_gw(analyze_only=True, load_files=True, load_rf_model=False, use_gmds=False, run_analysis2=False, gmd_train=False,
        load_df=False)

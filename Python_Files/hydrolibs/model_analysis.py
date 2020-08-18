@@ -78,7 +78,8 @@ def create_gw_forecast_time_series(actual_gw_file_dir_list, pred_gw_file_dir_lis
     :param pred_gw_pattern: Predicted GW pumping raster file pattern
     :param out_dir: Output directory for storing the CSV files
     :param get_only_grace_df: Set True to get only GRACE dataframe
-    :return: Two dataframes, one with the GW pumping values and the other containing the monthly GRACE values
+    :return: GRACE dataframe if get_only_grace_df=True, otherwise, tuple of three dataframes, one with the mean GW
+    pumping, another with the pixelwise GW pumping values, and the other containing the monthly GRACE values
     """
 
     grace_df = pd.read_csv(grace_csv)
@@ -183,9 +184,10 @@ def create_time_series_forecast_plot(input_df_list, forecast_years=(2019, ), plo
     df2.set_index('DT').plot(ax=ax2)
     df2_years = list(df2.DT)
     ax1.set_xlim(left=np.min(df1.YEAR) - 0.1, right=np.max(df1.YEAR) + 0.1)
-    ax1.set_ylim(bottom=0, top=50)
+    if gmd_train:
+        ax1.set_ylim(bottom=0, top=50)
     labels = ['Actual GW', 'Predicted GW']
-    bbox_to_anchor = (0.1, 0.4)
+    bbox_to_anchor = (0.1, 0.3)
     ncol = 3
     if not gmd_train:
         ax1.axvspan(2010.5, 2018.5, color='#a6bddb', alpha=0.6)
@@ -343,7 +345,10 @@ def create_gmd_time_series_forecast_plot_multi_pred(input_df_list, gmd_name_list
         min_forecast_yr = min(forecast_years)
         ax1.set_xlim(left=np.min(df_all.YEAR) - 0.1, right=np.max(df_all.YEAR) + 0.1)
         ax1.axvspan(min_forecast_yr - 0.5, np.max(df_all.YEAR) + 0.1, color='#fee8c8', alpha=1)
-        ax1.legend(loc=2, ncol=2, frameon=False, fancybox=False, bbox_to_anchor=(0.01, 1),
+        bbox_to_anchor = (0.01, 1)
+        if gmd == 'GMD3':
+            bbox_to_anchor = (0.01, 0.4)
+        ax1.legend(loc=2, ncol=2, frameon=False, fancybox=False, bbox_to_anchor=bbox_to_anchor,
                    labels=['Actual GW: ' + gmd, 'Predicted GW (All): ' + gmd, 'Predicted GW (Spatial): ' + gmd,
                            'Predicted GW (ST): ' + gmd, 'Test Years', 'Forecast'])
         ax1.set_ylabel('Mean GW Pumping (mm)')
