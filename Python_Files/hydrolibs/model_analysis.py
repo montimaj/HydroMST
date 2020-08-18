@@ -382,8 +382,8 @@ def preprocess_gmds(actual_gw_dir, pred_gw_dir, input_gmd_file, out_dir, actual_
     return actual_gw_dir_list, pred_gw_dir_list, gmd_name_list
 
 
-def preproces_gmd_train_test(actual_gw_dir_list, pred_gw_dir_list, input_train_shp, out_dir, forecast_years=(2019,),
-                             rev_train_test=False):
+def preprocess_gmd_train_test(actual_gw_dir_list, pred_gw_dir_list, input_train_shp, out_dir, forecast_years=(2019,),
+                              rev_train_test=False, gmd_exclude_list=None):
     """
     Preprocess GMD rasters to obtain train and test rasters for each GMD based on input_train_shp.
     #preprocess_gmds() must be called before using this method.
@@ -394,6 +394,7 @@ def preproces_gmd_train_test(actual_gw_dir_list, pred_gw_dir_list, input_train_s
     :param forecast_years: Tuple of forecast years
     :param rev_train_test: Set True to swap train and test arrays (required when input_train_shp_file is actually used
     for testing instead of training)
+    :param gmd_exclude_list: Exclude these GMDs from preprocessing
     :return: Directory paths (as tuple) of the actual and predicted GMD specific train and test GW rasters
     """
 
@@ -405,32 +406,35 @@ def preproces_gmd_train_test(actual_gw_dir_list, pred_gw_dir_list, input_train_s
         gw_dir_list.sort()
         for gw_dir in gw_dir_list:
             gmd_name = gw_dir[gw_dir[:-1].rfind(os.sep) + 1: gw_dir.rfind(os.sep)]
-            raster_file_list = glob(gw_dir + '*.tif')
-            raster_file_list.sort()
-            for raster_file in raster_file_list:
-                year = raster_file[raster_file.rfind('_') + 1: raster_file.rfind('.')]
-                train_arr, test_arr = rops.extract_train_test_raster_arr(raster_file, input_train_shp, rev_train_test)
-                train_arr = train_arr.reshape(train_arr.shape[0] * train_arr.shape[1]).tolist()
-                test_arr = test_arr.reshape(test_arr.shape[0] * test_arr.shape[1]).tolist()
-                train_label, test_label = ['TRAIN'] * len(train_arr), ['TEST'] * len(test_arr)
-                raster_arr = train_arr + test_arr
-                raster_label = train_label + test_label
-                year_list = [year] * len(raster_arr)
-                gmd_list = [gmd_name] * len(raster_arr)
-                raster_dict = {'YEAR': year_list, 'DATA': raster_label, gw_labels[pos]: raster_arr, 'GMD': gmd_list}
-                df = pd.DataFrame(data=raster_dict)
-                if int(year) not in forecast_years:
-                    gmd_df_list[pos] = gmd_df_list[pos].append(df)
-                else:
-                    df['DATA'] = ['FORECAST'] * len(raster_label)
-                    gmd_df_forecast = gmd_df_forecast.append(df)
-                    gmd_df_forecast = gmd_df_forecast.dropna()
+            if gmd_name not in gmd_exclude_list:
+                raster_file_list = glob(gw_dir + '*.tif')
+                raster_file_list.sort()
+                for raster_file in raster_file_list:
+                    year = raster_file[raster_file.rfind('_') + 1: raster_file.rfind('.')]
+                    train_arr, test_arr = rops.extract_train_test_raster_arr(raster_file, input_train_shp, rev_train_test)
+                    train_arr = train_arr.reshape(train_arr.shape[0] * train_arr.shape[1]).tolist()
+                    test_arr = test_arr.reshape(test_arr.shape[0] * test_arr.shape[1]).tolist()
+                    train_label, test_label = ['TRAIN'] * len(train_arr), ['TEST'] * len(test_arr)
+                    raster_arr = train_arr + test_arr
+                    raster_label = train_label + test_label
+                    year_list = [year] * len(raster_arr)
+                    gmd_list = [gmd_name] * len(raster_arr)
+                    raster_dict = {'YEAR': year_list, 'DATA': raster_label, gw_labels[pos]: raster_arr, 'GMD': gmd_list}
+                    df = pd.DataFrame(data=raster_dict)
+                    if int(year) not in forecast_years:
+                        gmd_df_list[pos] = gmd_df_list[pos].append(df)
+                    else:
+                        df['DATA'] = ['FORECAST'] * len(raster_label)
+                        gmd_df_forecast = gmd_df_forecast.append(df)
+                        gmd_df_forecast = gmd_df_forecast.dropna()
     gmd_df_actual = gmd_df_list[0]
     gmd_df_pred = gmd_df_list[1]
     gmd_df_pred[gw_labels[0]] = gmd_df_actual[gw_labels[0]]
     gmd_df_pred = gmd_df_pred.dropna()
     gmd_df_pred = gmd_df_pred.append(gmd_df_forecast)
-    gmd_df_pred.to_csv(out_dir + 'GMD_Train_Test.csv', index=False)
+    out_csv = out_dir + 'GMD_Train_Test.csv'
+    with open(out_csv, 'a+') as out_file:
+        gmd_df_pred.to_csv(out_file, mode='a+', header=out_file.tell() == 0, index=False)
     return gmd_df_pred
 
 
@@ -550,15 +554,20 @@ def calculate_gmd_stats_train_test(gw_df, out_dir):
     gmd_metrics = gmd_metrics.sort_values(by=['DATA', 'GMD'])
     gmd_metrics_yearly = gmd_metrics_yearly.sort_values(by=['YEAR', 'DATA', 'GMD'])
     mean_gmd_metrics = mean_gmd_metrics.sort_values(by=['DATA', 'GMD'])
-    gmd_metrics.to_csv(out_dir + 'GMD_Metrics_Train_Test.csv', index=False)
-    gmd_metrics_yearly.to_csv(out_dir + 'GMD_Metrics_Train_Test_Yearly.csv', index=False)
-    mean_gmd_metrics.to_csv(out_dir + 'Mean_GMD_Metrics_Train_Test.csv', index=False)
+    gmd_metrics_out = out_dir + 'GMD_Metrics_Train_Test.csv'
+    gmd_metrics_yearly_out = out_dir + 'GMD_Metrics_Train_Test_Yearly.csv'
+    mean_gmd_metrics_out = out_dir + 'Mean_GMD_Metrics_Train_Test.csv'
+    out_files = [gmd_metrics_out, gmd_metrics_yearly_out, mean_gmd_metrics_out]
+    out_df = [gmd_metrics, gmd_metrics_yearly, mean_gmd_metrics]
+    for out_file, out_df in zip(out_files, out_df):
+        with open(out_file, 'a+') as of:
+            out_df.to_csv(of, mode='a+', header=of.tell() == 0, index=False)
     return gmd_metrics, gmd_metrics_yearly, mean_gmd_metrics
 
 
 def run_analysis(actual_gw_dir, pred_gw_dir, grace_csv, out_dir, input_gmd_file=None, use_gmds=True,
                  actual_gw_pattern='GW*.tif', pred_gw_pattern='pred*.tif', generate_plots=True, gmd_train=False,
-                 input_train_shp_file=None, rev_train_test=False):
+                 input_train_shp_file=None, rev_train_test=False, gmd_exclude_list=None):
     """
     Run model analysis to get actual vs predicted graph along with GRACE TWSA variations
     :param actual_gw_dir: Directory containing the actual data
@@ -574,6 +583,7 @@ def run_analysis(actual_gw_dir, pred_gw_dir, grace_csv, out_dir, input_gmd_file=
     :param input_train_shp_file: Training shape file path, gmd_train must be True
     :param rev_train_test: Set True to swap train and test arrays (required when input_train_shp_file is actually used
     for testing instead of training), works only if gmd_train=True
+    :param gmd_exclude_list: Exclude these GMDs from preprocessing
     :return: Tuple of Pandas dataframes if generate_plots=False else None
     """
 
@@ -593,8 +603,8 @@ def run_analysis(actual_gw_dir, pred_gw_dir, grace_csv, out_dir, input_gmd_file=
                                                                               input_gmd_file, out_dir,
                                                                               actual_gw_pattern, pred_gw_pattern)
         if gmd_train:
-            gw_df = preproces_gmd_train_test(actual_gw_dir_list, pred_gw_dir_list, input_train_shp_file, out_dir,
-                                             rev_train_test=rev_train_test)
+            gw_df = preprocess_gmd_train_test(actual_gw_dir_list, pred_gw_dir_list, input_train_shp_file, out_dir,
+                                              rev_train_test=rev_train_test, gmd_exclude_list=gmd_exclude_list)
             calculate_gmd_stats_train_test(gw_df, out_dir)
         else:
 

@@ -520,7 +520,7 @@ def run_gw(analyze_only=False, load_files=True, load_rf_model=False, use_gmds=Tr
     output_shp_dir = file_dir + 'GW_Shapefiles/'
     output_gw_raster_dir = file_dir + 'GW_Rasters/'
     input_gmd_file = input_dir + 'gmds/ks_gmds.shp'
-    test_area_file = input_dir + 'Test_Area/Test_Poly/Test_Area.shp'
+    test_area_file = input_dir + 'Test_Area/Test_Area.shp'
     input_gdb_dir = input_dir + 'ks_pd_data_updated2018.gdb'
     input_state_file = input_dir + 'Kansas/kansas.shp'
     gdal_path = 'C:/OSGeo4W64/'
@@ -548,7 +548,10 @@ def run_gw(analyze_only=False, load_files=True, load_rf_model=False, use_gmds=Tr
     data_year_list = range(2002, 2020)
     data_start_month = 4
     data_end_month = 9
-    test_gmd = range(1, 6)
+    test_gmd = [-1]
+    exclude_gmd = [1, 2, 3, 4]
+    test_gmd += exclude_gmd
+    gmd_exclude_list = ['GMD' + str(gmd) for gmd in exclude_gmd]
     if not analyze_only:
         gw = HydroML(input_dir, file_dir, output_dir, output_shp_dir, output_gw_raster_dir, input_gmd_file,
                      input_state_file, gdal_path, ssebop_link=ssebop_link, test_area_file=test_area_file)
@@ -579,7 +582,7 @@ def run_gw(analyze_only=False, load_files=True, load_rf_model=False, use_gmds=Tr
             rev_train_test = True
         ma.run_analysis(gw_dir, pred_gw_dir, grace_csv, use_gmds=use_gmds, out_dir=output_dir,
                         input_gmd_file=input_gmd_file, input_train_shp_file=test_area_file, gmd_train=gmd_train,
-                        rev_train_test=rev_train_test)
+                        rev_train_test=rev_train_test, gmd_exclude_list=gmd_exclude_list)
     else:
         ma.run_analysis2(gw_dir, pred_gw_dir_list, grace_csv, use_gmds=use_gmds, out_dir=output_dir,
                          input_gmd_file=input_gmd_file)
