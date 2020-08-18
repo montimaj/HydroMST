@@ -549,7 +549,7 @@ def run_gw(analyze_only=False, load_files=True, load_rf_model=False, use_gmds=Tr
     data_start_month = 4
     data_end_month = 9
     test_gmd = [-1]
-    exclude_gmd = [1, 2, 3, 4]
+    exclude_gmd = []
     test_gmd += exclude_gmd
     gmd_exclude_list = ['GMD' + str(gmd) for gmd in exclude_gmd]
     if not analyze_only:
@@ -582,7 +582,7 @@ def run_gw(analyze_only=False, load_files=True, load_rf_model=False, use_gmds=Tr
             rev_train_test = True
         ma.run_analysis(gw_dir, pred_gw_dir, grace_csv, use_gmds=use_gmds, out_dir=output_dir,
                         input_gmd_file=input_gmd_file, input_train_shp_file=test_area_file, gmd_train=gmd_train,
-                        rev_train_test=rev_train_test, gmd_exclude_list=gmd_exclude_list)
+                        rev_train_test=rev_train_test, gmd_exclude_list=gmd_exclude_list, load_gmd_train_test_csv=True)
     else:
         ma.run_analysis2(gw_dir, pred_gw_dir_list, grace_csv, use_gmds=use_gmds, out_dir=output_dir,
                          input_gmd_file=input_gmd_file)
@@ -590,5 +590,5 @@ def run_gw(analyze_only=False, load_files=True, load_rf_model=False, use_gmds=Tr
         ma.generate_feature_qq_plots(output_dir + '/raster_df.csv')
 
 
-run_gw(analyze_only=False, load_files=True, load_rf_model=False, use_gmds=True, run_analysis2=False, gmd_train=True,
+run_gw(analyze_only=False, load_files=True, load_rf_model=False, use_gmds=False, run_analysis2=False, gmd_train=True,
        load_df=False)
