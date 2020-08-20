@@ -240,7 +240,7 @@ def create_gmd_time_series_forecast_plot(input_df_list, gmd_name_list, forecast_
         ncol = 3
         bbox_to_anchor = (0.1, 1)
         if gmd == 'GMD3':
-            bbox_to_anchor = (0.1, 0.4)
+            bbox_to_anchor = (0.1, 0.5)
         if not gmd_train:
             ax1.axvspan(2010.5, 2018.5, color='#a6bddb', alpha=0.6)
             labels += ['Test Years']
@@ -460,21 +460,26 @@ def preprocess_gmd_train_test(actual_gw_dir_list, pred_gw_dir_list, input_train_
     return gmd_df_pred
 
 
-def calculate_gmd_stats_yearly(gw_df, gmd_name_list, out_dir, train_end=2010, test_start=2011):
+def calculate_gmd_stats(gw_df, gmd_name_list, out_dir, train_end=2010, test_start=2011, use_gmd_split=False):
     """
-    Calculate error metrics for each GMD
+    Calculate error metrics for each GMD yearly or over all years
     :param gw_df: Input GW Dataframe containing actual and predicted GW
     :param gmd_name_list: GMD labels
     :param out_dir: Output directory to write results to
     :param train_end: Training year end
     :param test_start: Test year start
+    :param use_gmd_split: Set True to show statistics based on gmds and not years
     :return: GMD metrics dataframe
     """
 
     gmd_metrics_df = pd.DataFrame()
     gw_df = gw_df.dropna(axis=0)
-    gw_df_list = gw_df[gw_df.YEAR <= train_end], gw_df[gw_df.YEAR >= test_start], gw_df
-    gw_df_labels = ['TRAIN', 'TEST', 'ALL']
+    gw_df_labels = ['ALL']
+    if not use_gmd_split:
+        gw_df_list = gw_df[gw_df.YEAR <= train_end], gw_df[gw_df.YEAR >= test_start], gw_df
+        gw_df_labels = ['TRAIN', 'TEST', 'ALL']
+    else:
+        gw_df_list = [gw_df]
     for gw_df, gw_df_label in zip(gw_df_list, gw_df_labels):
         for gmd in gmd_name_list:
             actual_values = gw_df[gw_df.GMD == gmd].Actual_GW
@@ -604,7 +609,8 @@ def calculate_gmd_stats_train_test(gw_df, out_dir):
 
 def run_analysis(actual_gw_dir, pred_gw_dir, grace_csv, out_dir, input_gmd_file=None, use_gmds=True,
                  actual_gw_pattern='GW*.tif', pred_gw_pattern='pred*.tif', generate_plots=True, gmd_train=False,
-                 input_train_shp_file=None, rev_train_test=False, gmd_exclude_list=None, load_gmd_train_test_csv=False):
+                 input_train_shp_file=None, rev_train_test=False, gmd_exclude_list=None, load_gmd_train_test_csv=False,
+                 gmd_all_analysis=False):
     """
     Run model analysis to get actual vs predicted graph along with GRACE TWSA variations
     :param actual_gw_dir: Directory containing the actual data
@@ -623,6 +629,8 @@ def run_analysis(actual_gw_dir, pred_gw_dir, grace_csv, out_dir, input_gmd_file=
     :param gmd_exclude_list: Exclude these GMDs from preprocessing
     :param load_gmd_train_test_csv: Set True to directly load GMD Train Test CSV which has been previously created for
     plotting, this should be set to True only when all the GMD data are present in the CSV
+    :param gmd_all_analysis: Set True to show error metrics and plots over each GMD considering all years,
+    use_gmds should be True
     :return: Tuple of Pandas dataframes if generate_plots=False else None
     """
 
@@ -659,8 +667,8 @@ def run_analysis(actual_gw_dir, pred_gw_dir, grace_csv, out_dir, input_gmd_file=
             gw_df = ts_df[1]
             ts_df = ts_df[0], ts_df[2]
             if generate_plots:
-                print(calculate_gmd_stats_yearly(gw_df, gmd_name_list, out_dir))
-                create_gmd_time_series_forecast_plot(ts_df, gmd_name_list=gmd_name_list)
+                print(calculate_gmd_stats(gw_df, gmd_name_list, out_dir, use_gmd_split=gmd_all_analysis))
+                create_gmd_time_series_forecast_plot(ts_df, gmd_name_list=gmd_name_list, gmd_train=gmd_all_analysis)
     if (not gmd_train) and (not generate_plots):
         if use_gmds:
             return ts_df, gmd_name_list

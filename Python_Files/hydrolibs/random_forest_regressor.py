@@ -34,6 +34,7 @@ def create_dataframe(input_file_dir, input_gmd_file, output_dir, column_names=No
     :param ordering: Set True to order dataframe column names
     :param label_attr: Label attribute present in the shapefile
     :param load_gmd_info: Set True to load previously created GMD info raster
+    :return: GMD Numpy array
     :return: Pandas dataframe
     """
 
