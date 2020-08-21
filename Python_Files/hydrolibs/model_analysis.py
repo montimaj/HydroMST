@@ -486,13 +486,14 @@ def calculate_gmd_stats(gw_df, gmd_name_list, out_dir, train_end=2010, test_star
             pred_values = gw_df[gw_df.GMD == gmd].Pred_GW
             rmse = metrics.mean_squared_error(actual_values, pred_values, squared=False)
             r2 = np.round(metrics.r2_score(actual_values, pred_values), 2)
+            sr2 = np.round(np.corrcoef(actual_values, pred_values)[0, 1], 2)
             mae = metrics.mean_absolute_error(actual_values, pred_values)
             nmae = np.round(mae / np.mean(actual_values), 2)
             nrmse = np.round(rmse / np.mean(actual_values), 2)
             mae = np.round(mae, 2)
             rmse = np.round(rmse, 2)
-            gmd_metrics_dict = {'GW_TYPE': [gw_df_label], 'GMD': [gmd], 'RMSE': [rmse], 'R2': [r2], 'MAE': [mae],
-                                'NMAE': [nmae], 'NRMSE': [nrmse]}
+            gmd_metrics_dict = {'GW_TYPE': [gw_df_label], 'GMD': [gmd], 'RMSE': [rmse], 'R2': [r2], 'SR2': [sr2],
+                                'MAE': [mae], 'NMAE': [nmae], 'NRMSE': [nrmse]}
             gmd_metrics_df = gmd_metrics_df.append(pd.DataFrame(data=gmd_metrics_dict))
     out_csv = out_dir + 'GMD_Metrics.csv'
     gmd_metrics_df.to_csv(out_csv, index=False)
@@ -675,17 +676,20 @@ def run_analysis(actual_gw_dir, pred_gw_dir, grace_csv, out_dir, input_gmd_file=
         return ts_df
 
 
-def generate_feature_qq_plots(input_csv_file, year_col='YEAR', temporal_features=('ET', 'P'), pred_attr='GW'):
+def generate_feature_box_plots(input_csv_file, year_col='YEAR', temporal_features=('ET', 'P'), pred_attr='GW',
+                               drop_attr=('GMD',)):
     """
-    Generate QQ plots for all features
+    Generate box plots for all features
     :param input_csv_file: Input CSV file path
     :param year_col: Name of Year column
     :param temporal_features: Temporal feature names
     :param pred_attr: Prediction attribute name to be dropped from boxplot
+    :param drop_attr: Drop these attributes from the plots
     :return: None
     """
 
     input_df = pd.read_csv(input_csv_file)
+    input_df = input_df.drop(columns=list(drop_attr))
     feature_names = input_df.columns.values.tolist()
     feature_names.remove(pred_attr)
     for tf in temporal_features:
@@ -735,3 +739,5 @@ def run_analysis2(actual_gw_dir, pred_gw_dir_list, grace_csv, out_dir, input_gmd
         create_time_series_forecast_plot_multi_pred(ts_list)
     else:
         create_gmd_time_series_forecast_plot_multi_pred(ts_list, gmd_name_list=gmd_name_list)
+
+

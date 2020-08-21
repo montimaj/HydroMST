@@ -101,7 +101,7 @@ def get_rf_model(rf_file):
 
 
 def split_data_train_test_ratio(input_df, pred_attr='GW', shuffle=True, random_state=0, test_size=0.2, outdir=None,
-                                drop_attrs=(), test_year=None, test_gmd=None, use_gmd=False):
+                                test_year=None, test_gmd=None, use_gmd=False):
     """
     Split data based on train-test percentage
     :param input_df: Input dataframe
@@ -110,7 +110,6 @@ def split_data_train_test_ratio(input_df, pred_attr='GW', shuffle=True, random_s
     :param random_state: Random state used during train test split
     :param test_size: Test data size percentage (0<=test_size<=1)
     :param outdir: Set path to store intermediate files
-    :param drop_attrs: Drop these specified attributes
     :param test_year: Build test data from only this year
     :param test_gmd: Build test data from only this GMD, use_gmd must be set to True
     :param use_gmd: Set True to build test data from only test_gmd
@@ -126,7 +125,6 @@ def split_data_train_test_ratio(input_df, pred_attr='GW', shuffle=True, random_s
     flag = False
     if (test_year in years) or (use_gmd and test_gmd in gmds):
         flag = True
-    drop_columns = [pred_attr] + list(drop_attrs)
     selection_var = years
     selection_label = 'YEAR'
     test_var = test_year
@@ -137,7 +135,6 @@ def split_data_train_test_ratio(input_df, pred_attr='GW', shuffle=True, random_s
     for svar in selection_var:
         selected_data = input_df.loc[input_df[selection_label] == svar]
         y = selected_data[pred_attr]
-        selected_data = selected_data.drop(columns=drop_columns)
         x_train, x_test, y_train, y_test = train_test_split(selected_data, y, shuffle=shuffle,
                                                             random_state=random_state, test_size=test_size)
         x_train_df = x_train_df.append(x_train)
@@ -155,14 +152,13 @@ def split_data_train_test_ratio(input_df, pred_attr='GW', shuffle=True, random_s
     return x_train_df, x_test_df, y_train_df[0].ravel(), y_test_df[0].ravel()
 
 
-def split_data_attribute(input_df, pred_attr='GW', outdir=None, drop_attrs=(), test_years=(2016, ), test_gmds=(1, 2, 3),
+def split_data_attribute(input_df, pred_attr='GW', outdir=None, test_years=(2016, ), test_gmds=(1, 2, 3),
                          use_gmds=False, shuffle=True, random_state=0):
     """
     Split data based on a particular attribute like year or GMD
     :param input_df: Input dataframe
     :param pred_attr: Prediction attribute name
     :param outdir: Set path to store intermediate files
-    :param drop_attrs: Drop these specified attributes
     :param test_years: Build test data from only these years
     :param test_gmds: Build test data from only these GMDs, use_gmds must be set to True
     :param use_gmds: Set True to build test data from only test_gmds
@@ -177,7 +173,6 @@ def split_data_attribute(input_df, pred_attr='GW', outdir=None, drop_attrs=(), t
     x_test_df = pd.DataFrame()
     y_train_df = pd.DataFrame()
     y_test_df = pd.DataFrame()
-    drop_columns = [pred_attr] + list(drop_attrs)
     selection_var = years
     selection_label = 'YEAR'
     test_vars = test_years
@@ -188,7 +183,7 @@ def split_data_attribute(input_df, pred_attr='GW', outdir=None, drop_attrs=(), t
     for svar in selection_var:
         selected_data = input_df.loc[input_df[selection_label] == svar]
         y_t = selected_data[pred_attr]
-        x_t = selected_data.drop(columns=drop_columns)
+        x_t = selected_data
         if svar not in test_vars:
             x_train_df = x_train_df.append(x_t)
             y_train_df = pd.concat([y_train_df, y_t])
@@ -313,14 +308,16 @@ def rf_regressor(input_df, out_dir, n_estimators=500, random_state=0, bootstrap=
             x_train, x_test, y_train, y_test = split_data_train_test_ratio(input_df, pred_attr=pred_attr,
                                                                            test_size=test_size,
                                                                            random_state=random_state, shuffle=shuffle,
-                                                                           outdir=out_dir, drop_attrs=drop_attrs,
-                                                                           test_year=test_year, test_gmd=test_gmd,
-                                                                           use_gmd=use_gmd)
+                                                                           outdir=out_dir, test_year=test_year,
+                                                                           test_gmd=test_gmd, use_gmd=use_gmd)
         else:
             x_train, x_test, y_train, y_test = split_data_attribute(input_df, pred_attr=pred_attr, outdir=out_dir,
-                                                                    drop_attrs=drop_attrs, test_years=test_year,
-                                                                    shuffle=shuffle, random_state=random_state,
-                                                                    test_gmds=test_gmd, use_gmds=use_gmd)
+                                                                    test_years=test_year, shuffle=shuffle,
+                                                                    random_state=random_state, test_gmds=test_gmd,
+                                                                    use_gmds=use_gmd)
+        drop_columns = [pred_attr] + list(drop_attrs)
+        x_train = x_train.drop(columns=drop_columns)
+        x_test = x_test.drop(columns=drop_columns)
         regressor = RandomForestRegressor(n_estimators=n_estimators, random_state=random_state, bootstrap=bootstrap,
                                           max_features=max_features, n_jobs=-1, oob_score=True)
         regressor.fit(x_train, y_train)

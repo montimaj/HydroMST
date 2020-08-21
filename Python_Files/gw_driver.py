@@ -499,20 +499,22 @@ class HydroML:
         return pred_out_dir
 
 
-def run_gw(analyze_only=False, load_files=True, load_rf_model=False, use_gmds=True, show_qq_plots=False,
-           run_analysis2=False, gmd_train=False, load_df=False, gmd_all_analysis=False):
+def run_gw(analyze_only=False, load_files=True, load_rf_model=False, use_gmds=True, show_box_plots=False,
+           run_analysis2=False, gmd_train=False, load_df=False, gmd_all_analysis=False,
+           show_train_test_box_plots=False):
     """
     Main function for running the project, some variables require to be hardcoded
     :param analyze_only: Set True to just produce analysis results, all required files must be present
     :param load_files: Set True to load existing files, needed only if analyze_only=False
     :param load_rf_model: Set True to load existing Random Forest model, needed only if analyze_only=False
     :param use_gmds: Set False to use entire GW raster for analysis
-    :param show_qq_plots: Set True to display Q-Q plots of features
+    :param show_box_plots: Set True to display box plots of features
     :param run_analysis2: Set True to run model analysis for predictions from different use cases
     :param gmd_train: Set True to use custom shapefile for training, the variable is hardcoded (test_area_file)
     :param load_df: Set True to load existing dataframe from CSV
     :param gmd_all_analysis: Set True to show error metrics and plots over each GMD considering all years,
     use_gmds should be True. gmd_train would be automatically set to False for analysis purposes if this is True.
+    :param show_train_test_box_plots: Set True to show box plots of predictors for train and test data separately
     :return: None
     """
 
@@ -550,7 +552,7 @@ def run_gw(analyze_only=False, load_files=True, load_rf_model=False, use_gmds=Tr
     data_year_list = range(2002, 2020)
     data_start_month = 4
     data_end_month = 9
-    test_gmd = [3]
+    test_gmd = [5]
     if not analyze_only:
         gw = HydroML(input_dir, file_dir, output_dir, output_shp_dir, output_gw_raster_dir, input_gmd_file,
                      input_state_file, gdal_path, ssebop_link=ssebop_link)
@@ -583,9 +585,12 @@ def run_gw(analyze_only=False, load_files=True, load_rf_model=False, use_gmds=Tr
     else:
         ma.run_analysis2(gw_dir, pred_gw_dir_list, grace_csv, use_gmds=use_gmds, out_dir=output_dir,
                          input_gmd_file=input_gmd_file)
-    if show_qq_plots:
-        ma.generate_feature_qq_plots(output_dir + '/raster_df.csv')
+    if show_box_plots:
+        ma.generate_feature_box_plots(output_dir + '/raster_df.csv')
+    if show_train_test_box_plots:
+        ma.generate_feature_box_plots(output_dir + 'X_Train.csv')
+        ma.generate_feature_box_plots(output_dir + 'X_Test.csv')
 
 
 run_gw(analyze_only=True, load_files=True, load_rf_model=False, use_gmds=True, gmd_train=True, load_df=False,
-       gmd_all_analysis=True)
+       gmd_all_analysis=True, show_train_test_box_plots=True)
