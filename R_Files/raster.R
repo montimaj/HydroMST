@@ -4,9 +4,9 @@ library(colorRamps)
 pred.raster <- raster('../Outputs/Output_Apr_Sept/Predicted_Rasters/pred_2012.tif')
 actual.raster <- raster('../Inputs/Files_Apr_Sept/RF_Data/GW_2012.tif')
 
-wgs84 = "+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs"
-actual.raster = projectRaster(actual.raster, crs = wgs84, method = "ngb")
-pred.raster = projectRaster(pred.raster, crs = wgs84, method = "ngb")
+wgs84 <- "+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs"
+actual.raster <- projectRaster(actual.raster, crs = wgs84, method = "ngb")
+pred.raster <- projectRaster(pred.raster, crs = wgs84, method = "ngb")
 
 par(mfrow = c(1, 2))
 plot(actual.raster, ylab='Latitude (Degree)', xlab='Longitude (Degree)', 

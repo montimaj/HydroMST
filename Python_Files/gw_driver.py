@@ -525,6 +525,7 @@ def run_gw(analyze_only=False, load_files=True, load_rf_model=False, use_gmds=Tr
     output_shp_dir = file_dir + 'GW_Shapefiles/'
     output_gw_raster_dir = file_dir + 'GW_Rasters/'
     input_gmd_file = input_dir + 'gmds/ks_gmds.shp'
+    test_area_file = input_dir + 'Test_Area/Test_Area.shp'
     input_gdb_dir = input_dir + 'ks_pd_data_updated2018.gdb'
     input_state_file = input_dir + 'Kansas/kansas.shp'
     gdal_path = 'C:/OSGeo4W64/'
@@ -552,10 +553,10 @@ def run_gw(analyze_only=False, load_files=True, load_rf_model=False, use_gmds=Tr
     data_year_list = range(2002, 2020)
     data_start_month = 4
     data_end_month = 9
-    test_gmd = [5]
+    test_gmd = [1]
     if not analyze_only:
         gw = HydroML(input_dir, file_dir, output_dir, output_shp_dir, output_gw_raster_dir, input_gmd_file,
-                     input_state_file, gdal_path, ssebop_link=ssebop_link)
+                     input_state_file, gdal_path, ssebop_link=ssebop_link, test_area_file=test_area_file)
         gw.download_data(year_list=data_year_list, start_month=data_start_month, end_month=data_end_month,
                          already_downloaded=load_files, already_extracted=load_files)
         gw.extract_shp_from_gdb(input_gdb_dir, year_list=range(2002, 2019), already_extracted=load_files)
@@ -578,10 +579,13 @@ def run_gw(analyze_only=False, load_files=True, load_rf_model=False, use_gmds=Tr
                                          drop_attrs=drop_attrs[:1] + exclude_vars, pred_attr=pred_attr, only_pred=False)
     input_gmd_file = file_dir + 'gmds/reproj/input_gmd_reproj.shp'
     if not run_analysis2:
+        show_gmd_name = True
         if gmd_all_analysis:
             gmd_train = False
+            show_gmd_name = False
         ma.run_analysis(gw_dir, pred_gw_dir, grace_csv, use_gmds=use_gmds, out_dir=output_dir,
-                        input_gmd_file=input_gmd_file, gmd_train=gmd_train, gmd_all_analysis=gmd_all_analysis)
+                        input_gmd_file=test_area_file, gmd_train=gmd_train, gmd_all_analysis=gmd_all_analysis,
+                        show_gmd_name=show_gmd_name)
     else:
         ma.run_analysis2(gw_dir, pred_gw_dir_list, grace_csv, use_gmds=use_gmds, out_dir=output_dir,
                          input_gmd_file=input_gmd_file)
@@ -592,5 +596,5 @@ def run_gw(analyze_only=False, load_files=True, load_rf_model=False, use_gmds=Tr
         ma.generate_feature_box_plots(output_dir + 'X_Test.csv')
 
 
-run_gw(analyze_only=True, load_files=True, load_rf_model=False, use_gmds=True, gmd_train=True, load_df=False,
-       gmd_all_analysis=True, show_train_test_box_plots=True)
+run_gw(analyze_only=False, load_files=True, load_rf_model=False, use_gmds=True, gmd_train=True, load_df=False,
+       gmd_all_analysis=True, show_train_test_box_plots=False)

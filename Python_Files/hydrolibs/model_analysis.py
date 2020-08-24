@@ -218,7 +218,7 @@ def create_time_series_forecast_plot(input_df_list, forecast_years=(2019, ), plo
 
 
 def create_gmd_time_series_forecast_plot(input_df_list, gmd_name_list, forecast_years=(2019, ), plot_title='',
-                                         gmd_train=False):
+                                         gmd_train=False, show_gmd_name=True):
     """
     Create time series plot considering all GMDs
     :param input_df_list: Input data frames as constructed from #create_gw_time_series
@@ -226,6 +226,7 @@ def create_gmd_time_series_forecast_plot(input_df_list, gmd_name_list, forecast_
     :param forecast_years: The line color changes for these years
     :param plot_title: Plot title
     :param gmd_train: Remove year highlights if gmd_train is set True
+    :param show_gmd_name: Set False to disable GMD name in the plot labels
     :return: None
     """
 
@@ -236,7 +237,9 @@ def create_gmd_time_series_forecast_plot(input_df_list, gmd_name_list, forecast_
         df = gw_df[gw_df.GMD == gmd]
         df.set_index('YEAR').plot(ax=ax1)
         ax1.set_xlim(left=np.min(df.YEAR) - 0.1, right=np.max(df.YEAR) + 0.1)
-        labels = ['Actual GW: ' + gmd, 'Predicted GW: ' + gmd]
+        labels = ['Actual GW', 'Predicted GW']
+        if show_gmd_name:
+            labels = ['Actual GW: ' + gmd, 'Predicted GW: ' + gmd]
         ncol = 3
         bbox_to_anchor = (0.1, 1)
         if gmd == 'GMD3':
@@ -611,7 +614,7 @@ def calculate_gmd_stats_train_test(gw_df, out_dir):
 def run_analysis(actual_gw_dir, pred_gw_dir, grace_csv, out_dir, input_gmd_file=None, use_gmds=True,
                  actual_gw_pattern='GW*.tif', pred_gw_pattern='pred*.tif', generate_plots=True, gmd_train=False,
                  input_train_shp_file=None, rev_train_test=False, gmd_exclude_list=None, load_gmd_train_test_csv=False,
-                 gmd_all_analysis=False):
+                 gmd_all_analysis=False, show_gmd_name=True):
     """
     Run model analysis to get actual vs predicted graph along with GRACE TWSA variations
     :param actual_gw_dir: Directory containing the actual data
@@ -632,6 +635,7 @@ def run_analysis(actual_gw_dir, pred_gw_dir, grace_csv, out_dir, input_gmd_file=
     plotting, this should be set to True only when all the GMD data are present in the CSV
     :param gmd_all_analysis: Set True to show error metrics and plots over each GMD considering all years,
     use_gmds should be True
+    :param show_gmd_name: Set False to disable GMD name in the plot labels
     :return: Tuple of Pandas dataframes if generate_plots=False else None
     """
 
@@ -660,7 +664,7 @@ def run_analysis(actual_gw_dir, pred_gw_dir, grace_csv, out_dir, input_gmd_file=
                 gw_df = pd.read_csv(out_dir + 'GMD_Metrics_Train_Test_Yearly.csv')
                 gw_df = gw_df[gw_df.DATA == 'TEST'][['YEAR', 'GMD', 'Actual_GW', 'Pred_GW']]
                 create_gmd_time_series_forecast_plot((gw_df, grace_df), gmd_name_list=gmd_name_list,
-                                                     gmd_train=gmd_train)
+                                                     gmd_train=gmd_train, show_gmd_name=show_gmd_name)
         else:
             ts_df = create_gw_forecast_time_series(actual_gw_dir_list, pred_gw_dir_list, gmd_name_list=gmd_name_list,
                                                    grace_csv=grace_csv, use_gmds=use_gmds, out_dir=out_dir,
@@ -669,7 +673,8 @@ def run_analysis(actual_gw_dir, pred_gw_dir, grace_csv, out_dir, input_gmd_file=
             ts_df = ts_df[0], ts_df[2]
             if generate_plots:
                 print(calculate_gmd_stats(gw_df, gmd_name_list, out_dir, use_gmd_split=gmd_all_analysis))
-                create_gmd_time_series_forecast_plot(ts_df, gmd_name_list=gmd_name_list, gmd_train=gmd_all_analysis)
+                create_gmd_time_series_forecast_plot(ts_df, gmd_name_list=gmd_name_list, gmd_train=gmd_all_analysis,
+                                                     show_gmd_name=show_gmd_name)
     if (not gmd_train) and (not generate_plots):
         if use_gmds:
             return ts_df, gmd_name_list
