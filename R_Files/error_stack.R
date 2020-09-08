@@ -18,8 +18,9 @@ for (i in years) {
 err.raster.stack <- stack(err.raster)
 pred.raster.stack <- stack(pred.raster.list)
 err.mean.raster <- mean(err.raster.stack)
-plot(err.mean.raster, col = matlab.like2(255), ylab='Latitude (Degree)', xlab='Longitude (Degree)', 
+plot(err.mean.raster, col = matlab.like2(255), ylab='Latitude (Degree)', xlab='Longitude (Degree)', yaxt='n',
      legend.args=list(text='Error (mm)', side = 2))
+axis(side=2, at=c(37, 38, 39, 40))
 err.df <- as.data.frame(err.mean.raster, na.rm = T)
 err <- err.df$layer
 err.mean <- mean(err)

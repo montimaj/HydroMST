@@ -24,11 +24,16 @@ actual.raster <- projectRaster(actual.raster, crs = wgs84, method = "ngb")
 pred.raster <- projectRaster(pred.raster, crs = wgs84, method = "ngb")
 
 
-par(mfrow = c(1, 3))
-plot(actual.raster, ylab='Latitude (Degree)', xlab='Longitude (Degree)', 
-     legend.args=list(text='GW Pumping (mm)', side = 2, font = 0.5, cex = 0.8))
-plot(pred.raster, ylab='Latitude (Degree)', xlab='Longitude (Degree)', 
-     legend.args=list(text='GW Pumping (mm)', side = 2, font = 0.5, cex = 0.8))
+par(mfrow = c(1, 1))
+min_value  <- round(min(minValue(actual.raster), minValue(pred.raster)))
+max_value <- round(max(maxValue(actual.raster), maxValue(pred.raster)))
+max_value <- 180
+breaks <- seq(min_value, max_value, by=10)
+col <- rev(terrain.colors(length(breaks) - 1))
+plot(actual.raster, ylab='Latitude (Degree)', xlab='Longitude (Degree)', axis.args=list(at=c(0, 50, 100, 150)),
+     legend.args=list(text='GW Pumping (mm)', side = 2, font = 0.5, cex = 0.8), breaks=breaks, col=col, zlim=c(min_value, max_value))
+plot(pred.raster, ylab='Latitude (Degree)', xlab='Longitude (Degree)', axis.args=list(at=c(0, 50, 100, 150)),
+     legend.args=list(text='GW Pumping (mm)', side = 2, font = 0.5, cex = 0.8), breaks=breaks, col=col, zlim=c(min_value, max_value))
 
 
 par(mfrow = c(1, 1))

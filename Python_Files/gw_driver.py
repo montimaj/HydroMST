@@ -596,5 +596,5 @@ def run_gw(analyze_only=False, load_files=True, load_rf_model=False, use_gmds=Tr
         ma.generate_feature_box_plots(output_dir + 'X_Test.csv')
 
 
-run_gw(analyze_only=False, load_files=True, load_rf_model=False, use_gmds=True, gmd_train=True, load_df=False,
-       gmd_all_analysis=True, show_train_test_box_plots=False)
+run_gw(analyze_only=False, load_files=True, load_rf_model=False, use_gmds=False, gmd_train=False, load_df=False,
+       gmd_all_analysis=False, show_train_test_box_plots=False)
