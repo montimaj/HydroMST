@@ -71,9 +71,7 @@ err.mean <- mean(err)
 err.sd <- sd(err)
 std.err <- err / err.sd
 std.err.df <- as.data.frame(std.err)
-names(std.err.df) <- c('STD.ERR')
-std.err.df$STD.ERR[std.err.df$STD.ERR < -2] <- NA
-std.err.df$STD.ERR[std.err.df$STD.ERR > 2] <- NA
+names(std.err.df) <- c('STD.ERR')W
 std.err.df <- na.omit(std.err.df)
 hist(std.err.df$STD.ERR, freq = F, main="", xlab='Standardized Residuals')
 x <- seq(min(std.err.df$STD.ERR), max(std.err.df$STD.ERR), length.out=length(std.err.df$STD.ERR))

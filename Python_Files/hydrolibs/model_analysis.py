@@ -744,5 +744,3 @@ def run_analysis2(actual_gw_dir, pred_gw_dir_list, grace_csv, out_dir, input_gmd
         create_time_series_forecast_plot_multi_pred(ts_list)
     else:
         create_gmd_time_series_forecast_plot_multi_pred(ts_list, gmd_name_list=gmd_name_list)
-
-
