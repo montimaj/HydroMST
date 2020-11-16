@@ -1,7 +1,10 @@
 # HydroMST
+
+![preview](Preview/HydroMST_Preview.PNG)
+
 Source codes for groundwater pumping prediction using integrated remote sensing datasets and machine learning
 
-The required datasets are in the Inputs folder.
+The remote sensing data sets can be automatically downloaded using the project code.
 
 Anaconda3 environment is required for successfully running the codes.
 
