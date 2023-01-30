@@ -139,7 +139,7 @@ def split_data_train_test_ratio(input_df, pred_attr='GW', shuffle=True, random_s
                                                             random_state=random_state, test_size=test_size)
         x_train_df = x_train_df.append(x_train)
         if (flag and test_var == svar) or not flag:
-            x_test_df = x_test_df.append(x_test)
+            x_test_df = pd.concat([x_test_df, x_test])
             y_test_df = pd.concat([y_test_df, y_test])
         y_train_df = pd.concat([y_train_df, y_train])
 
@@ -167,8 +167,8 @@ def split_data_attribute(input_df, pred_attr='GW', outdir=None, test_years=(2016
     :return: X_train, X_test, y_train, y_test
     """
 
-    years = set(input_df['YEAR'])
-    gmds = set(input_df['GMD'])
+    years = input_df.YEAR.unique()
+    gmds = input_df.GMD.unique()
     x_train_df = pd.DataFrame()
     x_test_df = pd.DataFrame()
     y_train_df = pd.DataFrame()
@@ -185,10 +185,10 @@ def split_data_attribute(input_df, pred_attr='GW', outdir=None, test_years=(2016
         y_t = selected_data[pred_attr]
         x_t = selected_data
         if svar not in test_vars:
-            x_train_df = x_train_df.append(x_t)
+            x_train_df = pd.concat([x_train_df, x_t])
             y_train_df = pd.concat([y_train_df, y_t])
         else:
-            x_test_df = x_test_df.append(x_t)
+            x_test_df = pd.concat([x_test_df, x_t])
             y_test_df = pd.concat([y_test_df, y_t])
 
     if shuffle:
@@ -207,7 +207,7 @@ def split_data_attribute(input_df, pred_attr='GW', outdir=None, test_years=(2016
 
 
 def split_data_gmd_ratio(input_df, pred_attr='GW', shuffle=True, random_state=0, test_size=0.2, outdir=None,
-                         gmd_id=4):
+                         gmd_id=4, test_year=()):
     """
     Split data based on train-test percentage of a particular GMD
     :param input_df: Input dataframe
@@ -217,6 +217,7 @@ def split_data_gmd_ratio(input_df, pred_attr='GW', shuffle=True, random_state=0,
     :param test_size: Test data size percentage (0<=test_size<=1)
     :param outdir: Set path to store intermediate files
     :param gmd_id: Build train/test data from only this GMD
+    :param test_year: List of years as test data. If empty, then random splitting is performed
     :return: X_train, X_test, y_train, y_test
     """
 
@@ -226,19 +227,29 @@ def split_data_gmd_ratio(input_df, pred_attr='GW', shuffle=True, random_state=0,
     if gmd_id not in gmds:
         gmd_id = 4
     gmd_df = input_df[input_df.GMD == gmd_id]
-    y = gmd_df[pred_attr].to_frame()
-    x_train, x_test, y_train, y_test = train_test_split(
-        gmd_df, y,
-        shuffle=shuffle,
-        random_state=random_state,
-        test_size=test_size
-    )
-    if outdir:
-        x_train.to_csv(outdir + 'X_Train.csv', index=False)
-        x_test.to_csv(outdir + 'X_Test.csv', index=False)
-        y_train.to_csv(outdir + 'Y_Train.csv', index=False)
-        y_test.to_csv(outdir + 'Y_Test.csv', index=False)
-    return x_train, x_test, y_train[pred_attr].ravel(), y_test[pred_attr].ravel()
+    if not test_year:
+        y = gmd_df[pred_attr].to_frame()
+        x_train, x_test, y_train, y_test = train_test_split(
+            gmd_df, y,
+            shuffle=shuffle,
+            random_state=random_state,
+            test_size=test_size
+        )
+        y_train = y_train[pred_attr].ravel()
+        y_test = y_test[pred_attr].ravel()
+        if outdir:
+            x_train.to_csv(outdir + 'X_Train.csv', index=False)
+            x_test.to_csv(outdir + 'X_Test.csv', index=False)
+            y_train.to_csv(outdir + 'Y_Train.csv', index=False)
+            y_test.to_csv(outdir + 'Y_Test.csv', index=False)
+    else:
+        x_train, x_test, y_train, y_test = split_data_attribute(
+            gmd_df, pred_attr,
+            outdir, test_year,
+            random_state=random_state,
+            use_gmds=False
+        )
+    return x_train, x_test, y_train, y_test
 
 
 def create_pdplots(x_train, rf_model, outdir, plot_3d=False, descriptive_labels=False):
@@ -347,7 +358,8 @@ def rf_regressor(input_df, out_dir, n_estimators=500, random_state=0, bootstrap=
                 input_df, pred_attr=pred_attr,
                 test_size=test_size,
                 random_state=random_state, shuffle=shuffle,
-                outdir=out_dir, gmd_id=test_gmd
+                outdir=out_dir, gmd_id=test_gmd,
+                test_year=test_year
             )
         else:
             if not split_attribute:

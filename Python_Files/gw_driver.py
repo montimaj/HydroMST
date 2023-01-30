@@ -575,10 +575,10 @@ def run_gw(analyze_only=False, load_files=True, load_rf_model=False, use_gmds=Tr
         df = gw.create_dataframe(year_list=range(2002, 2022), exclude_vars=exclude_vars, load_df=load_df,
                                  label_attr='GMD')
         max_features = len(df.columns.values.tolist()) - len(drop_attrs) - 1
-        rf_model = gw.build_model(df, n_estimators=500, test_year=range(2017, 2022), test_gmd=test_gmd,
+        rf_model = gw.build_model(df, n_estimators=500, test_year=range(2005, 2022), test_gmd=test_gmd,
                                   use_gmd=gmd_train, drop_attrs=drop_attrs, pred_attr=pred_attr,
                                   load_model=load_rf_model, max_features=max_features, plot_graphs=False,
-                                  split_attribute=True, calc_perm_imp=False, split_gmd_ratio=True, test_size=0.05)
+                                  split_attribute=True, calc_perm_imp=False, split_gmd_ratio=True, test_size=0.3)
         # pred_gw_dir = gw.get_predictions(rf_model=rf_model, pred_years=range(2002, 2020),
         #                                  drop_attrs=drop_attrs[:1] + exclude_vars, pred_attr=pred_attr, only_pred=False)
     # input_gmd_file = file_dir + 'gmds/reproj/input_gmd_reproj.shp'
