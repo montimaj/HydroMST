@@ -5,13 +5,13 @@ import matplotlib.pyplot as plt
 import rasterio as rio
 import geopandas as gpd
 import numpy as np
-import gdal
 import astropy.convolution as apc
 import scipy.ndimage.filters as flt
 import subprocess
 import xmltodict
 import os
 import multiprocessing
+from osgeo import gdal
 from copy import deepcopy
 from joblib import Parallel, delayed
 from rasterio.plot import plotting_extent
@@ -272,6 +272,7 @@ def filter_nans(raster_file, ref_file, outfile_path):
     raster_arr, raster_file = read_raster_as_arr(raster_file)
     ref_arr = read_raster_as_arr(ref_file, get_file=False)
     raster_arr[np.isnan(ref_arr)] = NO_DATA_VALUE
+    raster_file.close()
     write_raster(raster_arr, raster_file, transform=raster_file.transform, outfile_path=outfile_path)
 
 
@@ -811,11 +812,12 @@ def update_crop_coeff_raster(input_crop_coeff_raster, agri_raster):
     crop_coeff_arr, crop_coeff_file = read_raster_as_arr(input_crop_coeff_raster)
     agri_arr = read_raster_as_arr(agri_raster, get_file=False)
     crop_coeff_arr[np.logical_and(crop_coeff_arr == 1., agri_arr < 0.1)] = 0.
+    crop_coeff_file.close()
     write_raster(crop_coeff_arr, crop_coeff_file, transform=crop_coeff_file.transform,
                  outfile_path=input_crop_coeff_raster)
 
 
-def get_gmd_info_arr(input_raster_file, input_gmd_shp_file, output_dir, label_attr='GMD_label', load_gmd_info=False):
+def get_gmd_info_arr(input_raster_file, input_gmd_shp_file, output_dir, label_attr='GMD', load_gmd_info=False):
     """
     Get GMD array wherein each pixel correspond to the GMD name. If there's no GMD,
     :param input_raster_file: Input raster file path
@@ -832,7 +834,7 @@ def get_gmd_info_arr(input_raster_file, input_gmd_shp_file, output_dir, label_at
         return np.load(gmd_out)
     raster_arr, raster_file = read_raster_as_arr(input_raster_file)
     gmd_shp = gpd.read_file(input_gmd_shp_file)
-    gmd_arr = np.full_like(raster_arr, fill_value=-1)
+    gmd_arr = np.full_like(raster_arr, fill_value=int(NO_DATA_VALUE), dtype=np.int)
     print('Creating GMD info array...This will take some time...')
     for idx, value in np.ndenumerate(raster_arr):
         gx, gy = raster_file.xy(idx[0], idx[1])
@@ -841,16 +843,16 @@ def get_gmd_info_arr(input_raster_file, input_gmd_shp_file, output_dir, label_at
             feature = gmd_shp[gmd_shp[label_attr] == label]
             poly = feature['geometry'].iloc[0]
             if poly.contains(gp):
-                gmd_label = label[-1]
-                if label[-2].isnumeric():
-                    gmd_label = label[-2:]
-                gmd_arr[idx] = int(gmd_label)
+                gmd_arr[idx] = label
                 break
-    gmd_arr[np.isnan(raster_arr)] = np.nan
     np.save(gmd_out, gmd_arr)
-    gmd_arr[np.isnan(gmd_arr)] = NO_DATA_VALUE
     gmd_out = output_dir + 'GMD_Info_Raster.tif'
-    write_raster(gmd_arr, raster_file, transform=raster_file.transform, outfile_path=gmd_out)
+    write_raster(
+        gmd_arr, raster_file,
+        transform=raster_file.transform,
+        outfile_path=gmd_out,
+        no_data_value=int(NO_DATA_VALUE)
+    )
     return gmd_arr
 
 

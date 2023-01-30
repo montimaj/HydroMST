@@ -51,7 +51,7 @@ def create_dataframe(input_file_dir, input_gmd_file, output_dir, column_names=No
     raster_arr = None
     gmd_arr = rops.get_gmd_info_arr(raster_file_dict[years[0]][0], input_gmd_file, output_dir=output_dir,
                                     label_attr=label_attr, load_gmd_info=load_gmd_info)
-    gmd_arr = gmd_arr.reshape(gmd_arr.shape[0] * gmd_arr.shape[1])
+    gmd_arr = gmd_arr.ravel()
     for year in years:
         file_list = raster_file_dict[year]
         for raster_file in file_list:
@@ -65,7 +65,7 @@ def create_dataframe(input_file_dir, input_gmd_file, output_dir, column_names=No
             df = pd.DataFrame(data=raster_dict)
             flag = True
         else:
-            df = df.append(pd.DataFrame(data=raster_dict))
+            df = pd.concat([df, pd.DataFrame(data=raster_dict)])
     df['GMD'] = gmd_arr.tolist() * len(years)
     df = df.dropna(axis=0)
     df = reindex_df(df, column_names=column_names, ordering=ordering)
@@ -206,6 +206,41 @@ def split_data_attribute(input_df, pred_attr='GW', outdir=None, test_years=(2016
     return x_train_df, x_test_df, y_train_df[0].ravel(), y_test_df[0].ravel()
 
 
+def split_data_gmd_ratio(input_df, pred_attr='GW', shuffle=True, random_state=0, test_size=0.2, outdir=None,
+                         gmd_id=4):
+    """
+    Split data based on train-test percentage of a particular GMD
+    :param input_df: Input dataframe
+    :param pred_attr: Prediction attribute name
+    :param shuffle: Default True for shuffling
+    :param random_state: Random state used during train test split
+    :param test_size: Test data size percentage (0<=test_size<=1)
+    :param outdir: Set path to store intermediate files
+    :param gmd_id: Build train/test data from only this GMD
+    :return: X_train, X_test, y_train, y_test
+    """
+
+    gmds = input_df.GMD.unique()
+    if isinstance(gmd_id, list) or isinstance(gmd_id, tuple):
+        gmd_id = gmd_id[0]
+    if gmd_id not in gmds:
+        gmd_id = 4
+    gmd_df = input_df[input_df.GMD == gmd_id]
+    y = gmd_df[pred_attr].to_frame()
+    x_train, x_test, y_train, y_test = train_test_split(
+        gmd_df, y,
+        shuffle=shuffle,
+        random_state=random_state,
+        test_size=test_size
+    )
+    if outdir:
+        x_train.to_csv(outdir + 'X_Train.csv', index=False)
+        x_test.to_csv(outdir + 'X_Test.csv', index=False)
+        y_train.to_csv(outdir + 'Y_Train.csv', index=False)
+        y_test.to_csv(outdir + 'Y_Test.csv', index=False)
+    return x_train, x_test, y_train[pred_attr].ravel(), y_test[pred_attr].ravel()
+
+
 def create_pdplots(x_train, rf_model, outdir, plot_3d=False, descriptive_labels=False):
     """
     Create partial dependence plots
@@ -268,7 +303,7 @@ def create_pdplots(x_train, rf_model, outdir, plot_3d=False, descriptive_labels=
 def rf_regressor(input_df, out_dir, n_estimators=500, random_state=0, bootstrap=True, max_features=None, test_size=0.2,
                  pred_attr='GW', shuffle=True, plot_graphs=False, plot_3d=False, plot_dir=None, drop_attrs=(),
                  test_case='', test_year=None, test_gmd=None, use_gmd=False, split_attribute=True, load_model=True,
-                 calc_perm_imp=False):
+                 calc_perm_imp=False, split_gmd_ratio=False):
     """
     Perform random forest regression
     :param input_df: Input pandas dataframe
@@ -293,6 +328,9 @@ def rf_regressor(input_df, out_dir, n_estimators=500, random_state=0, bootstrap=
     :param split_attribute: Split train test data based on a particular attribute like year or GMD
     :param load_model: Load an earlier pre-trained RF model
     :param calc_perm_imp: Set True to get permutation importances on train and test data
+    :param split_gmd_ratio: If True, then data is split based on the particular GMD set in test_gmd (must have a single
+    GMD id, otherwise, the first GMD from the list is taken). If test_gmd is None, then GMD 4 is used as default.
+    This flag if True will supersede other splitting flags.
     :return: Random forest model
     """
 
@@ -304,22 +342,35 @@ def rf_regressor(input_df, out_dir, n_estimators=500, random_state=0, bootstrap=
         x_test = pd.read_csv(out_dir + 'X_Test.csv')
         y_test = pd.read_csv(out_dir + 'Y_Test.csv')
     else:
-        if not split_attribute:
-            x_train, x_test, y_train, y_test = split_data_train_test_ratio(input_df, pred_attr=pred_attr,
-                                                                           test_size=test_size,
-                                                                           random_state=random_state, shuffle=shuffle,
-                                                                           outdir=out_dir, test_year=test_year,
-                                                                           test_gmd=test_gmd, use_gmd=use_gmd)
+        if split_gmd_ratio:
+            x_train, x_test, y_train, y_test = split_data_gmd_ratio(
+                input_df, pred_attr=pred_attr,
+                test_size=test_size,
+                random_state=random_state, shuffle=shuffle,
+                outdir=out_dir, gmd_id=test_gmd
+            )
         else:
-            x_train, x_test, y_train, y_test = split_data_attribute(input_df, pred_attr=pred_attr, outdir=out_dir,
-                                                                    test_years=test_year, shuffle=shuffle,
-                                                                    random_state=random_state, test_gmds=test_gmd,
-                                                                    use_gmds=use_gmd)
+            if not split_attribute:
+                x_train, x_test, y_train, y_test = split_data_train_test_ratio(
+                    input_df, pred_attr=pred_attr,
+                    test_size=test_size,
+                    random_state=random_state, shuffle=shuffle,
+                    outdir=out_dir, test_year=test_year,
+                    test_gmd=test_gmd, use_gmd=use_gmd
+                )
+            else:
+                x_train, x_test, y_train, y_test = split_data_attribute(
+                    input_df, pred_attr=pred_attr,
+                    outdir=out_dir, test_years=test_year,
+                    shuffle=shuffle, random_state=random_state,
+                    test_gmds=test_gmd, use_gmds=use_gmd
+                )
         drop_columns = [pred_attr] + list(drop_attrs)
         x_train = x_train.drop(columns=drop_columns)
         x_test = x_test.drop(columns=drop_columns)
         regressor = RandomForestRegressor(n_estimators=n_estimators, random_state=random_state, bootstrap=bootstrap,
-                                          max_features=max_features, n_jobs=-1, oob_score=True)
+                                          max_features=3, n_jobs=-1, oob_score=True, min_samples_leaf=8,
+                                          max_depth=16)
         regressor.fit(x_train, y_train)
         pickle.dump(regressor, open(out_dir + 'rf_model', mode='wb'))
 
@@ -338,6 +389,7 @@ def rf_regressor(input_df, out_dir, n_estimators=500, random_state=0, bootstrap=
     test_score = np.round(regressor.score(x_test, y_test), 2)
     r2_score, standard_r2, mae, rmse, nmae, nrmse = ma.get_error_stats(y_test, y_pred)
     oob_score = np.round(regressor.oob_score_, 2)
+    print(x_train.columns)
     df = {'Test': [test_case], 'N_Estimator': [n_estimators], 'MF': [max_features], 'F_IMP': [feature_imp],
           'Train_Score': [train_score], 'Test_Score': [test_score], 'OOB_Score': [oob_score], 'R2': [r2_score],
           'Standard R2': [standard_r2], 'MAE': [mae], 'RMSE': [rmse], 'NMAE': [nmae], 'NRMSE': [nrmse]}

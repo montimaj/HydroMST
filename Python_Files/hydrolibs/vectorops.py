@@ -6,7 +6,6 @@ import pandas as pd
 import rasterio as rio
 import numpy as np
 import subprocess
-import fiona
 import os
 import multiprocessing
 from joblib import Parallel, delayed
@@ -258,8 +257,7 @@ def extract_gdb_data(input_gdb_dir, attr_name, year_list, outdir, source_crs='ep
     :return: None
     """
 
-    num_layers = len(fiona.listlayers(input_gdb_dir))
-    gdb_data = gpd.read_file(input_gdb_dir, driver='FileGDB', layer=num_layers - 1)
+    gdb_data = gpd.read_file(input_gdb_dir, driver='FileGDB', layer=0)
     attr_list = [attr_name + '_' + str(year) for year in year_list]
     num_cores = multiprocessing.cpu_count()
     Parallel(n_jobs=num_cores)(delayed(parallel_gdb_extract)(gdb_data, index=index, attr=attr, year_list=year_list,

@@ -424,7 +424,8 @@ class HydroML:
 
     def build_model(self, df, n_estimators=100, random_state=0, bootstrap=True, max_features=3, test_size=None,
                     pred_attr='GW', shuffle=False, plot_graphs=False, plot_3d=False, drop_attrs=(), test_year=(2012,),
-                    test_gmd=(1, 2, 3), use_gmd=False, split_attribute=True, load_model=False, calc_perm_imp=False):
+                    test_gmd=(1, 2, 3), use_gmd=False, split_attribute=True, load_model=False, calc_perm_imp=False,
+                    split_gmd_ratio=False):
         """
         Build random forest model
         :param df: Input pandas dataframe object
@@ -446,6 +447,9 @@ class HydroML:
         :param split_attribute: Split train test data based on years
         :param load_model: Load an earlier pre-trained RF model
         :param calc_perm_imp: Set True to get permutation importances on train and test data
+        :param split_gmd_ratio: If True, then data is split based on the particular GMD set in test_gmd
+        (must have a single GMD id, otherwise, the first GMD from the list is taken). If test_gmd is None,
+        then GMD 4 is used as default. This flag if True will supersede other splitting flags.
         :return: Fitted RandomForestRegressor object
         """
 
@@ -457,7 +461,7 @@ class HydroML:
                                     use_gmd=use_gmd, shuffle=shuffle, plot_graphs=plot_graphs, plot_3d=plot_3d,
                                     split_attribute=split_attribute, bootstrap=bootstrap, plot_dir=plot_dir,
                                     max_features=max_features, load_model=load_model, test_size=test_size,
-                                    calc_perm_imp=calc_perm_imp)
+                                    calc_perm_imp=calc_perm_imp, split_gmd_ratio=split_gmd_ratio)
         return rf_model
 
     def get_predictions(self, rf_model, pred_years, column_names=None, final_mask=None, ordering=False, pred_attr='GW',
@@ -525,9 +529,9 @@ def run_gw(analyze_only=False, load_files=True, load_rf_model=False, use_gmds=Tr
     output_shp_dir = file_dir + 'GW_Shapefiles/'
     output_gw_raster_dir = file_dir + 'GW_Rasters/'
     input_gmd_file = input_dir + 'gmds/ks_gmds.shp'
-    test_area_file = input_dir + 'Test_Area/Test_Area.shp'
-    input_gdb_dir = input_dir + 'ks_pd_data_updated2018.gdb'
-    input_state_file = input_dir + 'Kansas/kansas.shp'
+    test_area_file = None
+    input_gdb_dir = input_dir + 'ks_water_right_data_20220921.gdb'
+    input_state_file = input_dir + 'state/kansas.shp'
     gdal_path = 'C:/OSGeo4W64/'
     gw_dir = file_dir + 'RF_Data/'
     pred_gw_dir = output_dir + 'Predicted_Rasters/'
@@ -550,16 +554,16 @@ def run_gw(analyze_only=False, load_files=True, load_rf_model=False, use_gmds=Tr
     pred_attr = 'GW'
     ssebop_link = 'https://edcintl.cr.usgs.gov/downloads/sciweb1/shared/uswem/web/conus/eta/modis_eta/monthly/' \
                   'downloads/'
-    data_year_list = range(2002, 2020)
+    data_year_list = range(2002, 2022)
     data_start_month = 4
     data_end_month = 9
-    test_gmd = [1]
+    test_gmd = [4]
     if not analyze_only:
         gw = HydroML(input_dir, file_dir, output_dir, output_shp_dir, output_gw_raster_dir, input_gmd_file,
                      input_state_file, gdal_path, ssebop_link=ssebop_link, test_area_file=test_area_file)
         gw.download_data(year_list=data_year_list, start_month=data_start_month, end_month=data_end_month,
                          already_downloaded=load_files, already_extracted=load_files)
-        gw.extract_shp_from_gdb(input_gdb_dir, year_list=range(2002, 2019), already_extracted=load_files)
+        gw.extract_shp_from_gdb(input_gdb_dir, year_list=range(2019, 2022), already_extracted=load_files)
         gw.reproject_shapefiles(already_reprojected=load_files)
         gw.create_gw_rasters(already_created=load_files)
         gw.reclassify_cdl(ks_class_dict, already_reclassified=load_files)
@@ -568,33 +572,34 @@ def run_gw(analyze_only=False, load_files=True, load_rf_model=False, use_gmds=Tr
         gw.mask_rasters(already_masked=load_files)
         gw.create_land_use_rasters(already_created=load_files)
         gw.update_crop_coeff_raster(already_updated=load_files)
-        df = gw.create_dataframe(year_list=range(2002, 2020), exclude_vars=exclude_vars, load_df=load_df,
-                                 label_attr='GMD_label')
+        df = gw.create_dataframe(year_list=range(2002, 2022), exclude_vars=exclude_vars, load_df=load_df,
+                                 label_attr='GMD')
         max_features = len(df.columns.values.tolist()) - len(drop_attrs) - 1
-        rf_model = gw.build_model(df, n_estimators=500, test_year=range(2011, 2019), test_gmd=test_gmd,
+        rf_model = gw.build_model(df, n_estimators=500, test_year=range(2017, 2022), test_gmd=test_gmd,
                                   use_gmd=gmd_train, drop_attrs=drop_attrs, pred_attr=pred_attr,
                                   load_model=load_rf_model, max_features=max_features, plot_graphs=False,
-                                  split_attribute=True, calc_perm_imp=False)
-        pred_gw_dir = gw.get_predictions(rf_model=rf_model, pred_years=range(2002, 2020),
-                                         drop_attrs=drop_attrs[:1] + exclude_vars, pred_attr=pred_attr, only_pred=False)
-    input_gmd_file = file_dir + 'gmds/reproj/input_gmd_reproj.shp'
-    if not run_analysis2:
-        show_gmd_name = True
-        if gmd_all_analysis:
-            gmd_train = False
-            show_gmd_name = False
-        ma.run_analysis(gw_dir, pred_gw_dir, grace_csv, use_gmds=use_gmds, out_dir=output_dir,
-                        input_gmd_file=test_area_file, gmd_train=gmd_train, gmd_all_analysis=gmd_all_analysis,
-                        show_gmd_name=show_gmd_name)
-    else:
-        ma.run_analysis2(gw_dir, pred_gw_dir_list, grace_csv, use_gmds=use_gmds, out_dir=output_dir,
-                         input_gmd_file=input_gmd_file)
-    if show_box_plots:
-        ma.generate_feature_box_plots(output_dir + '/raster_df.csv')
-    if show_train_test_box_plots:
-        ma.generate_feature_box_plots(output_dir + 'X_Train.csv')
-        ma.generate_feature_box_plots(output_dir + 'X_Test.csv')
+                                  split_attribute=True, calc_perm_imp=False, split_gmd_ratio=True, test_size=0.05)
+        # pred_gw_dir = gw.get_predictions(rf_model=rf_model, pred_years=range(2002, 2020),
+        #                                  drop_attrs=drop_attrs[:1] + exclude_vars, pred_attr=pred_attr, only_pred=False)
+    # input_gmd_file = file_dir + 'gmds/reproj/input_gmd_reproj.shp'
+    # if not run_analysis2:
+    #     show_gmd_name = True
+    #     if gmd_all_analysis:
+    #         gmd_train = False
+    #         show_gmd_name = False
+    #     ma.run_analysis(gw_dir, pred_gw_dir, grace_csv, use_gmds=use_gmds, out_dir=output_dir,
+    #                     input_gmd_file=test_area_file, gmd_train=gmd_train, gmd_all_analysis=gmd_all_analysis,
+    #                     show_gmd_name=show_gmd_name)
+    # else:
+    #     ma.run_analysis2(gw_dir, pred_gw_dir_list, grace_csv, use_gmds=use_gmds, out_dir=output_dir,
+    #                      input_gmd_file=input_gmd_file)
+    # if show_box_plots:
+    #     ma.generate_feature_box_plots(output_dir + '/raster_df.csv')
+    # if show_train_test_box_plots:
+    #     ma.generate_feature_box_plots(output_dir + 'X_Train.csv')
+    #     ma.generate_feature_box_plots(output_dir + 'X_Test.csv')
 
 
-run_gw(analyze_only=False, load_files=True, load_rf_model=False, use_gmds=False, gmd_train=False, load_df=False,
-       gmd_all_analysis=False, show_train_test_box_plots=False)
+if __name__ == '__main__':
+    run_gw(analyze_only=False, load_files=True, load_rf_model=False, use_gmds=False, gmd_train=False, load_df=True,
+           gmd_all_analysis=False, show_train_test_box_plots=False)
